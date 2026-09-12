@@ -1,0 +1,30 @@
+{
+  "upstream_repository": "https://github.com/bojieli/ai-agent-book",
+  "retrieved_at_utc": "2026-09-10T02:52:34.087400+00:00",
+  "sources": {
+    "runner": {
+      "url": "https://raw.githubusercontent.com/bojieli/ai-agent-book/main/chapter1/context/run_experiment_1_1.py",
+      "download_sha256": "4fbf584394f38e07f58bb859b868e1f65c749c3c12b05f15c0744e46a80bd58d"
+    },
+    "evidence": {
+      "url": "https://raw.githubusercontent.com/bojieli/ai-agent-book/main/chapter1/context/validation/latest.json",
+      "download_sha256": "1165923ac8ffff72f9f9aa0a533bd62c1a8626d3da6e2a1a31a3032550bfe709"
+    },
+    "license": {
+      "url": "https://raw.githubusercontent.com/bojieli/ai-agent-book/main/LICENSE",
+      "download_sha256": "2a9d82c7f37caadf72436764de67e4042942b8dea2ec9456ed5c43daf7eba074"
+    }
+  },
+  "evidence_created_at": "2026-09-01T08:33:08.875521+00:00",
+  "evidence_repository_metadata": {
+    "commit": "8feb25835d17710aa4cc8c587d801d0c7bee65b8",
+    "branch": "main",
+    "worktree_dirty": true
+  },
+  "provenance_note": "Downloaded from mutable main. Evidence reports a dirty worktree, so its recorded commit is not an exact immutable identity for these downloads. Only task, answers, schemas and conversion observations extracted; no agent implementation or model traces retained.",
+  "modifications": [
+    "Packaged one canonical guarded task as standalone data.",
+    "Removed timestamps from currency results.",
+    "Added Chinese README and declarative grading explanation."
+  ]
+}

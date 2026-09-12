@@ -1,0 +1,6 @@
+agent_harness/
+.DS_Store
+.env
+.venv/
+__pycache__/
+*.pyc

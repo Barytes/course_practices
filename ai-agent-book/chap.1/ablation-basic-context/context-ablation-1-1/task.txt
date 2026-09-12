@@ -1,0 +1,10 @@
+According to the company's quarterly revenue:
+- Q1: 2.5 million USD
+- Q2: 2.1 million EUR
+- Q3: 1.8 million GBP
+- Q4: 380 million JPY
+
+Use the available currency-conversion and calculation tools to convert every
+non-USD quarter to USD, then calculate the annual total and quarterly average.
+Report both values rounded to two decimal places. Do not estimate exchange
+rates yourself; use the tool observations.

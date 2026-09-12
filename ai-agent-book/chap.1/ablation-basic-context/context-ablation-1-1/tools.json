@@ -1,0 +1,88 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "parse_pdf",
+      "description": "Download and parse a PDF document from a URL or a file path to extract text content",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "The URL or file path of the PDF document to parse"
+          }
+        },
+        "required": [
+          "url"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "convert_currency",
+      "description": "Convert an amount from one currency to another using current exchange rates",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "description": "The amount to convert"
+          },
+          "from_currency": {
+            "type": "string",
+            "description": "The source currency code (e.g., USD, EUR)"
+          },
+          "to_currency": {
+            "type": "string",
+            "description": "The target currency code (e.g., USD, EUR)"
+          }
+        },
+        "required": [
+          "amount",
+          "from_currency",
+          "to_currency"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "calculate",
+      "description": "Evaluate a simple mathematical expression",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "expression": {
+            "type": "string",
+            "description": "The mathematical expression to evaluate (e.g., '2 + 2 * 3')"
+          }
+        },
+        "required": [
+          "expression"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "code_interpreter",
+      "description": "Execute Python code for complex calculations, data processing, and computing totals. Use this for tasks like: summing lists of values, calculating percentages, aggregating financial data, performing multi-step calculations, or any computation requiring variables and intermediate steps.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Python code to execute. Can use variables, loops, and mathematical operations. Example: 'amounts = [2500000, 2278481, 2541806, 2282609, 2388060]; total = sum(amounts); print(f\"Total: ${total:,.2f}\")"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      }
+    }
+  }
+]

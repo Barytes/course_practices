@@ -1,0 +1,50 @@
+{
+  "description": "Frozen observations for the three exact conversion requests in this task; timestamps removed. Not a general currency conversion service. Use converted_amount rather than multiplying by the rounded exchange_rate field.",
+  "fixtures": [
+    {
+      "tool_name": "convert_currency",
+      "arguments": {
+        "amount": 2100000,
+        "from_currency": "EUR",
+        "to_currency": "USD"
+      },
+      "result": {
+        "original_amount": 2100000.0,
+        "from_currency": "EUR",
+        "to_currency": "USD",
+        "converted_amount": 2282608.7,
+        "exchange_rate": 1.087
+      }
+    },
+    {
+      "tool_name": "convert_currency",
+      "arguments": {
+        "amount": 1800000,
+        "from_currency": "GBP",
+        "to_currency": "USD"
+      },
+      "result": {
+        "original_amount": 1800000.0,
+        "from_currency": "GBP",
+        "to_currency": "USD",
+        "converted_amount": 2278481.01,
+        "exchange_rate": 1.2658
+      }
+    },
+    {
+      "tool_name": "convert_currency",
+      "arguments": {
+        "amount": 380000000,
+        "from_currency": "JPY",
+        "to_currency": "USD"
+      },
+      "result": {
+        "original_amount": 380000000.0,
+        "from_currency": "JPY",
+        "to_currency": "USD",
+        "converted_amount": 2541806.02,
+        "exchange_rate": 0.0067
+      }
+    }
+  ]
+}

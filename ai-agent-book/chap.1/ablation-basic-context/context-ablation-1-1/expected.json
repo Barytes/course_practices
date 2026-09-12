@@ -1,0 +1,12 @@
+{
+  "task_id": "context-ablation-1-1",
+  "currency": "USD",
+  "annual_total": "9602895.73",
+  "quarterly_average": "2400723.93",
+  "upstream_expected_numbers": [
+    "9602895.73",
+    "2400723.93"
+  ],
+  "upstream_correctness_rule": "Remove commas, dollar signs, and spaces from final_answer; require a nonempty answer containing both expected-number strings. This is a substring check, not a semantic or groundedness evaluator.",
+  "rounding": "Sum Q1 USD 2500000 and the three observed converted_amount values; divide total by 4; report two decimal places."
+}
