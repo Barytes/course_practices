@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 5 章 · 注意力：查询、键、值 — MiniMind 手把手</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第二部 · 积木</p>
+      <h1>第 5 章 · 注意力：查询、键、值</h1>
+      <p class="lead">这一章只做一件事：让每个位置用「问题」去检索其他位置的「索引」，再按相似度把「内容」加权求和。先不要位置编码，不要多头，不要缓存。</p>
+    </header>
+    <article class="prose">
+      <h2>没有注意力会怎样</h2>
+      <p>如果每个词元只经过自己的线性层，位置 5 永远无法直接读到位置 1 写过的信息。卷积能看窗口，循环能看历史，但窗口和逐步传递都有上限。注意力让任意两个位置之间有一条直接通路：分数由数据决定，不由距离硬编码。</p>
+
+      <h2>检索比喻，请把它当成真的</h2>
+      <p>把每个位置想成一张卡片，卡片上有三份经过线性变换的信息：</p>
+      <ul>
+        <li><strong>查询 Q（Query）</strong>：我现在在找什么？</li>
+        <li><strong>键 K（Key）</strong>：我这份内容的索引词是什么，供别人检索？</li>
+        <li><strong>值 V（Value）</strong>：我真正要提供的内容是什么？</li>
+      </ul>
+      <p>位置 i 拿自己的查询，去和所有位置的键做点积，得到一组分数；分数越大，说明「我要的」和「你的索引」越匹配。把分数做成权重，对所有位置的值加权求和，就是位置 i 读到的上下文。</p>
+      <p>自注意力的特殊之处：Q、K、V 都来自同一串输入，只是乘了三块不同的权重。所以叫「自」。</p>
+
+      <h2>用 3 个词元手算一遍</h2>
+      <p>假设隐藏维度暂时是 2，序列是三个位置，已经得到：</p>
+      <figure class="code">
+        <figcaption>手算用的小数 · 不是 MiniMind 的真实权重</figcaption>
+        <pre><code>Q = [[1.0, 0.0],     # 位置 0 的查询
+     [0.0, 1.0],     # 位置 1
+     [1.0, 1.0]]     # 位置 2
+
+K = [[1.0, 0.0],
+     [0.0, 1.0],
+     [1.0, 0.0]]
+
+V = [[10.0, 0.0],
+     [ 0.0, 20.0],
+     [30.0,  0.0]]
+</code></pre>
+      </figure>
+      <p>分数矩阵是 Q 乘 K 的转置：</p>
+      <div class="formula">
+        <div class="eq">S = Q K<sup>T</sup>　　形状 [T, T]，S<sub>ij</sub> 表示「位置 i 的查询 · 位置 j 的键」</div>
+      </div>
+      <p>对上面的数字，S 的第 0 行是 <code>[1, 0, 1]</code>：位置 0 更关注位置 0 和 2。还不能直接拿 S 去乘 V，因为点积的尺度会随维度变大。标准做法是除以 √d，d 是每个头的维度：</p>
+      <div class="formula">
+        <div class="eq">Attention(Q, K, V) = softmax(Q K<sup>T</sup> / √d) V</div>
+        <div class="hint">softmax 沿「键」这一维做，即每一行变成一组和为 1 的权重。</hint>
+      </div>
+      <p>除以 √d 的直观原因：若 Q、K 的各维独立、方差约为 1，则点积的方差约为 d，标准差约为 √d。除掉之后，softmax 的输入尺度不随维度爆炸，权重才不会变成「几乎 one-hot」。</p>
+
+      <h2>张量形状（先单头）</h2>
+      <table class="plain">
+        <thead><tr><th>张量</th><th>形状</th><th>怎么来</th></tr></thead>
+        <tbody>
+          <tr><td>x</td><td>[B, T, D]</td><td>上一层的隐藏状态，D=768。</td></tr>
+          <tr><td>Q / K / V</td><td>[B, T, D]</td><td>x 乘三块线性层。单头时先令头维度等于 D。</td></tr>
+          <tr><td>分数</td><td>[B, T, T]</td><td>(Q K<sup>T</sup>) / √D，最后一个 T 是「被检索的位置」。</td></tr>
+          <tr><td>输出</td><td>[B, T, D]</td><td>权重乘 V，再经输出投影（下一章多头时会用到）。</td></tr>
+        </tbody>
+      </table>
+
+      <h2>现在动手写：单头、无掩码、无缓存</h2>
+      <p>先把检索写对。因果掩码和键值缓存在第 6 章加；多头在第 7 章加。请在文件里跑断言，确认形状。</p>
+      <figure class="code">
+        <figcaption>现在动手写 · 最小自注意力</figcaption>
+        <pre><code>import math
+import torch
+from torch import nn
+import torch.nn.functional as F
+
+class TinyAttention(nn.Module):
+    """单头自注意力：只为了把 Q/K/V 检索写对。"""
+
+    def __init__(self, dim: int):
+        super().__init__()
+        self.dim = dim
+        self.q_proj = nn.Linear(dim, dim, bias=False)
+        self.k_proj = nn.Linear(dim, dim, bias=False)
+        self.v_proj = nn.Linear(dim, dim, bias=False)
+        self.o_proj = nn.Linear(dim, dim, bias=False)
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        # x: [batch, seq, dim]
+        q = self.q_proj(x)
+        k = self.k_proj(x)
+        v = self.v_proj(x)
+
+        # 分数: [batch, seq, seq]
+        scale = 1.0 / math.sqrt(self.dim)
+        scores = torch.matmul(q, k.transpose(-2, -1)) * scale
+        weights = F.softmax(scores.float(), dim=-1).type_as(q)
+        context = torch.matmul(weights, v)
+        return self.o_proj(context)
+
+
+if __name__ == "__main__":
+    B, T, D = 2, 5, 8
+    attn = TinyAttention(D)
+    x = torch.randn(B, T, D)
+    y = attn(x)
+    assert y.shape == (B, T, D)
+    print("ok", y.shape)
+</code></pre>
+      </figure>
+
+      <div class="callout warn">
+        <p class="label">现在这个实现有一个故意的缺陷</p>
+        <p>位置 0 的查询已经能看到位置 4 的键和值。训练语言模型时这等于作弊：预测「下一个词」时偷看了未来。第 6 章会用上三角为负无穷的掩码禁止这件事。先保留这个缺陷，是为了让你看清掩码到底盖住了矩阵的哪一块。</p>
+      </div>
+
+      <h2>softmax 之前为什么先转 float</h2>
+      <p>半精度（float16 / bfloat16）的动态范围有限。分数里若出现较大的数，softmax 的 exp 可能溢出成 inf。官方在手工注意力路径上写的是 <code>F.softmax(scores.float(), dim=-1).type_as(xq)</code>：用 float32 算权重，再转回原来的精度去乘 V。教学代码请保持这一习惯。</p>
+
+      <h2>和你现在的 attention.py 怎么衔接</h2>
+      <p><code>exp-2-2/attention.py</code> 里的注释已经写对了方向：「Q 检索 K，再按分数提取 V」。把上面的 <code>TinyAttention</code> 填进去，用一个很小的 <code>main()</code> 打印 <code>weights[0]</code>。观察：没有掩码时，每一行 5 个权重和为 1，且未来位置的权重一般不是 0。</p>
+
+      <h2>自测</h2>
+      <ul>
+        <li>若交换 Q 和 K 的角色，分数矩阵发生什么？输出还是「按内容加权」吗？</li>
+        <li>为什么除的是 √d 而不是 d？d 很大时，不除会导致 softmax 怎样？</li>
+        <li>画出 T=4 时分数矩阵的 4×4 格子。下一章要盖住的是严格上三角，还是包含对角线？</li>
+      </ul>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 15 章 · 对话模板与监督微调 — MiniMind 手把手</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第四部 · 训练</p>
+      <h1>第 15 章 · 对话模板与监督微调</h1>
+      <p class="lead">预训练会接龙，还不会当助手。监督微调（SFT）继续做下一个词预测，但文本换成「用户 / 助手」模板，并且只在助手要说的那些词元上算损失。</p>
+    </header>
+    <article class="prose">
+      <h2>预训练和微调的相同与不同</h2>
+      <p>相同：还是交叉熵，还是同一个 MiniMind-3，还是 AdamW。不同有三处：</p>
+      <ol>
+        <li><strong>初始权重。</strong>从 <code>pretrain_768.pth</code> 加载，而不是随机初始化。学习率降到 1e-5 量级，免得把已经学到的语言知识冲掉。</li>
+        <li><strong>数据。</strong>jsonl 里是 <code>conversations</code> 列表，角色为 user / assistant / system / tool。</li>
+        <li><strong>损失掩码。</strong>用户说的话、系统提示、填充，标签都是 -100。只有助手回复（以及它的结束符）产生梯度。</li>
+      </ol>
+      <p>若对用户文本也算损失，模型会把「模仿用户怎么提问」当成目标，助手风格就不稳。掩码是微调里最关键的工程细节。</p>
+
+      <h2>对话模板把角色变成特殊标记</h2>
+      <p>模型仍然只吃一串编号。模板负责把结构化消息展开成字符串。MiniMind-3 与 Qwen 风格接近，核心骨架是：</p>
+      <figure class="code">
+        <figcaption>展开后的对话（示意，省略思考块细节）</figcaption>
+        <pre><code>&lt;|im_start|&gt;system
+你是 MiniMind。&lt;|im_end|&gt;
+&lt;|im_start|&gt;user
+天空为什么是蓝的？&lt;|im_end|&gt;
+&lt;|im_start|&gt;assistant
+因为短波蓝光更容易被散射。&lt;|im_end|&gt;
+</code></pre>
+      </figure>
+      <p>真正的官方模板还插入 <code>&lt;think&gt;</code>。推理开关 <code>open_thinking=1</code> 时，生成前缀会停在 <code>&lt;think&gt;</code> 开头，让模型先写思考再写回答；为 0 时注入空的思考块，模型更倾向直接回答。工具调用则展开为 <code>&lt;tool_call&gt;</code> 与 <code>&lt;tool_response&gt;</code>。这些都由分词器的 <code>chat_template</code> 完成，你在数据集里调用：</p>
+      <figure class="code">
+        <figcaption>对照官方 · 用模板展开，而不是手拼字符串</figcaption>
+        <pre><code>prompt = tokenizer.apply_chat_template(
+    messages, tokenize=False, add_generation_prompt=False, tools=tools
+)
+</code></pre>
+      </figure>
+      <p>训练时 <code>add_generation_prompt=False</code>，因为样本里已经包含助手回复。推理时改为 True，模板会在末尾补上 <code>&lt;|im_start|&gt;assistant</code>，模型从这里开始续写。</p>
+
+      <h2>如何只给助手位置打标签</h2>
+      <p>官方的办法是在编号序列里扫描「助手段开始」和「段结束」两串特征编号：</p>
+      <ul>
+        <li>开始：把 <code>bos_token + "assistant\n"</code> 编成的那一小段 id（<code>bos_id</code>）；</li>
+        <li>结束：把 <code>eos_token + "\n"</code> 编成的 id（<code>eos_id</code>）。</li>
+      </ul>
+      <p>从每个开始标记之后，到对应结束标记（含结束符）之前，把 labels 设成与 input_ids 相同；其余保持 -100。多轮对话就有多段助手回复，循环扫描即可。</p>
+      <figure class="code">
+        <figcaption>现在动手写 · 标签掩码的教学实现</figcaption>
+        <pre><code>def generate_labels(input_ids, bos_id, eos_id, max_length):
+    labels = [-100] * len(input_ids)
+    i = 0
+    while i < len(input_ids):
+        if input_ids[i:i + len(bos_id)] == bos_id:
+            start = i + len(bos_id)
+            end = start
+            while end < len(input_ids):
+                if input_ids[end:end + len(eos_id)] == eos_id:
+                    break
+                end += 1
+            for j in range(start, min(end + len(eos_id), max_length)):
+                labels[j] = input_ids[j]
+            i = end + len(eos_id) if end < len(input_ids) else len(input_ids)
+        else:
+            i += 1
+    return labels
+</code></pre>
+      </figure>
+      <p>请用一条两轮对话打印 <code>tokenizer.decode</code>：凡是用户字，对应 label 应是 -100；助手字应等于该位置的 input id。</p>
+
+      <h2>SFT 数据上官方还做了两件随机事</h2>
+      <ul>
+        <li>约 20% 的样本若本来没有 system，就随机插一句系统提示（「你是 minimind……」这类）。</li>
+        <li>若模板里出现空思考块，约 80% 概率把它删掉，让模型见过「直接回答」和「带着空 think 标签」两种表面形式。</li>
+      </ul>
+      <p>工具调用样本（conversations 里带 tools）不做这些随机改写，以免拆坏 JSON 结构。当前主线的 <code>sft_t2t</code> / <code>sft_t2t_mini</code> 已经混入工具调用，因此通常不必再单独训一轮 toolcall。</p>
+
+      <h2>训练脚本几乎就是预训练脚本换皮</h2>
+      <table class="plain">
+        <thead><tr><th>项</th><th>预训练</th><th>全参数 SFT</th></tr></thead>
+        <tbody>
+          <tr><td>数据集</td><td>PretrainDataset</td><td>SFTDataset</td></tr>
+          <tr><td>from_weight</td><td>none</td><td>pretrain</td></tr>
+          <tr><td>learning_rate</td><td>5e-4</td><td>1e-5</td></tr>
+          <tr><td>batch_size</td><td>32</td><td>16</td></tr>
+          <tr><td>max_seq_len</td><td>340（完整 t2t）</td><td>768（mini 建议）</td></tr>
+          <tr><td>保存前缀</td><td>pretrain</td><td>full_sft</td></tr>
+        </tbody>
+      </table>
+      <p>循环内部仍然是 <code>loss + aux_loss</code>、余弦学习率、梯度裁剪。MoE 只要 <code>--use_moe 1</code>，会从 <code>pretrain_768_moe.pth</code> 读到 <code>full_sft_768_moe.pth</code>。</p>
+
+      <div class="callout">
+        <p class="label">微调仍然可以灌知识</p>
+        <p>不要把 SFT 理解成「只学格式」。MiniMind 主线 SFT 数据到 14GB 量级时，它更像带目标的继续训练：既对齐对话格式，也继续压入知识和工具使用习惯。小数据的身份 / 医疗 LoRA 才是「尽量不改通用能力、只补一块」——见第 17 章。</p>
+      </div>
+
+      <h2>自测</h2>
+      <ul>
+        <li>推理时为什么必须 <code>add_generation_prompt=True</code>？False 的话模型会从什么位置开始生成？</li>
+        <li>若 bos_id 匹配失败（例如模板改了换行），标签会变成什么样？损失还能降吗？</li>
+        <li>为什么工具样本不要随机插入 system 提示？</li>
+      </ul>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

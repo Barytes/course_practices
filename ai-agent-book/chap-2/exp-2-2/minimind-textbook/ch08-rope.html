@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 8 章 · 旋转位置编码 — MiniMind 手把手</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第二部 · 积木</p>
+      <h1>第 8 章 · 旋转位置编码</h1>
+      <p class="lead">到目前为止，注意力把序列当成「一组无序卡片」——打乱词序，分数几乎不变。旋转位置编码把位置写进查询和键的几何里，让点积自动带上相对距离。</p>
+    </header>
+    <article class="prose">
+      <h2>没有位置信息会怎样</h2>
+      <p>「狗咬人」和「人咬狗」若只是同一袋词元，自注意力无法区分。早期做法是在嵌入上加一份绝对位置向量。更好的做法是：不往输入上加东西，而是在算注意力之前旋转 Q 和 K，使得</p>
+      <div class="formula">
+        <div class="eq">(R<sub>m</sub> q) · (R<sub>n</sub> k) = q · (R<sub>n−m</sub> k)</div>
+        <div class="hint">位置 m 的查询与位置 n 的键的点积，只依赖于相对距离 n−m，以及 q、k 本身。</hint>
+      </div>
+      <p>这就是旋转位置编码（Rotary Position Embedding，RoPE）。MiniMind-3 和 Qwen3 都用它。</p>
+
+      <h2>二维旋转，推广到 96 维</h2>
+      <p>平面上把向量旋转角度 θ，可以用一个 2×2 矩阵。RoPE 把 head_dim 维两两一组，每一对用不同的频率旋转。第 i 对的频率是</p>
+      <div class="formula">
+        <div class="eq">ω<sub>i</sub> = θ<sub>base</sub><sup>−2i / head_dim</sup>　　i = 0, 1, …, head_dim/2 − 1</div>
+        <div class="hint">MiniMind-3 的 θ_base 即 rope_theta = 1e6。较大的基频让高频（近距离）和低频（远距离）分得更开，有利于长上下文。</hint>
+      </div>
+      <p>位置 m 上，第 i 对被旋转 m · ω<sub>i</sub>。低频那几对转得很慢，即使 m 很大，两个位置的相对角也还能分辨；高频转得快，负责近距离的精细差别。</p>
+
+      <h2>官方用「一半对一半」而不是交错偶数奇数</h2>
+      <p>旋转的实现有两种常见布局：</p>
+      <ul>
+        <li>交错：维度 0 和 1 一对、2 和 3 一对……</li>
+        <li>对半：前一半维度和后一半维度配对，即 <code>(-x[..., d/2:], x[..., :d/2])</code></li>
+      </ul>
+      <p>MiniMind 用第二种，与许多 Hugging Face 实现一致。先预计算每个位置的 cos、sin（每个都是 head_dim 长，因为把半长的频率表复制了一份拼到 96 维），再：</p>
+      <figure class="code">
+        <figcaption>对照官方 · 旋转的核心两步</figcaption>
+        <pre><code>def rotate_half(x):
+    return torch.cat((-x[..., x.shape[-1] // 2:],
+                      x[..., : x.shape[-1] // 2]), dim=-1)
+
+def apply_rotary_pos_emb(q, k, cos, sin, unsqueeze_dim=1):
+    q_embed = (q * cos.unsqueeze(unsqueeze_dim)
+               + rotate_half(q) * sin.unsqueeze(unsqueeze_dim)).to(q.dtype)
+    k_embed = (k * cos.unsqueeze(unsqueeze_dim)
+               + rotate_half(k) * sin.unsqueeze(unsqueeze_dim)).to(k.dtype)
+    return q_embed, k_embed
+</code></pre>
+      </figure>
+      <p>这就是复数乘法 (q_cos + i q_sin) * (cos + i sin) 在实数张量上的写法。V 不旋转：值是「内容」，位置只应影响「能不能匹配」，不应扭曲被提取的内容本身。</p>
+
+      <h2>预计算一张很长的 cos / sin 表</h2>
+      <p>训练和推理时位置是 0, 1, 2, … 的整数，没有必要每次现算。官方在模型初始化时算到 <code>max_position_embeddings=32768</code>，存成 buffer（不进优化器，也不进检查点）。</p>
+      <figure class="code">
+        <figcaption>现在动手写 · 预计算频率表（先不加 YaRN）</figcaption>
+        <pre><code>def precompute_freqs_cis(dim, end=32768, rope_base=1e6, rope_scaling=None):
+    # dim 是 head_dim=96，不是 hidden_size
+    freqs = 1.0 / (rope_base ** (
+        torch.arange(0, dim, 2)[: dim // 2].float() / dim
+    ))
+    t = torch.arange(end, device=freqs.device)
+    freqs = torch.outer(t, freqs).float()          # [end, dim/2]
+    freqs_cos = torch.cat([torch.cos(freqs), torch.cos(freqs)], dim=-1)
+    freqs_sin = torch.cat([torch.sin(freqs), torch.sin(freqs)], dim=-1)
+    return freqs_cos, freqs_sin  # 都是 [end, dim]
+</code></pre>
+      </figure>
+      <p>前向时按「当前这段序列在缓存里从哪算起」切片：</p>
+      <figure class="code">
+        <figcaption>对照官方 · 有缓存时位置从 start_pos 接着数</figcaption>
+        <pre><code>start_pos = past_key_values[0][0].shape[1] if past_key_values[0] is not None else 0
+cos = self.freqs_cos[start_pos:start_pos + seq_length]
+sin = self.freqs_sin[start_pos:start_pos + seq_length]
+</code></pre>
+      </figure>
+      <p>如果生成第 21 个词（下标从 0 计的位置 20）时仍用位置 0 的 cos/sin，相对距离就全错了。键值缓存和位置编码必须共用同一套 start_pos。</p>
+
+      <h2>旋转插在哪一步</h2>
+      <p>正确顺序是：</p>
+      <ol class="steps">
+        <li>线性投影，reshape 成 <code>[B, T, 头数, 96]</code>。</li>
+        <li>查询/键归一化（下一章）。</li>
+        <li><strong>旋转 Q 和 K</strong>。此时还是「头维在后」的布局，unsqueeze_dim=1 会把 cos 插到头维上广播。</li>
+        <li>拼接键值缓存。</li>
+        <li>repeat_kv，再 transpose 去算分数。</li>
+      </ol>
+      <p>先旋转再拼接：新词用新位置的 cos/sin，旧键在缓存里已经带着旧位置的旋转，不能再转一次。</p>
+
+      <h2>YaRN：推理时把位置「拧松」</h2>
+      <p>模型若在长度 2048 上训练，直接推理 8192 会让旋转角度跑出训练分布。YaRN 把一部分频率按比例压低，等效于把长序列的位置映射回较短的区间，并给注意力分数乘一个补偿因子。MiniMind 在 <code>inference_rope_scaling=True</code> 时启用：</p>
+      <table class="plain">
+        <thead><tr><th>字段</th><th>默认</th><th>含义</th></tr></thead>
+        <tbody>
+          <tr><td>type</td><td>yarn</td><td>使用 YaRN 而不是线性插值。</td></tr>
+          <tr><td>factor</td><td>16</td><td>目标长度大约是原长度的 16 倍。</td></tr>
+          <tr><td>original_max_position_embeddings</td><td>2048</td><td>训练时认定的原长度。</td></tr>
+          <tr><td>beta_fast / beta_slow</td><td>32 / 1</td><td>高频与低频的分界，中间用斜坡混合。</td></tr>
+          <tr><td>attention_factor</td><td>1.0</td><td>乘在 cos/sin 上的注意力补偿。</td></tr>
+        </tbody>
+      </table>
+      <p>教学实现可以先不管 YaRN：<code>rope_scaling=None</code> 时 <code>precompute_freqs_cis</code> 就是上面那几行。需要外推时，把官方函数里 <code>if rope_scaling is not None</code> 那一段原样拷入即可。官方还用 <code>end / orig_max &gt; 1.0</code> 判断是否真的在做外推。</p>
+
+      <h2>现在动手写：接到注意力上</h2>
+      <figure class="code">
+        <figcaption>现在动手写 · 在分组查询里插入旋转</figcaption>
+        <pre><code># 紧接在 q, k reshape 成 [B, T, heads, head_dim] 之后：
+cos, sin = position_embeddings  # 由外层按 start_pos 切片好
+q, k = apply_rotary_pos_emb(q, k, cos, sin, unsqueeze_dim=1)
+
+if past_key_value is not None:
+    k = torch.cat([past_key_value[0], k], dim=1)
+    v = torch.cat([past_key_value[1], v], dim=1)
+</code></pre>
+      </figure>
+      <p><code>position_embeddings</code> 不要在注意力内部用 <code>torch.arange(seq_len)</code> 现造——那会在有缓存时永远从 0 开始。让外层 <code>MiniMindModel</code> 算好 start_pos，把切片后的 cos/sin 传进来。</p>
+
+      <div class="callout warn">
+        <p class="label">频率表的 dim 是头维度</p>
+        <p>写 <code>precompute_freqs_cis(dim=config.hidden_size)</code> 是错的。必须是 <code>config.head_dim</code>。传 768 时，你会在 96 维的 Q 上广播失败或静默算错。</p>
+      </div>
+
+      <h2>自测</h2>
+      <ul>
+        <li>为什么旋转 V 是错的？</li>
+        <li>生成第 2 个新词时，若 cos 仍取 <code>freqs_cos[0:1]</code> 而不是 <code>freqs_cos[start_pos:start_pos+1]</code>，相对位置会怎样？</li>
+        <li>对半旋转里，<code>rotate_half</code> 把后一半取负再和前一半对调。若误写成交错版，能否和官方权重兼容？</li>
+      </ul>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

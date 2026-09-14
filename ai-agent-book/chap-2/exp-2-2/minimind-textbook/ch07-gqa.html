@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 7 章 · 多头与分组查询注意力 — MiniMind 手把手</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第二部 · 积木</p>
+      <h1>第 7 章 · 多头与分组查询注意力</h1>
+      <p class="lead">一个头只能学一种「谁该看谁」的模式。多头让若干套 Q/K/V 并行工作。分组查询则让多套查询共用较少的键和值，专门为键值缓存省空间。</p>
+    </header>
+    <article class="prose">
+      <h2>为什么要多个头</h2>
+      <p>单头注意力对每个位置只产出一组权重。语言里同时存在很多关系：主语对动词、代词对先行词、否定词对谓语。把隐藏向量切成若干个较低维的子空间，每个子空间独立做一套注意力，再拼回去，网络就能并行捕捉多种关系。这叫多头注意力（Multi-Head Attention）。</p>
+      <p>MiniMind-3 的隐藏维度是 768，查询头数是 8，所以每个头的维度</p>
+      <div class="formula">
+        <div class="eq">head_dim = hidden_size / 查询头数 = 768 / 8 = 96</div>
+      </div>
+      <p>缩放时用的 √d 现在是 √96，不是 √768。每个头在自己的 96 维里检索，互不干扰。</p>
+
+      <h2>多头在代码里只是多出来的一维</h2>
+      <p>投影之后不要把 Q 看成 <code>[B, T, 768]</code> 的整块，而看成 <code>[B, T, 8, 96]</code>。注意力的矩阵乘法发生在最后两维，所以先把「头」换到前面：</p>
+      <div class="formula">
+        <div class="eq">[B, T, 头数, 96] → transpose → [B, 头数, T, 96]</div>
+        <div class="hint">之后 (Q @ Kᵀ) 的形状是 [B, 头数, T_q, T_k]，每个头一张分数表。</hint>
+      </div>
+      <p>算完再 transpose 回来，<code>reshape</code> 成 <code>[B, T, 768]</code>，乘输出投影。输出投影的作用是让 8 个头的结果可以混合，而不是永远各干各的。</p>
+
+      <h2>键值头可以比查询头少：分组查询</h2>
+      <p>多头里，键和值也各有 8 套的话，键值缓存就要存 8 套 K 和 8 套 V。生成长文本时，缓存往往比模型权重更吃显存。</p>
+      <p>分组查询注意力（Grouped Query Attention）的办法：查询仍然 8 头，键和值只有 4 头。每 2 个查询头共用同一套键和值。MiniMind-3 正是 8 个查询头、4 个键值头。</p>
+      <table class="plain">
+        <thead><tr><th>方案</th><th>查询头</th><th>键值头</th><th>缓存相对大小</th></tr></thead>
+        <tbody>
+          <tr><td>多头注意力（MHA）</td><td>8</td><td>8</td><td>1×（基准）</td></tr>
+          <tr><td>分组查询（GQA，MiniMind-3）</td><td>8</td><td>4</td><td>约 0.5×</td></tr>
+          <tr><td>多查询（MQA）</td><td>8</td><td>1</td><td>约 0.125×</td></tr>
+        </tbody>
+      </table>
+      <p>重复倍数必须是整数：</p>
+      <div class="formula">
+        <div class="eq">n_rep = 查询头数 / 键值头数 = 8 / 4 = 2</div>
+      </div>
+
+      <div class="diagram">
+        <svg viewBox="0 0 720 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="分组查询：8 个查询头共用 4 套键值">
+          <text x="20" y="24" font-size="13" font-family="IBM Plex Sans, sans-serif">查询头 Q0–Q7（各 96 维）</text>
+          <g font-size="11" font-family="IBM Plex Sans, sans-serif" text-anchor="middle">
+            <rect x="16" y="40" width="80" height="32" fill="#8b3114"/><text x="56" y="60" fill="#fff">Q0</text>
+            <rect x="100" y="40" width="80" height="32" fill="#8b3114"/><text x="140" y="60" fill="#fff">Q1</text>
+            <rect x="184" y="40" width="80" height="32" fill="#c96a3c"/><text x="224" y="60" fill="#fff">Q2</text>
+            <rect x="268" y="40" width="80" height="32" fill="#c96a3c"/><text x="308" y="60" fill="#fff">Q3</text>
+            <rect x="352" y="40" width="80" height="32" fill="#1f4a45"/><text x="392" y="60" fill="#fff">Q4</text>
+            <rect x="436" y="40" width="80" height="32" fill="#1f4a45"/><text x="476" y="60" fill="#fff">Q5</text>
+            <rect x="520" y="40" width="80" height="32" fill="#3d6e67"/><text x="560" y="60" fill="#fff">Q6</text>
+            <rect x="604" y="40" width="80" height="32" fill="#3d6e67"/><text x="644" y="60" fill="#fff">Q7</text>
+          </g>
+          <path d="M56 72 V100 H140 V72 M224 72 V100 H308 V72 M392 72 V100 H476 V72 M560 72 V100 H644 V72" stroke="#1b1610" fill="none"/>
+          <g font-size="11" font-family="IBM Plex Sans, sans-serif" text-anchor="middle">
+            <rect x="56" y="108" width="100" height="36" fill="#eadfcb" stroke="#1b1610"/><text x="106" y="130">K0 V0</text>
+            <rect x="224" y="108" width="100" height="36" fill="#eadfcb" stroke="#1b1610"/><text x="274" y="130">K1 V1</text>
+            <rect x="392" y="108" width="100" height="36" fill="#eadfcb" stroke="#1b1610"/><text x="442" y="130">K2 V2</text>
+            <rect x="560" y="108" width="100" height="36" fill="#eadfcb" stroke="#1b1610"/><text x="610" y="130">K3 V3</text>
+          </g>
+          <text x="360" y="172" text-anchor="middle" font-size="12" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">缓存只存 4 套 K/V。计算前把每套沿「头」维重复 2 次，对齐到 8 个查询头。</text>
+        </svg>
+        <p class="cap">分组查询并不改变「Q 检索 K、再加权 V」。它只是让若干个 Q 去检索同一份 K/V。</p>
+      </div>
+
+      <h2>repeat_kv：把 4 头变成 8 头</h2>
+      <p>矩阵乘法要求 Q 和 K 的头数一致。于是在算分数之前，把键值头沿头维重复 n_rep 次。官方实现：</p>
+      <figure class="code">
+        <figcaption>对照官方 · repeat_kv</figcaption>
+        <pre><code>def repeat_kv(x: torch.Tensor, n_rep: int) -> torch.Tensor:
+    bs, slen, num_key_value_heads, head_dim = x.shape
+    if n_rep == 1:
+        return x
+    return (
+        x[:, :, :, None, :]
+        .expand(bs, slen, num_key_value_heads, n_rep, head_dim)
+        .reshape(bs, slen, num_key_value_heads * n_rep, head_dim)
+    )
+</code></pre>
+      </figure>
+      <p>输入形状是 <code>[B, T, kv_heads, 96]</code>（注意：还没 transpose）。在 kv_heads 后面插入一维 n_rep，expand 不复制内存，reshape 后头数变成 8。若你已经把头维换到前面再重复，写法不同，结果应相同；教学上请跟官方一样，<strong>先 repeat，再 transpose</strong>。</p>
+
+      <h2>投影层的输出宽度不再相同</h2>
+      <p>这是从单头迈向 MiniMind 时必须改的几行：</p>
+      <table class="plain">
+        <thead><tr><th>层</th><th>输出宽度</th><th>MiniMind-3</th></tr></thead>
+        <tbody>
+          <tr><td>q_proj</td><td>查询头数 × head_dim</td><td>8 × 96 = 768</td></tr>
+          <tr><td>k_proj</td><td>键值头数 × head_dim</td><td>4 × 96 = 384</td></tr>
+          <tr><td>v_proj</td><td>键值头数 × head_dim</td><td>4 × 96 = 384</td></tr>
+          <tr><td>o_proj</td><td>hidden_size</td><td>768（输入是 8×96）</td></tr>
+        </tbody>
+      </table>
+      <p>三个投影都没有偏置，与 Qwen3 一致。</p>
+
+      <h2>现在动手写</h2>
+      <figure class="code">
+        <figcaption>现在动手写 · 把第 6 章升级成分组查询</figcaption>
+        <pre><code>def repeat_kv(x, n_rep: int):
+    bs, slen, n_kv, head_dim = x.shape
+    if n_rep == 1:
+        return x
+    return (
+        x[:, :, :, None, :]
+        .expand(bs, slen, n_kv, n_rep, head_dim)
+        .reshape(bs, slen, n_kv * n_rep, head_dim)
+    )
+
+class GroupedAttention(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.n_q = config.num_attention_heads
+        self.n_kv = config.num_key_value_heads
+        self.n_rep = self.n_q // self.n_kv
+        self.head_dim = config.head_dim
+        self.q_proj = nn.Linear(config.hidden_size, self.n_q * self.head_dim, bias=False)
+        self.k_proj = nn.Linear(config.hidden_size, self.n_kv * self.head_dim, bias=False)
+        self.v_proj = nn.Linear(config.hidden_size, self.n_kv * self.head_dim, bias=False)
+        self.o_proj = nn.Linear(self.n_q * self.head_dim, config.hidden_size, bias=False)
+
+    def forward(self, x, past_key_value=None, use_cache=False):
+        bsz, seq_len, _ = x.shape
+        q = self.q_proj(x).view(bsz, seq_len, self.n_q, self.head_dim)
+        k = self.k_proj(x).view(bsz, seq_len, self.n_kv, self.head_dim)
+        v = self.v_proj(x).view(bsz, seq_len, self.n_kv, self.head_dim)
+
+        if past_key_value is not None:
+            k = torch.cat([past_key_value[0], k], dim=1)
+            v = torch.cat([past_key_value[1], v], dim=1)
+        present = (k, v) if use_cache else None
+
+        q = q.transpose(1, 2)
+        k = repeat_kv(k, self.n_rep).transpose(1, 2)
+        v = repeat_kv(v, self.n_rep).transpose(1, 2)
+
+        scores = (q @ k.transpose(-2, -1)) / math.sqrt(self.head_dim)
+        causal = torch.triu(
+            torch.full((seq_len, seq_len), float("-inf"), device=x.device), 1
+        )
+        scores = scores.clone()
+        scores[..., -seq_len:] = scores[..., -seq_len:] + causal
+        weights = F.softmax(scores.float(), dim=-1).type_as(q)
+        out = (weights @ v).transpose(1, 2).reshape(bsz, seq_len, -1)
+        return self.o_proj(out), present
+</code></pre>
+      </figure>
+      <p>请用配置跑形状：<code>q</code> 应是 <code>[B, 8, T, 96]</code>，拼接后未 repeat 的 <code>k</code> 应是 <code>[B, T_total, 4, 96]</code>。缓存里存 4 头而不是 8 头——这正是省显存的来源。</p>
+
+      <div class="callout">
+        <p class="label">缓存发生在 repeat 之前</p>
+        <p>若先把 K 重复成 8 头再写入缓存，缓存又变回多头那么大，分组查询的好处就没了。官方顺序是：投影 →（查询/键归一化）→ 旋转 → 拼接缓存 → 再 repeat → 再 transpose。下一章插入旋转时，请保持「缓存里仍是 4 头」。</p>
+      </div>
+
+      <h2>自测</h2>
+      <ul>
+        <li>为什么缩放要用 √96 而不是 √768？</li>
+        <li>n_rep=2 时，K 的哪一个维度被复制？复制的是数据还是只是视图？</li>
+        <li>若把键值头也改成 8，需要改哪些层的输出宽度？缓存会变成原来的几倍？</li>
+      </ul>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

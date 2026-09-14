@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 0 章 · 如何读这本书 — MiniMind 手把手</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">开始</p>
+      <h1>第 0 章 · 如何读这本书</h1>
+      <p class="lead">先约定阅读方式和动手方式。后面每一章都默认你已经同意这几条，就不会出现「突然跳到一个没解释过的符号」。</p>
+    </header>
+    <article class="prose">
+      <h2>这本书的推进方式</h2>
+      <p>语言模型看起来很大，其实是同一件小事重复很多遍：根据已经出现的词，预测下一个词。MiniMind-3 把这件事拆成大约十个可以单独理解的零件。本书按「先有直觉、再看形状、再写代码、再对照官方」的顺序，一次只加一个零件。</p>
+      <p>因此请按章节顺序读。第 5 章的注意力还不包含位置编码，不是作者忘了，而是故意的：位置编码会改变查询和键的数值，但不会改变「用查询去检索键、再用分数去提取值」这件事本身。把检索先写对，再给它加上位置，比一上来把旋转、分组、缓存缠在一起更不容易晕。</p>
+
+      <h2>你需要准备什么</h2>
+      <ul>
+        <li>Python 3.10 左右，以及 PyTorch。有 NVIDIA 显卡最好；没有的话，用 CPU 跑「形状检查」和「三五个 token 的前向」完全够用。</li>
+        <li>能阅读官方仓库：<a href="https://github.com/jingyaogong/minimind">jingyaogong/minimind</a>。本教材不会要求你把整个仓库抄进作业目录。</li>
+        <li><code>minimind_dataset/</code> 是数据下载位置，仓库里只保留空目录。完整 jsonl 在 GPU 机器上按 MiniMind 官方说明下载；第 14 章会告诉你最小可跑的数据长什么样。</li>
+      </ul>
+
+      <h2>「从零实现」指什么，不指什么</h2>
+      <p><strong>从零</strong>的意思是：模型结构、注意力、键值缓存、混合专家路由、损失函数、生成循环，都用 PyTorch 自己写，不调用 <code>transformers.LlamaModel</code> 这类已经封装好的大模型类。</p>
+      <p><strong>不是从零</strong>的部分：矩阵乘法、反向传播、AdamW 优化器，仍然用 PyTorch 提供的。重新发明自动求导对理解 MiniMind 没有帮助。分词器官方已经训练好了，本书解释它的原理，但<strong>不建议你重新训练词表</strong>——词表一变，权重、数据、社区模型全都对不上。</p>
+
+      <h2>每一章你要做什么</h2>
+      <ol class="steps">
+        <li><strong>读懂这一步在整个前向计算里的位置。</strong>每章开头都有一句话：「没有它，模型会怎样」。</li>
+        <li><strong>看一个小数字例子。</strong>3 个 token、2 维向量这种规模，是为了让你能手算，不是为了展示性能。</li>
+        <li><strong>按「现在动手写」里的代码，自己敲一遍。</strong>建议放到 <code>exp-2-2/</code> 下一个你自己的 <code>minimind3/</code> 包里，章与章之间追加，不要每章新建互不相通的文件。</li>
+        <li><strong>跑形状断言。</strong>如果张量形状对不上，后面所有章节都会错。形状对了，再谈数值对不对。</li>
+        <li><strong>对照官方。</strong>官方把很多行压得很紧。教材会拆开写，并指出「官方把这三行合成了一行」。</li>
+      </ol>
+
+      <div class="callout">
+        <p class="label">建议的文件布局</p>
+        <p>从第 3 章起，把代码写进同一个文件 <code>model.py</code>（或拆成 <code>norm.py</code> / <code>attention.py</code> / <code>block.py</code> 再导入）。第 12 章结束时，你应该能用 <code>MiniMindConfig(use_moe=False)</code> 实例化稠密模型；第 13 章只要把配置改成 <code>use_moe=True</code>。</p>
+      </div>
+
+      <h2>本书会反复使用的几个词</h2>
+      <p>第一次出现时都会给全称。后面为了读起来顺，会用中文简称：</p>
+      <table class="plain">
+        <thead><tr><th>说法</th><th>含义</th></tr></thead>
+        <tbody>
+          <tr><td>token（词元）</td><td>模型真正看见的最小单位。不一定是「一个汉字」或「一个英文单词」。</td></tr>
+          <tr><td>隐藏维度 / hidden size</td><td>每个词元被表示成多长的向量。MiniMind-3 是 768。</td></tr>
+          <tr><td>序列长度</td><td>一次送进模型的词元个数，常记作 T 或 seq_len。</td></tr>
+          <tr><td>批次大小</td><td>一次并行处理多少条样本，常记作 B。</td></tr>
+          <tr><td>因果</td><td>预测位置 t 的下一个词时，不能看 t 之后的词。</td></tr>
+          <tr><td>键值缓存</td><td>生成时把已经算过的键和值存下来，避免每个新词都把整段历史重算一遍。</td></tr>
+        </tbody>
+      </table>
+
+      <h2>自测</h2>
+      <p>合上这一章前，确认你能用自己的话回答：</p>
+      <ul>
+        <li>为什么第 5 章可以暂时没有位置编码？</li>
+        <li>「从零」包含注意力实现，但不包含重写 AdamW，这样划界是否合理？</li>
+        <li>你准备把代码写在哪个文件里，才能让第 4 章的归一化被第 5 章直接调用？</li>
+      </ul>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

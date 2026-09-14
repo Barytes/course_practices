@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 4 章 · 均方根归一化 — MiniMind 手把手</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第二部 · 积木</p>
+      <h1>第 4 章 · 均方根归一化</h1>
+      <p class="lead">深层网络里，向量的尺度会一层层漂移。归一化把每个词元向量重新拉回稳定的长度，再交给注意力和前馈。MiniMind 用均方根归一化，并且放在子层前面。</p>
+    </header>
+    <article class="prose">
+      <h2>没有它会怎样</h2>
+      <p>注意力里有点积，前馈里有放大又缩小的线性层。8 层叠起来后，有的位置向量特别大、有的特别小，点积分数会爆炸或消失，训练就不稳。归一化不是为了「让模型更聪明」，而是为了让训练能走下去。</p>
+
+      <h2>层归一化在做什么，均方根归一化少做了什么</h2>
+      <p>经典层归一化（LayerNorm）对最后一个维度计算均值和方差：先减均值，再除以标准差，再乘可学习的缩放、加可学习的平移。</p>
+      <p>均方根归一化（RMSNorm）发现：对 Transformer 来说，<strong>减均值这一步往往不是必须的</strong>。它只做：</p>
+      <div class="formula">
+        <div class="eq">RMS(x) = sqrt(mean(x<sup>2</sup>) + ε)　　y = (x / RMS(x)) × γ</div>
+        <div class="hint">均值在最后一个维度上取。γ 是和隐藏维度同长的可学习向量，初始化为全 1。没有平移项 β。</div>
+      </div>
+      <p>少一次减均值，计算更便宜，效果在现代解码器里通常不差。Qwen3 和 MiniMind-3 都用它。</p>
+
+      <h2>为什么是「先归一化再算子层」</h2>
+      <p>有两种摆法：</p>
+      <ul>
+        <li><strong>后归一化</strong>：先注意力，再把「输入 + 注意力输出」归一化。早期 Transformer 论文是这样。</li>
+        <li><strong>预归一化</strong>：先对输入归一化，再送进注意力；注意力输出与<strong>未经归一化的原始输入</strong>相加。</li>
+      </ul>
+      <p>预归一化的残差通道是「干净的高速公路」：原始信号可以一路传到网络深处，梯度更好走。小模型、深一点的模型几乎都改用预归一化。MiniMind 每一层有两次：注意力前一次，前馈前一次；整网输出前再来一次。</p>
+
+      <div class="diagram">
+        <svg viewBox="0 0 720 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="预归一化残差">
+          <text x="40" y="30" font-size="13" font-family="IBM Plex Sans, sans-serif">输入 x</text>
+          <path d="M40 50 H200" stroke="#1b1610"/>
+          <rect x="200" y="28" width="90" height="44" fill="#efe4c8" stroke="#8b3114"/>
+          <text x="245" y="55" text-anchor="middle" font-size="12" font-family="IBM Plex Sans, sans-serif">RMSNorm</text>
+          <path d="M290 50 H380" stroke="#1b1610"/>
+          <rect x="380" y="28" width="110" height="44" fill="#fbf6ea" stroke="#1b1610"/>
+          <text x="435" y="55" text-anchor="middle" font-size="12" font-family="IBM Plex Sans, sans-serif">注意力 / 前馈</text>
+          <path d="M490 50 H620" stroke="#1b1610"/>
+          <text x="640" y="55" font-size="13" font-family="IBM Plex Sans, sans-serif">+</text>
+          <path d="M40 50 V120 H620 V50" stroke="#3d6e67" fill="none"/>
+          <text x="330" y="148" text-anchor="middle" font-size="12" fill="#1f4a45" font-family="IBM Plex Sans, sans-serif">残差：原始 x 直接加回来，不经过归一化</text>
+        </svg>
+        <p class="cap">预归一化。子层看到的是尺度稳定的向量；残差看到的是原始 x。</p>
+      </div>
+
+      <h2>现在动手写</h2>
+      <p>官方把开方倒数写成 <code>torch.rsqrt</code>，并先转成 float 再算，避免半精度下方差过小变 inf。你应按同样顺序写。</p>
+      <figure class="code">
+        <figcaption>现在动手写 · RMSNorm</figcaption>
+        <pre><code>import torch
+from torch import nn
+
+class RMSNorm(nn.Module):
+    def __init__(self, dim: int, eps: float = 1e-6):
+        super().__init__()
+        self.eps = eps
+        self.weight = nn.Parameter(torch.ones(dim))
+
+    def _norm(self, x: torch.Tensor) -&gt; torch.Tensor:
+        # x: [..., dim]，在最后一维上求均方根
+        return x * torch.rsqrt(x.pow(2).mean(dim=-1, keepdim=True) + self.eps)
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        output = self._norm(x.float()).type_as(x)
+        return self.weight * output
+
+
+if __name__ == "__main__":
+    x = torch.randn(2, 4, 768)
+    n = RMSNorm(768)
+    y = n(x)
+    assert y.shape == x.shape
+    rms = y.float().pow(2).mean(-1).sqrt()
+    # 归一化后、乘 γ 之前，均方根应接近 1；γ 初始为 1，所以现在也应接近 1
+    print(rms.mean().item())
+</code></pre>
+      </figure>
+
+      <div class="callout">
+        <p class="label">ε 取多少</p>
+        <p>官方配置 <code>rms_norm_eps=1e-6</code>，类的默认参数写的是 <code>1e-5</code>。真正生效的是配置里传入的值。教学代码请一律从 <code>config.rms_norm_eps</code> 传入，不要混用两个默认。</p>
+      </div>
+
+      <p>第 9 章还会把同一个 RMSNorm 用在每个注意力头的 96 维上，那叫查询/键归一化。模块是同一个，只是 <code>dim=head_dim</code> 而不是 <code>dim=hidden_size</code>。</p>
+
+      <h2>自测</h2>
+      <ul>
+        <li>为什么残差加的是原始 x，而不是归一化之后的 x？</li>
+        <li>若不用 <code>x.float()</code>，在 float16 下可能出现什么数值问题？</li>
+        <li>RMSNorm 没有偏置 β。这意味着它不能平移表示，只能缩放。这对预归一化结构为什么通常够用？</li>
+      </ul>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

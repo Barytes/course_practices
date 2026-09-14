@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 17 章 · LoRA、偏好优化与强化学习 — MiniMind 手把手</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第四部 · 训练</p>
+      <h1>第 17 章 · LoRA、偏好优化与强化学习</h1>
+      <p class="lead">MiniMind-3 和 MiniMind-3-MoE 的主体到第 16 章已经闭环。后训练不改结构，只改「更新哪些参数、用什么信号」。本章把官方从零实现的几条路讲清楚，作为继续往下读源码的地图。</p>
+    </header>
+    <article class="prose">
+      <h2>先分清三条动机</h2>
+      <table class="plain">
+        <thead><tr><th>动机</th><th>方法</th><th>你改的是什么</th></tr></thead>
+        <tbody>
+          <tr><td>便宜地适应一个领域，尽量别忘通用能力</td><td>LoRA</td><td>在原权重旁加低秩增量，只训练增量</td></tr>
+          <tr><td>更喜欢某种回答、不喜欢另一种</td><td>DPO（RLHF 的一种）</td><td>用现成的「更好/更差」对，直接推策略</td></tr>
+          <tr><td>让模型在可自动打分的任务上试错变强</td><td>PPO / GRPO / CISPO / Agent</td><td>在线采样，用奖励更新策略</td></tr>
+        </tbody>
+      </table>
+      <p>这些都不需要再写一套 Transformer。它们调用的仍是你第 12、13 章的 <code>forward</code>。</p>
+
+      <h2>LoRA：把 ΔW 分解成两个瘦矩阵</h2>
+      <p>全参数微调更新整个 W。LoRA 冻结 W，学习</p>
+      <div class="formula">
+        <div class="eq">W'x = Wx + B(Ax)　　A ∈ R<sup>r×d</sup>，B ∈ R<sup>d×r</sup>，r ≪ d</div>
+        <div class="hint">A 用高斯初始化，B 用全 0，于是训练第一步 ΔW=0，模型行为与基座相同。</hint>
+      </div>
+      <p>官方 <code>model_lora.py</code> 只给<strong>方阵</strong>线性层挂 LoRA（<code>in_features == out_features</code>），MiniMind-3 里主要是 768×768 的 q_proj、o_proj 等。非方阵的 k_proj（768→384）默认不挂。前向被替换成「原线性 + lora」：</p>
+      <figure class="code">
+        <figcaption>对照官方 · 注入 LoRA</figcaption>
+        <pre><code>def forward_with_lora(x, layer1=original_forward, layer2=lora):
+    return layer1(x) + layer2(x)
+module.forward = forward_with_lora
+</code></pre>
+      </figure>
+      <p>训练结束后可以把 <code>W ← W + B A</code> 合并回去，推理不再需要 LoRA 模块。身份数据、医疗数据这类小 jsonl 就是为这条路径准备的。</p>
+
+      <h2>策略优化的统一视角</h2>
+      <p>后面几个算法名字很吵，其实都在优化：</p>
+      <div class="formula">
+        <div class="eq">J = E[ Φ(r<sub>t</sub>, A<sub>t</sub>) − h(KL<sub>t</sub>) ]</div>
+        <div class="hint">r_t 是新策略与旧策略在该词元上的概率比；A_t 是「这个动作比基线好多少」；KL 防止跑去很远的奇怪策略。</hint>
+      </div>
+      <p>差别只在 Φ、A、h 怎么定义。</p>
+
+      <h3>DPO：离线的「更好 vs 更差」</h3>
+      <p>数据里每条有 chosen 和 rejected 两段回复。不训练奖励模型。损失鼓励：相对参考模型，chosen 的对数概率要比 rejected 更高，高出的程度由 β 控制。实现上要跑当前策略和冻结的参考模型（通常是 SFT 权重）各一遍。显存比 PPO 小，但不能在线探索，对「会不会做对题」帮助有限。</p>
+
+      <h3>PPO：在线，带一个价值网络</h3>
+      <p>用当前策略采样回答，奖励模型（或规则）打分，价值网络估计「这句大概值多少分」，二者之差是优势 A。概率比被 clip 在 1±ε 里，防止一步更新过大。要同时维护 Actor 与 Critic，MiniMind 上收敛偏慢、显存偏高，但它是理解后续变体的基准。</p>
+
+      <h3>GRPO：用一组回答代替价值网络</h3>
+      <p>同一道题生成 N 个回答，用组内平均分当基线，标准化得到 A。不再需要 Critic。若 N 个回答分数几乎一样（退化组），梯度接近 0。小模型上这个问题很严重，所以题目难度必须落在模型刚能够到的区间。DeepSeek 之后大量 xxPO 都以它为共同祖先。</p>
+
+      <h3>CISPO：被 clip 之后梯度别断</h3>
+      <p>PPO/GRPO 把 r_t clip 成常数后，那一段对策略参数的梯度会断掉。CISPO 把 r_t 只当作截断后的权重，去乘 log π，梯度仍能流回。官方把它做成 <code>train_grpo.py</code> 的 <code>loss_type='cispo'</code>，不必另起一套脚本。</p>
+
+      <h3>Agentic RL：多轮工具，延迟给分</h3>
+      <p><code>train_agent.py</code> 优化的不是单句回答，而是一条轨迹：模型可能多次发出 tool_call，环境执行后把 observation 拼回上下文，直到结束才算总分（答案对不对、工具合不合法、格式、是否没完成……）。这是稀疏、延迟的奖励。rollout 还可以交给独立推理引擎，训练侧只负责更新——官方称之为训推分离的最小版本。</p>
+
+      <h2>小模型上的奖励稀疏</h2>
+      <p>若用「数学题对错」这种 0/1 奖励去训 64M 模型，几乎所有采样都是 0 分，优势全是 0，策略不更新。官方演示更常用 InternLM2-1.8B-Reward 这类给出连续分数的奖励模型，让「很差」和「稍好一点」仍能分开。规则奖励可以混进去，但不要在超纲题上只给二元分。</p>
+
+      <h2>建议你怎么往下读源码</h2>
+      <ol class="steps">
+        <li>先把第 12、13 章的模型与第 16 章的 generate 写对，这是所有后训练的公共底座。</li>
+        <li>读 <code>model/model_lora.py</code> + <code>trainer/train_lora.py</code>，这是最短的后训练闭环。</li>
+        <li>读 <code>DPODataset</code> 与 <code>train_dpo.py</code>，弄清 chosen/rejected 的 mask 如何只盖助手段。</li>
+        <li>带着「Φ、A、h」三件套去读 <code>train_ppo.py</code> / <code>train_grpo.py</code>，不要被类名吓住。</li>
+        <li>最后读 <code>train_agent.py</code> 与 <code>rollout_engine.py</code>，看多轮拼接和延迟奖励。</li>
+      </ol>
+
+      <div class="callout warn">
+        <p class="label">后训练会收「对齐税」</p>
+        <p>官方评测里，Agent 权重在工具题上明显强于 full_sft，但开放问答更容易胡编。这不是 MiniMind 独有：优化目标变窄后，模型会更会迎合当前奖励。选择权重时按任务：要工具就用 agent，要闲聊稳健就用 full_sft。</p>
+      </div>
+
+      <h2>全书收束</h2>
+      <p>你现在应当能够：</p>
+      <ul>
+        <li>从配置对象出发，写出 MiniMind-3 的嵌入、RMSNorm、分组查询注意力、RoPE、QK-Norm、KV Cache、SwiGLU、8 层残差和输出层；</li>
+        <li>把前馈换成 4 专家 top-1 路由，得到 MiniMind-3-MoE，并加上负载均衡损失；</li>
+        <li>讲清楚预训练与 SFT 在数据和掩码上的差别，以及生成循环如何利用缓存；</li>
+        <li>把官方后训练脚本看成同一套前向上的不同损失，而不是另一门学科。</li>
+      </ul>
+      <p>对照答案始终是 <a href="https://github.com/jingyaogong/minimind/blob/master/model/model_minimind.py">model/model_minimind.py</a>。若某一步形状对不上，先回到第 6、7、8 章查缓存维度、repeat_kv 顺序和 RoPE 的 start_pos——这三处占了实现 bug 的大半。</p>
+
+      <h2>自测</h2>
+      <ul>
+        <li>LoRA 的 B 为什么必须零初始化？A 也零初始化行不行？</li>
+        <li>GRPO 去掉 Critic 之后，基线从哪里来？一组回答分数相同意味着什么？</li>
+        <li>为什么说 CISPO 是损失改写，而不是全新的采样流程？</li>
+      </ul>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

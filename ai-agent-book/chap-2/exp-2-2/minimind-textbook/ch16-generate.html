@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 16 章 · 生成：采样与加速推理 — MiniMind 手把手</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第四部 · 训练</p>
+      <h1>第 16 章 · 生成：采样与加速推理</h1>
+      <p class="lead">训练好的模型给出的是分数，不是句子。生成循环每次取最后一个位置的分数，选出一个词元接到后面，并靠键值缓存避免重算历史。</p>
+    </header>
+    <article class="prose">
+      <h2>生成就是「一步一个词元」的循环</h2>
+      <ol class="steps">
+        <li>把提示词编成 input_ids，第一次前向算完整缓存。</li>
+        <li>取出最后一个位置的 logits，按温度、top-k、top-p 变成概率，采样（或取 argmax）。</li>
+        <li>把新词元拼到 input_ids 右边。若启用缓存，下一步只把这个新词元送进模型。</li>
+        <li>若采到 eos，或达到 max_new_tokens，结束。</li>
+      </ol>
+
+      <h2>温度：把分布变尖或变平</h2>
+      <div class="formula">
+        <div class="eq">logits ← logits / T</div>
+        <div class="hint">T&lt;1 更贪心、更重复；T&gt;1 更随机。T→0 的极限是每次都选最大分数。官方默认约 0.85。</hint>
+      </div>
+      <p>除法发生在 softmax 之前。不要先 softmax 再除，那不是温度。</p>
+
+      <h2>top-k 与 top-p</h2>
+      <p>即使温度合适，长尾上那些「几乎不可能」的词元偶尔被采到也会毁掉整句。两种截断：</p>
+      <ul>
+        <li><strong>top-k：</strong>只保留分数最高的 k 个，其余设为 -inf。官方默认 50。</li>
+        <li><strong>top-p（nucleus）：</strong>按概率从大到小累加，刚超过 p 的那些丢掉。官方 generate 默认 0.85 左右，eval 脚本里常见 0.95。</li>
+      </ul>
+      <p>两者可以同时用：先 top-k 再 top-p。实现 top-p 时注意：把「累积已经超过 p」的掩码右移一位，保证至少留下概率最大的那一个，否则可能把整行都盖成 -inf。</p>
+      <figure class="code">
+        <figcaption>对照官方 · top-p 保留至少一个词元</figcaption>
+        <pre><code>sorted_logits, sorted_indices = torch.sort(logits, descending=True)
+mask = torch.cumsum(torch.softmax(sorted_logits, dim=-1), dim=-1) > top_p
+mask[..., 1:] = mask[..., :-1].clone()
+mask[..., 0] = 0
+logits[mask.scatter(1, sorted_indices, mask)] = -float("inf")
+</code></pre>
+      </figure>
+
+      <h2>重复惩罚</h2>
+      <p>官方若 <code>repetition_penalty ≠ 1</code>，会对已经出现过的词元缩放分数：正分数除以惩罚系数（变小），负分数乘以惩罚系数（更负）。目的是降低「翻来覆去说同一句话」的概率。设为 1 表示关闭。惩罚过猛会伤害合法的功能词重复。</p>
+
+      <h2>现在动手写 · 带缓存的生成</h2>
+      <figure class="code">
+        <figcaption>现在动手写 · 与官方 generate 同结构的教学版</figcaption>
+        <pre><code>@torch.inference_mode()
+def generate(model, input_ids, max_new_tokens=64, temperature=0.85,
+             top_k=50, top_p=0.85, eos_token_id=2, use_cache=True):
+    past = None
+    finished = torch.zeros(input_ids.size(0), dtype=torch.bool, device=input_ids.device)
+    for _ in range(max_new_tokens):
+        past_len = past[0][0].shape[1] if past else 0
+        loss, aux, logits, past = model(
+            input_ids[:, past_len:], past_key_values=past, use_cache=use_cache
+        )
+        logits = logits[:, -1, :] / temperature
+
+        if top_k > 0:
+            kth = torch.topk(logits, top_k)[0][:, -1, None]
+            logits[logits < kth] = -float("inf")
+        if top_p < 1.0:
+            sorted_logits, sorted_idx = torch.sort(logits, descending=True)
+            cum = torch.softmax(sorted_logits, dim=-1).cumsum(-1)
+            mask = cum > top_p
+            mask[..., 1:] = mask[..., :-1].clone()
+            mask[..., 0] = False
+            logits[mask.scatter(1, sorted_idx, mask)] = -float("inf")
+
+        probs = torch.softmax(logits, dim=-1)
+        next_token = torch.multinomial(probs, 1)
+        if eos_token_id is not None:
+            next_token = torch.where(
+                finished.unsqueeze(-1),
+                next_token.new_full((next_token.size(0), 1), eos_token_id),
+                next_token,
+            )
+        input_ids = torch.cat([input_ids, next_token], dim=-1)
+        if not use_cache:
+            past = None
+        finished |= next_token.squeeze(-1).eq(eos_token_id)
+        if bool(finished.all()):
+            break
+    return input_ids
+</code></pre>
+      </figure>
+      <p>若你第 12 章的 <code>forward</code> 返回元组顺序不同，按你自己的返回值解包。<code>use_cache=False</code> 时每步应送入完整 <code>input_ids</code>，结果应与有缓存时非常接近（允许一点数值误差）。这是验证第 6 章缓存有没有写对的最好测试。</p>
+
+      <div class="callout ok">
+        <p class="label">对照官方的 past_len</p>
+        <p><code>input_ids[:, past_len:]</code> 在第一步等于整段提示词，之后等于最新一个词元。不要写成「永远只送最后一个词元」——第一步还没有缓存，必须把提示词全部算完。</p>
+      </div>
+
+      <h2>批次里有的句子先结束</h2>
+      <p>官方用 <code>finished</code> 布尔向量：已经结束的样本继续填 eos，不再换新词，等整批都结束或到达上限。单条对话可以简化成 <code>break</code>。</p>
+
+      <h2>和 eval_llm.py 的关系</h2>
+      <p>官方入口会：加载分词器与权重、把对话套进 chat_template（预训练权重则只加 bos）、调用 <code>model.generate</code>、流式打印。<code>open_thinking</code> 作为模板参数传入。你写完教学版 generate 之后，用同一套模板字符串去调用，行为应接近 <code>eval_llm.py</code>。</p>
+
+      <h2>自测</h2>
+      <ul>
+        <li>关掉缓存与打开缓存，同一随机种子下采样结果是否应几乎一致？若差很多，缓存或位置切片多半错了。</li>
+        <li>top-p 若不把 mask[..., 0] 置 False，可能发生什么？</li>
+        <li>为什么生成循环要包在 <code>torch.inference_mode()</code> 里？</li>
+      </ul>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

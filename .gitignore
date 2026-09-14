@@ -4,3 +4,12 @@ agent_harness/
 .venv/
 __pycache__/
 *.pyc
+
+# MiniMind / 训练产物：数据和权重只放本机或 GPU 机器，不要进 Git
+*.pth
+*.pt
+*.safetensors
+wandb/
+
+ai-agent-book/chap-2/exp-2-2/minimind_dataset/*
+!ai-agent-book/chap-2/exp-2-2/minimind_dataset/.gitkeep
