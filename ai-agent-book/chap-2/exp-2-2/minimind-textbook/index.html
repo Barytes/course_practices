@@ -14,34 +14,51 @@
     <section class="cover">
       <p class="cover-meta">实验 2-2 · 对齐 jingyaogong/minimind 主线（2026-04-01）</p>
       <h1>从零实现<br>MiniMind-3</h1>
-      <p class="deck">一本按章节推进的教材。你将亲手写出 MiniMind-3 与 MiniMind-3-MoE：从「下一个词是什么」开始，一路写到注意力、键值缓存、旋转位置编码、混合专家，以及预训练和对话微调。</p>
-      <p class="deck" style="margin-top:1rem;font-size:1rem;">语言尽量白话，但公式和张量形状不会省略。每一段代码都对应官方仓库里真实存在的实现，而不是另一套「教学简化版」。</p>
+      <p class="deck">一本按章节推进的白话教材。假设你只会一点 Python，还没熟悉「张量形状」「注意力」这些词。每一章都先讲人话、再用超小数字手算、最后才让你写代码。</p>
     </section>
 
     <article class="prose" style="margin-top:2.4rem;">
+      <div class="plain-box">
+        <p class="label">这本书在干什么</p>
+        <p>带你亲手写出一个会「猜下一个词」的小语言模型。不是调别人的 API，是把模型内部每一块积木自己写一遍。</p>
+      </div>
+
       <div class="callout ok">
         <p class="label">怎么开始</p>
-        <p>用浏览器打开本页即可阅读。建议按目录顺序往下走，读完一章就在旁边的 Python 文件里把那一章的代码写出来。官方源码当作「答案页」，不要一上来对照着抄完整文件。</p>
+        <p>用浏览器打开本页即可阅读。请先读第 0 章、术语表和<a href="files.html">动手地图</a>，不要直接跳进注意力。读完一章，就按「写到哪里」把代码填进 <code>minimind3/</code> 对应文件。官方源码是「答案页」，先自己写，再对照。</p>
       </div>
 
       <h2>这本书在教什么</h2>
-      <p>MiniMind 是一个可以从零训练的超小语言模型项目。当前主线模型是 <strong>MiniMind-3</strong>（约 6400 万参数的稠密模型）和 <strong>MiniMind-3-MoE</strong>（约 1.98 亿总参数，每次只激活约 6400 万）。结构向 Qwen3 / Qwen3-MoE 对齐：预归一化、均方根归一化、SwiGLU 前馈、旋转位置编码、分组查询注意力。</p>
-      <p>你会先建立一个「语言模型到底在算什么」的完整图景，再把图景拆成可以独立写、独立验证的模块。写完 Dense 版之后，只替换前馈层，就能得到 MoE 版。</p>
+      <p>MiniMind 是一个可以从零训练的超小语言模型。当前主线是两台「机器」：</p>
+      <ul>
+        <li><strong>MiniMind-3</strong>：大约 6400 万个可学习数字（参数）。每次预测都把这 6400 万个数字全部用上。这叫稠密模型。</li>
+        <li><strong>MiniMind-3-MoE</strong>：总共大约 1.98 亿个数字，但每次预测只真正用掉大约 6400 万。多出来的部分是「备用专家」，用到才开工。</li>
+      </ul>
+      <p>结构向 Qwen3 对齐。这些名词现在看不懂没关系，第 1 章会画一张完整地图，后面每一章只填地图上的一个格子。</p>
 
       <table class="plain">
         <thead>
-          <tr><th>模型</th><th>参数量</th><th>层数</th><th>隐藏维度</th><th>查询头 / 键值头</th><th>备注</th></tr>
+          <tr><th>模型</th><th>参数量（可学习数字的个数）</th><th>层数</th><th>每个词用几个数字表示</th><th>备注</th></tr>
         </thead>
         <tbody>
-          <tr><td>MiniMind-3</td><td>64M</td><td>8</td><td>768</td><td>8 / 4</td><td>稠密 Transformer</td></tr>
-          <tr><td>MiniMind-3-MoE</td><td>198M，激活 64M</td><td>8</td><td>768</td><td>8 / 4</td><td>4 个专家，每次选 1 个</td></tr>
+          <tr><td>MiniMind-3</td><td>约 64M（6400 万）</td><td>8</td><td>768</td><td>每次都跑完整前馈</td></tr>
+          <tr><td>MiniMind-3-MoE</td><td>约 198M，每次激活 64M</td><td>8</td><td>768</td><td>4 个专家，每次选 1 个</td></tr>
         </tbody>
       </table>
+
+      <div class="callout analogy">
+        <p class="label">如果只记一个比喻</p>
+        <p>语言模型像玩词语接龙：看见已经写出的字，猜下一个最可能是什么。整本书都在把「猜」这件事拆成可以手算、可以写代码的小步骤。</p>
+      </div>
     </article>
 
     <div class="toc-grid">
-      <h2>第一部 · 先看全貌</h2>
+      <h2>开始 · 先把读法搞清楚</h2>
       <a href="ch00-how-to-read.html"><span class="n">00</span><span>如何读这本书</span><span class="t">方法</span></a>
+      <a href="glossary.html"><span class="n">词</span><span>术语表：把每个词说成人话</span><span class="t">词典</span></a>
+      <a href="files.html"><span class="n">图</span><span>动手地图：文件、模块、函数</span><span class="t">贴哪</span></a>
+
+      <h2>第一部 · 先看全貌</h2>
       <a href="ch01-what-we-build.html"><span class="n">01</span><span>我们要造什么</span><span class="t">地图</span></a>
       <a href="ch02-tokens.html"><span class="n">02</span><span>词、编号与分词器</span><span class="t">输入</span></a>
       <a href="ch02b-minbpe.html"><span class="n">2.5</span><span>亲手写 BPE：minbpe</span><span class="t">算法</span></a>
@@ -70,7 +87,8 @@
 
     <article class="prose">
       <h2>和官方仓库的关系</h2>
-      <p>本教材依据 <a href="https://github.com/jingyaogong/minimind">jingyaogong/minimind</a> 的 <code>model/model_minimind.py</code>、<code>trainer/</code> 与 <code>dataset/lm_dataset.py</code> 编写。官方项目使用 Apache 2.0 协议。教材中的讲解是重新组织过的教学文本；关键实现与官方行为对齐，包括键值缓存的拼接维度、分组查询的重复方式、混合专家的负载均衡损失，以及生成循环里「只把新词送进模型」这一步。</p>
+      <p>本教材依据 <a href="https://github.com/jingyaogong/minimind">jingyaogong/minimind</a> 的 <code>model/model_minimind.py</code>、<code>trainer/</code> 与 <code>dataset/lm_dataset.py</code> 编写。官方项目使用 Apache 2.0 协议。</p>
+      <p>教材里的文字是重新写过的教学文本，会故意写得比源码啰嗦。关键实现与官方行为对齐，包括：键值缓存往哪一维拼接、分组查询怎么重复、混合专家的负载均衡损失，以及生成时「只把新词送进模型」。</p>
       <p>真正训练时，把 MiniMind-3 主线数据下载到 <code>exp-2-2/minimind_dataset/</code>（该目录不进 Git）。第 2.5 章的填空在 <code>exp-2-2/bpe/</code>；<code>attention.py</code> 留给第 5 章注意力。</p>
     </article>
     <nav class="pager" data-pager></nav>

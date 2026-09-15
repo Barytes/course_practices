@@ -14,19 +14,51 @@
     <header class="chap-head">
       <p class="kicker">第一部 · 全貌</p>
       <h1>第 3 章 · 词嵌入与权重共享</h1>
-      <p class="lead">编号只是查表的钥匙。词嵌入把钥匙换成向量，后面所有层都在这些向量上做线性代数。输出层再把向量映回词表上的分数。</p>
+      <p class="lead">编号只是查表的钥匙。词嵌入把钥匙换成一串小数，后面所有层都在这些小数上做计算。输出层再把一串小数映回词表上的分数。</p>
     </header>
     <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>嵌入 = 用编号当行号去查一张大表。输出层 = 用同一张表（或另一张同样形状的表）给每个词打分。MiniMind 默认让这两张表共用同一块内存，省大约 491 万参数。</p>
+      </div>
+
       <h2>查表，不是「把整数变成小数」</h2>
-      <p>一个词元编号 <code>42</code> 本身没有 42 的大小含义。第 2.5 章刚焊出来的 256、257、258 也一样：它们只是查表的钥匙。嵌入层是一张形状为 <code>[词表大小, 隐藏维度]</code> 的表格。编号 42 就取出第 42 行，得到一个 768 维向量。对一批序列，PyTorch 的 <code>nn.Embedding</code> 会一次取出所有位置，得到 <code>[B, T, 768]</code>。</p>
-      <p>这张表是要学习的。训练开始时行向量几乎是随机的；训练结束后，语义相近的词元，行向量往往更接近——但这是训练的结果，不是我们手工设计的。</p>
+      <p>一个词元编号 <code>42</code> 本身没有 42 的大小含义。第 2.5 章刚焊出来的 256、257、258 也一样：它们只是查表的钥匙。</p>
+      <p>嵌入层是一张形状为 <code>[词表大小, 隐藏维度]</code> 的表格，也就是 <code>[6400, 768]</code>：6400 行，每行 768 个数。编号 42 就取出第 42 行。对一批序列，PyTorch 的 <code>nn.Embedding</code> 会一次取出所有位置，得到 <code>[B, T, 768]</code>。</p>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>像快递柜：编号是柜门号，打开柜门取出里面的盒子（768 个数）。柜门号 42 并不表示盒子更重或更贵，它只是地址。</p>
+      </div>
+
+      <h3>超小例子</h3>
+      <p>假装词表只有 4 个词，每个词用 3 个数表示：</p>
+      <figure class="code">
+        <figcaption>手算 · 嵌入就是按行取</figcaption>
+        <pre><code>E = [
+  [0.1, 0.0, 0.2],   # 编号 0
+  [0.0, 1.0, 0.0],   # 编号 1
+  [0.5, 0.5, 0.0],   # 编号 2
+  [0.0, 0.0, 1.0],   # 编号 3
+]
+
+input_ids = [2, 0, 3]          # 一句话三个词
+# 取出第 2、0、3 行，得到形状 [3, 3]：
+hidden = [
+  [0.5, 0.5, 0.0],
+  [0.1, 0.0, 0.2],
+  [0.0, 0.0, 1.0],
+]
+</code></pre>
+      </figure>
+      <p>这张表是要学习的。训练开始时行向量几乎是随机的；训练结束后，语义相近的词元，行向量往往更接近——但这是训练的结果，不是我们手工设计的。你不必、也不该自己去填这张表。</p>
 
       <h2>输出层在做什么</h2>
-      <p>网络最后希望回答：「词表里每一个词元作为下一个词，分数是多少？」于是用一个无偏置的线性层：</p>
+      <p>网络最后希望回答：「词表里每一个词元作为下一个词，分数是多少？」于是用一个无偏置的线性层，把每个位置的 768 个数变成 6400 个分数：</p>
       <div class="formula">
         <div class="eq">logits = hidden_states × W<sup>T</sup></div>
-        <div class="hint">hidden_states 形状 [B, T, 768]，W 形状 [6400, 768]，logits 形状 [B, T, 6400]。</div>
+        <div class="hint">hidden_states 形状 [B, T, 768]，W 形状 [6400, 768]，logits 形状 [B, T, 6400]。每个位置都得到 6400 个打分。</hint>
       </div>
+      <p>直观理解：输出层在问「当前这个 768 维向量，和词表里每一行有多像」。越像，那个词的分数越高。</p>
       <p>如果嵌入表叫 E，输出层权重叫 W，两边形状都是 <code>[6400, 768]</code>。一个很常见的选择是让 <strong>E 和 W 用同一块内存</strong>。这叫词嵌入与输出层权重共享（weight tying）。MiniMind-3 默认打开它：<code>tie_word_embeddings=True</code>。</p>
 
       <h2>共享的好处和代价</h2>
@@ -41,14 +73,27 @@ if self.config.tie_word_embeddings:
 </code></pre>
       </figure>
       <p>共享之后，<code>state_dict</code> 里这两处是同一份数据。保存和加载时不要当成两份独立权重去「加起来」。Hugging Face 用 <code>_tied_weights_keys</code> 声明这种绑定，避免复制。</p>
+      <p>输出层不要偏置，还有一个实际原因：如果加了偏置，E 和 W 就没法整张共享——偏置多出来的那 6400 个数无处安放。</p>
 
       <h2>现在动手写</h2>
       <p>先写一个「只有嵌入和输出层、中间什么都不做」的玩具模型。用它检查形状，并确认共享后参数量不会算重。</p>
+      <div class="where">
+        <p class="label">现在动手 · 写到哪里</p>
+        <table class="plain">
+          <tbody>
+            <tr><th>文件</th><td><code>exp-2-2/minimind3/model.py</code>（文件顶部已有占位注释）</td></tr>
+            <tr><th>符号</th><td>类 <code>EmbedAndHead</code>；方法 <code>__init__</code>、<code>forward</code></td></tr>
+            <tr><th>依赖</th><td><code>from minimind3.config import MiniMindConfig</code>（若在包内写相对导入 <code>from .config import MiniMindConfig</code>）</td></tr>
+            <tr><th>怎么跑</th><td><code>python -m minimind3.model</code>，断言 logits 形状是 <code>(2, 5, 6400)</code>，参数量等于 6400×768</td></tr>
+            <tr><th>对应原理</th><td>上文「查表」+「输出层打分」+「两张表共用内存」。第 12 章会用真正的 8 层网络替换这个玩具类。</td></tr>
+          </tbody>
+        </table>
+      </div>
       <figure class="code">
-        <figcaption>现在动手写 · 嵌入 + 输出层</figcaption>
+        <figcaption>minimind3/model.py · class EmbedAndHead</figcaption>
         <pre><code>import torch
 from torch import nn
-from config import MiniMindConfig  # 第 1 章写的配置
+from .config import MiniMindConfig  # 第 1 章写的配置
 
 class EmbedAndHead(nn.Module):
     def __init__(self, config: MiniMindConfig):
@@ -76,6 +121,23 @@ print("参数量 =", n_param)
 assert n_param == cfg.vocab_size * cfg.hidden_size
 </code></pre>
       </figure>
+      <dl class="walk">
+        <dt><code>nn.Embedding(6400, 768)</code></dt>
+        <dd>建一张 6400 行、768 列的表。输入整数编号，输出对应行。</dd>
+        <dt><code>embed_tokens.weight = lm_head.weight</code></dt>
+        <dd>不是拷贝数字，是让两个名字指向同一块内存。改一边，另一边一起变。</dd>
+        <dt><code>sum(p.numel() for p in m.parameters())</code></dt>
+        <dd>把所有可学习数字的个数加起来。共享后应恰好 6400×768，否则你其实存了两张表。</dd>
+      </dl>
+      <div class="bridge">
+        <p class="label">代码怎么对上原理</p>
+        <ul>
+          <li><code>nn.Embedding(vocab_size, hidden_size)</code> → 「用编号当行号去查表」。输入 <code>[B, T]</code>，输出 <code>[B, T, 768]</code>。</li>
+          <li><code>lm_head</code> 是无偏置线性层 → 「每个位置的 768 个数变成 6400 个分数」，对应公式 logits = hidden × Wᵀ。</li>
+          <li><code>embed_tokens.weight = lm_head.weight</code> → 「两张表共用同一块内存」。不是拷贝，是两个名字指向同一份数据。</li>
+          <li>最后的 <code>assert n_param == vocab_size * hidden_size</code> → 用来验证共享真的生效了；若写成两倍，说明你存了两张表。</li>
+        </ul>
+      </div>
 
       <div class="callout ok">
         <p class="label">Dropout 放在哪里</p>
@@ -91,12 +153,29 @@ assert n_param == cfg.vocab_size * cfg.hidden_size
       </ul>
       <p>合计约 64M。嵌入大约占总参数的 8%。若词表改成 15 万且不共享，光这一项就会压过主体网络。这就是第 2 章坚持小词表的定量原因。</p>
 
+      <div class="callout stuck">
+        <p class="label">常见卡住</p>
+        <ul>
+          <li>参数量打印出来是 9.8M。——共享没生效。检查赋值是不是写在 <code>super().__init__()</code> 之后、两个层都创建完之后。</li>
+          <li>输入 <code>[2, 5]</code>，输出不是 <code>[2, 5, 6400]</code>。——中间某处把序列维弄丢了，或者 Linear 的 in/out 写反。</li>
+          <li>以为编号 0 的向量应该全是 0。——不是。0 只是第 0 行，内容是随机初始化的小数。</li>
+        </ul>
+      </div>
+
       <h2>自测</h2>
       <ul>
         <li><code>nn.Embedding(6400, 768)</code> 的权重形状是什么？给定 <code>input_ids</code> 形状 <code>[4, 32]</code>，输出形状是什么？</li>
         <li>为什么输出层不要偏置向量也可以？加上偏置会怎样影响共享？</li>
         <li>关闭权重共享后，参数量应变成多少？用代码验证你的判断。</li>
       </ul>
+      <details class="answer">
+        <summary>自测答案（先自己想）</summary>
+        <ol>
+          <li>权重形状 <code>[6400, 768]</code>。输入 <code>[4, 32]</code> 时，输出 <code>[4, 32, 768]</code>：4 句话，每句 32 个词，每个词 768 个数。</li>
+          <li>打分靠的是「和每一行有多像」，不必再给每个词加一个固定偏置。加上偏置后，E 和 W 无法整张共享，因为 Linear 多了一份长度为 6400 的 bias。</li>
+          <li>关闭共享后应是 2 × 6400 × 768 = 9,830,400。把 <code>tie_word_embeddings=False</code> 再跑一遍 assert 即可验证。</li>
+        </ol>
+      </details>
     </article>
     <nav class="pager" data-pager></nav>
   </main>

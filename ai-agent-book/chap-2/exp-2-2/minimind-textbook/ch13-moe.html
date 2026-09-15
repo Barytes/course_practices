@@ -17,87 +17,51 @@
       <p class="lead">注意力一行都不用改。把每一层的前馈换成「先由路由器选专家、再只跑被选中的 SwiGLU」，就得到 MiniMind-3-MoE。</p>
     </header>
     <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>前馈复制成 4 个专家。每个词只去分数最高的那 1 个，输出还要乘回门概率。另外加一项很小的辅助损失，防止所有词都挤进同一个专家。</p>
+      </div>
+
       <h2>混合专家要解决什么</h2>
-      <p>稠密前馈对每个词元都跑同一套 5.6M 参数。若想增加记忆容量，最笨的办法是把中间维加宽，于是每个词元的计算也变贵。混合专家（Mixture of Experts）把前馈复制成 N 份（专家），每个词元只激活其中 K 份。总参数变多，单次前向的计算量仍接近原来的 K / N。</p>
-      <p>MiniMind-3-MoE 的甜点配置：</p>
+      <p>稠密前馈对每个词都跑同一套 5.6M 参数。若想增加记忆容量，最笨的办法是把中间维加宽，于是每个词的计算也变贵。混合专家把前馈复制成 N 份，每个词只激活其中 K 份。</p>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>医院有 4 个专科，分诊台（路由器）看一眼把你送到其中 1 科。医院总编制变大，但你这次只占用 1 个诊室。没有「所有人都要先去的那个公共诊室」——MiniMind 去掉了共享专家。</p>
+      </div>
       <table class="plain">
         <thead><tr><th>项</th><th>取值</th></tr></thead>
         <tbody>
           <tr><td>专家个数</td><td>4</td></tr>
-          <tr><td>每个词元选几个</td><td>1（top-1）</td></tr>
-          <tr><td>共享专家</td><td>无。Qwen3-MoE 风格里 MiniMind 明确去掉了 shared expert。</td></tr>
+          <tr><td>每个词选几个</td><td>1（top-1）</td></tr>
+          <tr><td>共享专家</td><td>无</td></tr>
           <tr><td>总参数 / 激活参数</td><td>约 198M / 64M</td></tr>
         </tbody>
       </table>
-      <p>激活参数仍约 64M：注意力 + 被选中的那一个专家 + 嵌入，和稠密版同一量级。多出来的 130M 是另外 3 个专家，等路由器叫到它们才工作。</p>
-
-      <h2>路由器是一个很小的线性层</h2>
-      <p>对每个词元的 768 维向量，乘 <code>[768, 4]</code> 得到 4 个分数，再 softmax 变成「去每个专家的概率」。取概率最大的那 1 个专家（top-1）。若将来改成 top-2，就取最大的两个，并把这两个概率重新归一化（<code>norm_topk_prob=True</code>）。</p>
       <div class="formula">
         <div class="eq">p = softmax(x W<sub>gate</sub>)　　选 k* = argmax p　　输出 = p<sub>k*</sub> · Expert<sub>k*</sub>(x)</div>
         <div class="hint">乘回 p_k* 很重要：否则路由器的分数无法通过专家输出反传，门就学不到东西。</hint>
       </div>
 
-      <div class="diagram">
-        <svg viewBox="0 0 720 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="top-1 路由">
-          <rect x="20" y="70" width="90" height="50" fill="#fbf6ea" stroke="#1b1610"/>
-          <text x="65" y="100" text-anchor="middle" font-size="12" font-family="IBM Plex Sans, sans-serif">词元 x</text>
-          <path d="M110 95 H170" stroke="#1b1610"/>
-          <rect x="170" y="70" width="90" height="50" fill="#efe4c8" stroke="#8b3114"/>
-          <text x="215" y="100" text-anchor="middle" font-size="12" font-family="IBM Plex Sans, sans-serif">门 softmax</text>
-          <path d="M260 95 H320" stroke="#1b1610"/>
-          <text x="400" y="36" text-anchor="middle" font-size="12" font-family="IBM Plex Sans, sans-serif">4 个专家，各是一套 SwiGLU</text>
-          <rect x="320" y="20" width="160" height="36" fill="#eadfcb" stroke="#8a7f70"/>
-          <text x="400" y="42" text-anchor="middle" font-size="12" fill="#8a7f70" font-family="IBM Plex Sans, sans-serif">专家 0（未选）</text>
-          <rect x="320" y="64" width="160" height="36" fill="#8b3114"/>
-          <text x="400" y="86" text-anchor="middle" font-size="12" fill="#fff" font-family="IBM Plex Sans, sans-serif">专家 1（选中）</text>
-          <rect x="320" y="108" width="160" height="36" fill="#eadfcb" stroke="#8a7f70"/>
-          <text x="400" y="130" text-anchor="middle" font-size="12" fill="#8a7f70" font-family="IBM Plex Sans, sans-serif">专家 2（未选）</text>
-          <rect x="320" y="152" width="160" height="36" fill="#eadfcb" stroke="#8a7f70"/>
-          <text x="400" y="174" text-anchor="middle" font-size="12" fill="#8a7f70" font-family="IBM Plex Sans, sans-serif">专家 3（未选）</text>
-          <path d="M480 82 H560" stroke="#1b1610"/>
-          <rect x="560" y="58" width="140" height="50" fill="#1b1610"/>
-          <text x="630" y="88" text-anchor="middle" font-size="12" fill="#f6f0e4" font-family="IBM Plex Sans, sans-serif">p₁ · Expert₁(x)</text>
-        </svg>
-        <p class="cap">同一个批次里，不同词元可以走向不同专家。实现上按专家分桶，用 index_add_ 写回原位置。</p>
-      </div>
-
-      <h2>按专家分桶，而不是 for 每个词元</h2>
-      <p>不要写「对每个词元 if 专家==i」。应：把 <code>[B, T, 768]</code> 摊成 <code>[B·T, 768]</code>，算出每个词元的 topk 下标，然后对专家 i：</p>
-      <ol>
-        <li>找出 topk 下标等于 i 的那些词元；</li>
-        <li>只把这些行送进 <code>experts[i]</code>；</li>
-        <li>乘上对应的门概率；</li>
-        <li>用 <code>index_add_</code> 加回到输出的那些行。</li>
-      </ol>
-      <p>没被选中的专家，这一步一个词元都不会跑——这就是稀疏。但训练时若某个专家整批都没被选中，它的参数就不会出现在计算图里，优化器可能报错或状态错乱。官方的补救是加一个恒为 0 的假梯度：</p>
-      <figure class="code">
-        <figcaption>对照官方 · 未选中专家仍挂到计算图上</figcaption>
-        <pre><code>elif self.training:
-    y[0, 0] += 0 * sum(p.sum() for p in expert.parameters())
-</code></pre>
-      </figure>
-      <p>数值不变，只是让这些参数「被用到了」。推理时不要走这分支。</p>
+      <h2>按专家分桶，而不是 for 每个词</h2>
+      <p>把 <code>[B, T, 768]</code> 摊成 <code>[B·T, 768]</code>，算出每个词的 topk 下标，然后对专家 i：找出选了 i 的那些行 → 只把这些行送进 <code>experts[i]</code> → 乘上门概率 → 用 <code>index_add_</code> 写回原位置。</p>
+      <p>训练时若某个专家整批都没被选中，官方加一个恒为 0 的假梯度，让这些参数仍出现在计算图里。推理时不要走这分支。</p>
 
       <h2>负载均衡辅助损失</h2>
-      <p>若放任不管，路由器很容易把所有词元都塞给同一个专家，另外三个变死。Switch Transformer 一类的辅助损失鼓励「每个专家被选中的频率」与「门给出的平均概率」相匹配：</p>
-      <div class="formula">
-        <div class="eq">L<sub>aux</sub> = α · N · Σ<sub>i</sub> (f<sub>i</sub> · P<sub>i</sub>)</div>
-        <div class="hint">f_i 是这批里专家 i 被 top-k 选中的比例；P_i 是门在这批上对专家 i 的平均概率；N 是专家数；α 是 router_aux_loss_coef，默认 5e-4。</hint>
-      </div>
-      <p>官方实现：</p>
-      <figure class="code">
-        <figcaption>对照官方 · aux_loss</figcaption>
-        <pre><code>load = F.one_hot(topk_idx, self.config.num_experts).float().mean(0)
-self.aux_loss = (load * scores.mean(0)).sum() \
-    * self.config.num_experts * self.config.router_aux_loss_coef
-</code></pre>
-      </figure>
-      <p>训练总损失是 <code>交叉熵 + 各层 aux_loss 之和</code>。推理时 aux 置零。</p>
+      <p>若放任不管，路由器很容易把所有词都塞给同一个专家。辅助损失鼓励「每个专家被选中的频率」与「门给出的平均概率」相匹配。训练总损失是 <code>交叉熵 + 各层 aux_loss 之和</code>。推理时 aux 置零。</p>
 
-      <h2>现在动手写 · 完整 MOEFeedForward</h2>
+      <div class="where">
+        <p class="label">现在动手 · 写到哪里</p>
+        <table class="plain">
+          <tbody>
+            <tr><th>文件</th><td>追加到 <code>exp-2-2/minimind3/mlp.py</code>，不要另开 moe.py</td></tr>
+            <tr><th>符号</th><td>类 <code>MOEFeedForward</code>。属性名必须是 <code>gate</code>、<code>experts</code>（<code>nn.ModuleList</code> 里每个是 <code>FeedForward</code>）</td></tr>
+            <tr><th>第 11 章</th><td><code>block.py</code> 里已经写了 <code>if config.use_moe</code>。现在只要把 <code>use_moe=True</code> 实例化整网。</td></tr>
+            <tr><th>怎么跑</th><td><code>MiniMindConfig(use_moe=True)</code>，参数量约 198M；<code>model.train()</code> 时 aux 应非零</td></tr>
+          </tbody>
+        </table>
+      </div>
       <figure class="code">
-        <figcaption>现在动手写 · 与官方对齐的混合专家前馈</figcaption>
+        <figcaption>minimind3/mlp.py · class MOEFeedForward</figcaption>
         <pre><code>class MOEFeedForward(nn.Module):
     def __init__(self, config: MiniMindConfig):
         super().__init__()
@@ -140,38 +104,43 @@ self.aux_loss = (load * scores.mean(0)).sum() \
         return y.view(batch_size, seq_len, hidden_dim)
 </code></pre>
       </figure>
+      <div class="bridge">
+        <p class="label">代码怎么对上原理</p>
+        <ul>
+          <li><code>self.gate</code> 是 [768, 4] → 分诊台给 4 个专科打分。</li>
+          <li><code>experts</code> 里每个都是第 10 章的 <code>FeedForward</code> → 专科诊室就是一套 SwiGLU。</li>
+          <li><code>topk(..., k=1)</code> → 每个词只去 1 个专家。</li>
+          <li><code>expert(...) * weight</code> → 乘回门概率 p_k*，路由器才能学。</li>
+          <li><code>index_add_</code> → 按专家分桶写回原位置，不要对每个词写 Python for。</li>
+          <li><code>0 * sum(p.sum()...)</code> → 没被叫到的专家仍挂在计算图上，数值不变。</li>
+          <li><code>aux_loss</code> 存在模块上，第 12 章的 Model 会把各层加起来。</li>
+        </ul>
+      </div>
 
-      <h2>只改一处配置，复用第 11–12 章</h2>
-      <p>第 11 章的 Block 已经写了 <code>if config.use_moe</code>。现在：</p>
       <figure class="code">
-        <figcaption>现在动手写 · 实例化 MiniMind-3-MoE</figcaption>
+        <figcaption>用配置开关实例化 MiniMind-3-MoE</figcaption>
         <pre><code>cfg = MiniMindConfig(use_moe=True, num_experts=4, num_experts_per_tok=1)
 model = MiniMindForCausalLM(cfg)
 n = sum(p.numel() for p in model.parameters()) / 1e6
 print(f"{n:.2f}M")  # 应约 198
-
-ids = torch.randint(0, cfg.vocab_size, (2, 8))
-loss, aux, logits, _ = model(ids, labels=ids)
-print("ce", float(loss), "aux", float(aux))
-assert aux != 0  # 训练模式下辅助损失应非零
 </code></pre>
       </figure>
-      <p>属性名必须是 <code>mlp.gate</code>、<code>mlp.experts.0.gate_proj</code> 这种，才能和官方 MoE 权重对上。权重文件名带 <code>_moe</code> 后缀，例如 <code>pretrain_768_moe.pth</code>。</p>
-
-      <div class="callout warn">
-        <p class="label">为什么 4 专家 top-1 是「甜点」而不是 64 专家</p>
-        <p>专家一多，分桶导致的内核启动次数急剧上升。原生 PyTorch 没有融合的 MoE 算子时，64 专家可能比稠密模型慢很多。官方测过：当前实现下 4 专家大约只比稠密慢 50%。工业界会用 Triton / DeepSpeed-MoE / Megatron 做融合；本教材保持原生实现，和 MiniMind 同一取舍。</p>
-      </div>
-
-      <h2>没有共享专家</h2>
-      <p>有的 MoE 另加一个「所有词元都走」的共享专家，保证最低容量。MiniMind-3-MoE 去掉了它：结构更干净，也更接近当前 Qwen3-MoE 配置。不要自己加 <code>shared_experts</code>，否则权重对不上，激活参数也不再是 64M。</p>
+      <p>不要自己加 <code>shared_experts</code>，否则权重对不上，激活参数也不再是 64M。</p>
 
       <h2>自测</h2>
       <ul>
-        <li>top-1 时 <code>norm_topk_prob</code> 实际上会做什么？权重已经是一个数。</li>
-        <li>辅助损失为什么要乘专家数 N？不乘的话，4 专家和 64 专家的系数尺度差在哪？</li>
+        <li>top-1 时 <code>norm_topk_prob</code> 实际上会做什么？</li>
+        <li>辅助损失为什么要乘专家数 N？</li>
         <li>推理时 <code>model.eval()</code> 后 aux_loss 为什么必须是 0 张量而不是 Python 的 0？</li>
       </ul>
+      <details class="answer">
+        <summary>自测答案（先自己想）</summary>
+        <ol>
+          <li>top-1 时只选中一个数，除以自己还是自己。这行几乎没效果，但 top-2 时会把两个概率重新归一化。保留它是为了和配置开关一致。</li>
+          <li>f 和 P 都是大约 1/N 量级，点乘再求和大约是 1/N。乘 N 后尺度不随专家数漂移，4 专家和 64 专家的系数才可比。</li>
+          <li>训练循环写成 <code>loss + aux_loss</code>。Python 的 0 和张量相加可能得到错误类型或离开计算图。0 张量能安全相加。</li>
+        </ol>
+      </details>
     </article>
     <nav class="pager" data-pager></nav>
   </main>

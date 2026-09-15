@@ -1,0 +1,3 @@
+"""第 11 章：在这里写 MiniMindBlock。"""
+
+# class MiniMindBlock(nn.Module): ...

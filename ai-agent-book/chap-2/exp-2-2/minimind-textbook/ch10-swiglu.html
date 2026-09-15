@@ -17,32 +17,53 @@
       <p class="lead">注意力负责「从上下文里读」。前馈网络负责「读完之后，在每个位置上各自思考」。MiniMind 用带门控的 SwiGLU，而不是早期的一层 ReLU。</p>
     </header>
     <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>每个词独立做：先升到 2432 维，一部分当开关（SiLU）、一部分当内容，两者逐元素相乘，再压回 768。位置之间这一步互不观看。</p>
+      </div>
+
       <h2>前馈层在一层里的角色</h2>
-      <p>注意力输出仍然是每个位置一个 768 维向量，但已经混进了其他位置的信息。前馈网络对<strong>每个位置独立</strong>做同一次非线性变换：先升到更高维，经过激活，再降回 768。位置与位置之间在这一步不互相看——它们已经在注意力里看过了。</p>
-      <p>一种有用的直觉：注意力是路由，前馈是记忆。很多「事实性」的参数容量，其实堆在这三块大矩阵里。</p>
+      <p>注意力输出仍然是每个位置一个 768 维向量，但已经混进了其他位置的信息。前馈网络对<strong>每个位置独立</strong>做同一次非线性变换：先升到更高维，经过激活，再降回 768。</p>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>注意力是开会（互相看），前馈是散会后每个人回自己工位想一遍。很多「事实性」的参数容量，其实堆在这三块大矩阵里。</p>
+      </div>
 
       <h2>从 ReLU 前馈到门控线性单元</h2>
       <p>原始 Transformer 的前馈是 <code>W2(ReLU(W1 x))</code>。门控线性单元（GLU）多乘一个「门」：一部分通道决定让多少信息通过，另一部分是实际内容。SwiGLU 把门的激活选成 SiLU（也叫 swish）：</p>
       <div class="formula">
         <div class="eq">SiLU(z) = z · σ(z)　　SwiGLU(x) = SiLU(W<sub>gate</sub> x) ⊙ (W<sub>up</sub> x)</div>
-        <div class="hint">⊙ 是逐元素相乘。然后再乘 W_down 投回隐藏维度。</hint>
+        <div class="hint">⊙ 是逐元素相乘。然后再乘 W_down 投回隐藏维度。σ 是 sigmoid。</hint>
       </div>
-      <p>σ 是 sigmoid。SiLU 在负半轴不会像 ReLU 那样彻底死掉，又比 GELU 更便宜。Qwen3 / Llama 族都用这个组合。MiniMind 配置里 <code>hidden_act='silu'</code>，官方用 <code>transformers.activations.ACT2FN</code> 取函数；你也可以写 <code>F.silu</code>。</p>
+      <p>SiLU 在负半轴不会像 ReLU 那样彻底死掉。MiniMind 配置里 <code>hidden_act='silu'</code>，你可以直接写 <code>F.silu</code>。</p>
+
+      <h3>超小例子</h3>
+      <p>假设某维 gate=2.0，up=3.0。sigmoid(2)≈0.88，SiLU(2)≈1.76，相乘得到 1.76×3≈5.3。若 gate 是很大的负数，SiLU≈0，这维内容几乎被关掉。</p>
 
       <h2>三块矩阵，没有偏置</h2>
       <table class="plain">
         <thead><tr><th>名称</th><th>形状</th><th>作用</th></tr></thead>
         <tbody>
-          <tr><td>gate_proj</td><td>[768, 2432]</td><td>算出门。经过 SiLU 后作为 0 到大约 1 的软开关。</td></tr>
+          <tr><td>gate_proj</td><td>[768, 2432]</td><td>算出门。经过 SiLU 后作为软开关。</td></tr>
           <tr><td>up_proj</td><td>[768, 2432]</td><td>把内容升到中间维度。</td></tr>
           <tr><td>down_proj</td><td>[2432, 768]</td><td>把门控后的内容投回隐藏维度。</td></tr>
         </tbody>
       </table>
-      <p>中间维 2432 来自第 1 章的公式 <code>ceil(768 × π / 64) × 64</code>。π 大约 3.14，所以中间维大约是隐藏维的 3.17 倍，再向上取到 64 的倍数。这是工程上的习惯取值，不是物理定律；不要改成「随便一个 4 倍」然后指望能加载官方权重。</p>
+      <p>中间维 2432 来自第 1 章的公式 <code>ceil(768 × π / 64) × 64</code>。不要改成「随便一个 4 倍」然后指望能加载官方权重。</p>
 
-      <h2>现在动手写</h2>
+      <div class="where">
+        <p class="label">现在动手 · 写到哪里</p>
+        <table class="plain">
+          <tbody>
+            <tr><th>文件</th><td>新建实现于 <code>exp-2-2/minimind3/mlp.py</code></td></tr>
+            <tr><th>符号</th><td>类 <code>FeedForward</code>；三个线性层在 <code>__init__</code>；一行计算在 <code>forward</code></td></tr>
+            <tr><th>构造参数</th><td><code>FeedForward(config, intermediate_size=None)</code>。第 13 章每个专家会传入 <code>config.moe_intermediate_size</code>，所以不要把 2432 写死。</td></tr>
+            <tr><th>怎么跑</th><td>输入 <code>[2, 5, 768]</code>，输出必须还是 <code>[2, 5, 768]</code></td></tr>
+          </tbody>
+        </table>
+      </div>
       <figure class="code">
-        <figcaption>现在动手写 · FeedForward（稠密版）</figcaption>
+        <figcaption>minimind3/mlp.py · class FeedForward</figcaption>
         <pre><code>import torch.nn.functional as F
 from torch import nn
 
@@ -59,30 +80,38 @@ class FeedForward(nn.Module):
         return self.down_proj(F.silu(self.gate_proj(x)) * self.up_proj(x))
 </code></pre>
       </figure>
-      <p>第 13 章的每个专家，就是再实例化一个 <code>FeedForward</code>，只是 <code>intermediate_size</code> 改用 <code>config.moe_intermediate_size</code>（默认与稠密版相同）。所以这个类请写得通用，不要把 2432 写死。</p>
+      <div class="bridge">
+        <p class="label">代码怎么对上原理</p>
+        <ul>
+          <li><code>gate_proj(x)</code> 再 <code>F.silu</code> → 「开关」那一支。SiLU(z)=z·σ(z)。</li>
+          <li><code>up_proj(x)</code> → 「内容」那一支，升到 2432 维。</li>
+          <li><code>*</code> 是逐元素相乘 → 公式里的 ⊙。某维开关≈0，内容就被关掉。</li>
+          <li><code>down_proj</code> → 压回 768。形状进出相同，所以第 11 章可以安全地加残差。</li>
+          <li>三个层都 <code>bias=False</code> → 和 Qwen3 / 官方权重对齐，不是因为偏置「不好」。</li>
+        </ul>
+      </div>
 
       <div class="callout">
         <p class="label">参数量心算</p>
         <p>一层前馈：3 × 768 × 2432 = 5,603,328。八层约 44.8M，已经占 MiniMind-3 总参数的大部分。注意力四块投影大约每层 1.77M，八层约 14M。小模型里「前馈比注意力更重」是正常的。</p>
       </div>
 
-      <h2>预归一化下它怎么接</h2>
-      <p>不要对注意力输出直接做前馈。官方一层是：</p>
-      <figure class="code">
-        <figcaption>对照官方 · MiniMindBlock 里前馈的位置</figcaption>
-        <pre><code>hidden_states = hidden_states + self.mlp(
-    self.post_attention_layernorm(hidden_states)
-)
-</code></pre>
-      </figure>
-      <p>先 RMSNorm，再 SwiGLU，再加回残差。注意力分支同理。下一章把两条残差画在一起。</p>
+      <p>不要对注意力输出直接做前馈。官方一层是先 RMSNorm，再 SwiGLU，再加回残差。下一章把两条残差画在一起。</p>
 
       <h2>自测</h2>
       <ul>
         <li>若漏掉 SiLU，只做 <code>gate_proj(x) * up_proj(x)</code>，门还是「软开关」吗？</li>
-        <li>为什么三个线性层都不要 bias？这和权重加载、和 Qwen3 对齐有什么关系？</li>
+        <li>为什么三个线性层都不要 bias？</li>
         <li>把 intermediate_size 改成 2048，模型还能加载官方 <code>pretrain_768.pth</code> 吗？</li>
       </ul>
+      <details class="answer">
+        <summary>自测答案（先自己想）</summary>
+        <ol>
+          <li>不是。没有 SiLU，gate 可以是任意正负大数，不再是大约 0 到 1 的开关，训练也更不稳。</li>
+          <li>为了和 Qwen3 / 官方权重逐参数对齐。有 bias 就对不上检查点。</li>
+          <li>不能。矩阵形状对不上，<code>load_state_dict</code> 会报 size mismatch。</li>
+        </ol>
+      </details>
     </article>
     <nav class="pager" data-pager></nav>
   </main>

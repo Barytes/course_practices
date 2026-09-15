@@ -17,17 +17,32 @@
       <p class="lead">把嵌入、8 层积木、最终归一化、输出层接成完整稠密模型。写完这一章，你就已经有了 MiniMind-3 的前向计算。</p>
     </header>
     <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>两个类：<code>MiniMindModel</code> 负责「编号→8 层→隐藏状态」；<code>MiniMindForCausalLM</code> 再加输出层算 logits 和交叉熵。位置表按缓存里的 start_pos 切片。</p>
+      </div>
+
       <h2>两层包装</h2>
-      <p>官方拆成两个类，职责不同：</p>
       <ul>
         <li><code>MiniMindModel</code>：词嵌入 → 8 层 → 最终 RMSNorm。返回隐藏状态、各层缓存、混合专家的辅助损失（稠密时为 0）。</li>
-        <li><code>MiniMindForCausalLM</code>：外面再加 <code>lm_head</code>，算 logits 和交叉熵，并实现 <code>generate</code>。</li>
+        <li><code>MiniMindForCausalLM</code>：外面再加 <code>lm_head</code>，算 logits 和交叉熵，并实现 <code>generate</code>（generate 放到第 16 章）。</li>
       </ul>
-      <p>这样拆是为了和 Hugging Face 的因果语言模型接口对齐。教学上可以先把两者写在同一文件，但请保持同样的调用关系，后面接训练脚本时才不用改。</p>
+      <p>这样拆是为了和 Hugging Face 的因果语言模型接口对齐。属性名必须和官方一致，才能加载 <code>.pth</code>。</p>
 
-      <h2>MiniMindModel：位置表 + 层循环</h2>
+      <div class="where">
+        <p class="label">现在动手 · 写到哪里</p>
+        <table class="plain">
+          <tbody>
+            <tr><th>文件</th><td><code>exp-2-2/minimind3/model.py</code>。第 3 章的 <code>EmbedAndHead</code> 可以留在文件底部当自测，或删掉。</td></tr>
+            <tr><th>先写</th><td>类 <code>MiniMindModel</code>：<code>embed_tokens</code>、<code>layers</code>、<code>norm</code>、两张 freqs buffer、<code>forward</code></td></tr>
+            <tr><th>再写</th><td>类 <code>MiniMindForCausalLM</code>：<code>self.model</code>、<code>lm_head</code>、权重共享、<code>forward</code> 里的错位交叉熵</td></tr>
+            <tr><th>怎么跑</th><td><code>python -m minimind3.model</code>。参数量应约 64M；<code>logits.shape == (2, 16, 6400)</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
       <figure class="code">
-        <figcaption>现在动手写 · MiniMindModel</figcaption>
+        <figcaption>minimind3/model.py · class MiniMindModel</figcaption>
         <pre><code>class MiniMindModel(nn.Module):
     def __init__(self, config: MiniMindConfig):
         super().__init__()
@@ -78,17 +93,23 @@
         return hidden_states, presents, aux_loss
 </code></pre>
       </figure>
-      <p>稠密模型没有 <code>MOEFeedForward</code>，辅助损失保持 0。官方用 <code>sum(..., hidden_states.new_zeros(1).squeeze())</code> 保证即使 0 也是一个真正的标量张量，能和主损失相加。</p>
-
-      <div class="callout">
-        <p class="label">freqs 变成全 0 怎么办</p>
-        <p>官方有一段：若 <code>self.freqs_cos[0, 0] == 0</code> 就重新预计算。这是为了兼容某些「meta 设备」初始化（先在空设备上建图再搬到 GPU，buffer 会丢）。你在普通 <code>.to(device)</code> 流程里可以先不写；一旦发现旋转没生效，再把这段补上。</p>
+      <div class="bridge">
+        <p class="label">MiniMindModel 怎么对上原理</p>
+        <ul>
+          <li><code>embed_tokens(input_ids)</code> → 第 3 章查表，[B, T] 变成 [B, T, 768]。</li>
+          <li><code>ModuleList([MiniMindBlock(i, ...) for i in range(8)])</code> → 第 1 章图纸上的「×8 层」，每层自己的权重。</li>
+          <li><code>start_pos = past_key_values[0][0].shape[1]</code> → 第 8 章：有缓存时位置从已经写过的长度接着数，不从 0 开始。</li>
+          <li><code>freqs_cos[start_pos:start_pos+seq_length]</code> → 把预计算表切给当前这段查询。注意力内部不要自己 arange。</li>
+          <li><code>zip(self.layers, past_key_values)</code> → 第 11 章：每一层拿自己的那一格缓存，写回 presents 同一格。</li>
+          <li>层后再 <code>self.norm</code> → 第 4 章说的「整网输出前再来一次」。</li>
+          <li>稠密时 aux_loss 保持 0 张量 → 训练循环可以统一写成 <code>loss + aux_loss</code>，第 13 章不必改循环。</li>
+        </ul>
       </div>
 
-      <h2>MiniMindForCausalLM：logits 与训练损失</h2>
-      <p>标签相对输入右移一位：用位置 t 的隐藏状态预测位置 t+1 的词元。官方在模型内部完成这次错位，数据集可以返回「对齐后的 input_ids 与 labels」，padding 处 labels 为 -100。</p>
+      <h2>标签相对输入右移一位</h2>
+      <p>用位置 t 的隐藏状态预测位置 t+1 的词元。官方在模型内部完成这次错位。</p>
       <figure class="code">
-        <figcaption>现在动手写 · 因果语言模型外壳</figcaption>
+        <figcaption>minimind3/model.py · class MiniMindForCausalLM</figcaption>
         <pre><code>class MiniMindForCausalLM(nn.Module):
     def __init__(self, config=None):
         super().__init__()
@@ -115,12 +136,18 @@
         return loss, aux_loss, logits, past_key_values
 </code></pre>
       </figure>
-      <p>官方返回 <code>MoeCausalLMOutputWithPast</code> 这个命名元组，便于 <code>res.loss</code>、<code>res.aux_loss</code> 取值。教学版返回元组即可；训练循环写成 <code>loss = res[0] + res[1]</code>。</p>
-      <p><code>logits_to_keep</code>：生成时往往只需最后一个位置的分数。设为 1 时只对最后一格做 lm_head，省计算。训练时保持默认 0，表示「从 0 到末尾都保留」，再在内部用 <code>[:-1]</code> 对齐标签。</p>
+      <div class="bridge">
+        <p class="label">外壳怎么对上原理</p>
+        <ul>
+          <li>权重共享那两行 → 第 3 章，省 491 万参数。</li>
+          <li><code>logits[..., :-1]</code> 对 <code>labels[..., 1:]</code> → 「用位置 t 猜位置 t+1」。最后一个位置的 logits 在这次错位里用不上；生成时恰好只要最后一个位置。</li>
+          <li><code>ignore_index=-100</code> → padding 不算分。第 14 章会把 pad 位置的标签改成 -100。</li>
+          <li><code>logits_to_keep=1</code> → 生成时只对最后一格做 lm_head，省计算。训练保持默认 0（保留全部）。</li>
+        </ul>
+      </div>
 
-      <h2>现在立刻做的形状与参数检查</h2>
       <figure class="code">
-        <figcaption>现在动手写 · 确认你真的得到了约 64M 的稠密模型</figcaption>
+        <figcaption>minimind3/model.py · __main__ 形状与参数检查</figcaption>
         <pre><code>cfg = MiniMindConfig(use_moe=False)
 model = MiniMindForCausalLM(cfg)
 n = sum(p.numel() for p in model.parameters()) / 1e6
@@ -134,19 +161,7 @@ assert loss.ndim == 0
 print("loss", float(loss), "aux", float(aux))
 </code></pre>
       </figure>
-      <p>若参数量接近 69M，多半是嵌入没有共享，输出层又算了一份。若只有十几 M，多半是层数或中间维没读配置。</p>
-
-      <h2>和官方类的差异清单</h2>
-      <table class="plain">
-        <thead><tr><th>官方</th><th>你可以暂时简化</th><th>不要简化</th></tr></thead>
-        <tbody>
-          <tr><td>继承 PreTrainedModel, GenerationMixin</td><td>普通 nn.Module</td><td>前向计算顺序</td></tr>
-          <tr><td>_tied_weights_keys</td><td>手动 bind 权重</td><td>tie_word_embeddings 的效果</td></tr>
-          <tr><td>MoeCausalLMOutputWithPast</td><td>元组</td><td>loss 与 aux_loss 分开</td></tr>
-          <tr><td>generate 写在类里</td><td>第 16 章再写</td><td>past_key_values 的层列表结构</td></tr>
-        </tbody>
-      </table>
-      <p>若你希望直接加载官方 <code>.pth</code>，模块树的名字必须一致：<code>model.embed_tokens</code>、<code>model.layers.0.self_attn.q_proj</code>、<code>model.layers.0.mlp.gate_proj</code>、<code>lm_head</code>……最稳妥的办法是把官方 <code>Attention</code> / <code>FeedForward</code> / <code>MiniMindBlock</code> 的属性名原样抄下来。</p>
+      <p>若参数量接近 69M，多半是嵌入没有共享。若只有十几 M，多半是层数或中间维没读配置。</p>
 
       <div class="callout ok">
         <p class="label">本章完成的标志</p>
@@ -156,9 +171,17 @@ print("loss", float(loss), "aux", float(aux))
       <h2>自测</h2>
       <ul>
         <li>8 层的 past_key_values 是长度 8 的列表，还是一个大张量？每一格里是什么？</li>
-        <li>为什么最终 RMSNorm 在 8 层之后、lm_head 之前，而不是在每一层末尾再来一次？</li>
+        <li>为什么最终 RMSNorm 在 8 层之后、lm_head 之前？</li>
         <li>labels 已经与 input_ids 对齐存放时，为什么还要在 forward 里对 logits 取 <code>[:-1]</code>、对 labels 取 <code>[1:]</code>？</li>
       </ul>
+      <details class="answer">
+        <summary>自测答案（先自己想）</summary>
+        <ol>
+          <li>长度 8 的列表。每一格是该层的 (K, V) 元组，形状里序列维会随生成增长。</li>
+          <li>8 层已经把表示加工完，输出层前再拉一次尺度，logits 更稳。不必每层末尾再来一次——层内已经有预归一化。</li>
+          <li>位置 t 的隐藏状态应对「下一个词」负责。两边各切掉一格，才能一对一对齐。不切的话，模型会学成「看见自己猜自己」。</li>
+        </ol>
+      </details>
     </article>
     <nav class="pager" data-pager></nav>
   </main>

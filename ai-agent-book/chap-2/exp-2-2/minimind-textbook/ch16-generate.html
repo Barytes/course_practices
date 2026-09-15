@@ -17,44 +17,38 @@
       <p class="lead">训练好的模型给出的是分数，不是句子。生成循环每次取最后一个位置的分数，选出一个词元接到后面，并靠键值缓存避免重算历史。</p>
     </header>
     <article class="prose">
-      <h2>生成就是「一步一个词元」的循环</h2>
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>第一步把整段提示词送进去，填满缓存；之后每步只送 1 个新词。从最后一格 logits 里按温度 / top-k / top-p 抽出下一个编号，接到右边，直到 eos。</p>
+      </div>
+
       <ol class="steps">
         <li>把提示词编成 input_ids，第一次前向算完整缓存。</li>
         <li>取出最后一个位置的 logits，按温度、top-k、top-p 变成概率，采样（或取 argmax）。</li>
         <li>把新词元拼到 input_ids 右边。若启用缓存，下一步只把这个新词元送进模型。</li>
         <li>若采到 eos，或达到 max_new_tokens，结束。</li>
       </ol>
-
-      <h2>温度：把分布变尖或变平</h2>
-      <div class="formula">
-        <div class="eq">logits ← logits / T</div>
-        <div class="hint">T&lt;1 更贪心、更重复；T&gt;1 更随机。T→0 的极限是每次都选最大分数。官方默认约 0.85。</hint>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>接龙。第一轮把已经写好的开头读完（填缓存）；以后每写一个字，只把这个新字递给模型，旧草稿不用重读。温度像「大胆程度」：越小越认死理。</p>
       </div>
-      <p>除法发生在 softmax 之前。不要先 softmax 再除，那不是温度。</p>
 
-      <h2>top-k 与 top-p</h2>
-      <p>即使温度合适，长尾上那些「几乎不可能」的词元偶尔被采到也会毁掉整句。两种截断：</p>
-      <ul>
-        <li><strong>top-k：</strong>只保留分数最高的 k 个，其余设为 -inf。官方默认 50。</li>
-        <li><strong>top-p（nucleus）：</strong>按概率从大到小累加，刚超过 p 的那些丢掉。官方 generate 默认 0.85 左右，eval 脚本里常见 0.95。</li>
-      </ul>
-      <p>两者可以同时用：先 top-k 再 top-p。实现 top-p 时注意：把「累积已经超过 p」的掩码右移一位，保证至少留下概率最大的那一个，否则可能把整行都盖成 -inf。</p>
+      <p>温度：softmax 之前把 logits 除以 T。T&lt;1 更贪心；T&gt;1 更随机。官方默认约 0.85。不要先 softmax 再除。</p>
+      <p>top-k：只保留分数最高的 k 个。top-p：按概率从大到小累加，刚超过 p 的丢掉。实现 top-p 时必须保证至少留下概率最大的那一个。</p>
+
+      <div class="where">
+        <p class="label">现在动手 · 写到哪里</p>
+        <table class="plain">
+          <tbody>
+            <tr><th>文件</th><td><code>exp-2-2/minimind3/generate.py</code></td></tr>
+            <tr><th>符号</th><td>函数 <code>generate(model, input_ids, ...)</code>，装饰器 <code>@torch.inference_mode()</code></td></tr>
+            <tr><th>依赖</th><td>第 12 章 <code>forward</code> 返回 <code>(loss, aux, logits, past)</code>。若你的元组顺序不同，按自己的解包。</td></tr>
+            <tr><th>怎么验</th><td>同一随机种子下，<code>use_cache=True/False</code> 的采样结果应几乎一致。差很多说明缓存或位置切片错了。</td></tr>
+          </tbody>
+        </table>
+      </div>
       <figure class="code">
-        <figcaption>对照官方 · top-p 保留至少一个词元</figcaption>
-        <pre><code>sorted_logits, sorted_indices = torch.sort(logits, descending=True)
-mask = torch.cumsum(torch.softmax(sorted_logits, dim=-1), dim=-1) > top_p
-mask[..., 1:] = mask[..., :-1].clone()
-mask[..., 0] = 0
-logits[mask.scatter(1, sorted_indices, mask)] = -float("inf")
-</code></pre>
-      </figure>
-
-      <h2>重复惩罚</h2>
-      <p>官方若 <code>repetition_penalty ≠ 1</code>，会对已经出现过的词元缩放分数：正分数除以惩罚系数（变小），负分数乘以惩罚系数（更负）。目的是降低「翻来覆去说同一句话」的概率。设为 1 表示关闭。惩罚过猛会伤害合法的功能词重复。</p>
-
-      <h2>现在动手写 · 带缓存的生成</h2>
-      <figure class="code">
-        <figcaption>现在动手写 · 与官方 generate 同结构的教学版</figcaption>
+        <figcaption>minimind3/generate.py · def generate</figcaption>
         <pre><code>@torch.inference_mode()
 def generate(model, input_ids, max_new_tokens=64, temperature=0.85,
              top_k=50, top_p=0.85, eos_token_id=2, use_cache=True):
@@ -69,11 +63,11 @@ def generate(model, input_ids, max_new_tokens=64, temperature=0.85,
 
         if top_k > 0:
             kth = torch.topk(logits, top_k)[0][:, -1, None]
-            logits[logits < kth] = -float("inf")
-        if top_p < 1.0:
+            logits[logits &lt; kth] = -float("inf")
+        if top_p &lt; 1.0:
             sorted_logits, sorted_idx = torch.sort(logits, descending=True)
             cum = torch.softmax(sorted_logits, dim=-1).cumsum(-1)
-            mask = cum > top_p
+            mask = cum &gt; top_p
             mask[..., 1:] = mask[..., :-1].clone()
             mask[..., 0] = False
             logits[mask.scatter(1, sorted_idx, mask)] = -float("inf")
@@ -95,25 +89,38 @@ def generate(model, input_ids, max_new_tokens=64, temperature=0.85,
     return input_ids
 </code></pre>
       </figure>
-      <p>若你第 12 章的 <code>forward</code> 返回元组顺序不同，按你自己的返回值解包。<code>use_cache=False</code> 时每步应送入完整 <code>input_ids</code>，结果应与有缓存时非常接近（允许一点数值误差）。这是验证第 6 章缓存有没有写对的最好测试。</p>
+      <div class="bridge">
+        <p class="label">代码怎么对上原理</p>
+        <ul>
+          <li><code>past_len = 0</code> 时 <code>input_ids[:, past_len:]</code> 是整段提示词 → 「第一轮把开头读完」。</li>
+          <li>之后 past_len 等于缓存里的词数，切片只剩最新一个词 → 第 6 章「只送新词」。</li>
+          <li><code>logits[:, -1, :]</code> → 只要最后一个位置的 6400 个分数。</li>
+          <li><code>/ temperature</code> 在 softmax 之前 → 「大胆程度」。</li>
+          <li>top-k / top-p 把不要的格设成 -inf → 和第 6 章掩码同一招，softmax 后权重为 0。</li>
+          <li><code>mask[..., 0] = False</code> → 概率最大的那个必须留下，否则整行可能全是 -inf。</li>
+          <li><code>inference_mode</code> → 不建计算图，省显存，也避免误调用 backward。</li>
+        </ul>
+      </div>
 
       <div class="callout ok">
         <p class="label">对照官方的 past_len</p>
-        <p><code>input_ids[:, past_len:]</code> 在第一步等于整段提示词，之后等于最新一个词元。不要写成「永远只送最后一个词元」——第一步还没有缓存，必须把提示词全部算完。</p>
+        <p>不要写成「永远只送最后一个词元」——第一步还没有缓存，必须把提示词全部算完。</p>
       </div>
-
-      <h2>批次里有的句子先结束</h2>
-      <p>官方用 <code>finished</code> 布尔向量：已经结束的样本继续填 eos，不再换新词，等整批都结束或到达上限。单条对话可以简化成 <code>break</code>。</p>
-
-      <h2>和 eval_llm.py 的关系</h2>
-      <p>官方入口会：加载分词器与权重、把对话套进 chat_template（预训练权重则只加 bos）、调用 <code>model.generate</code>、流式打印。<code>open_thinking</code> 作为模板参数传入。你写完教学版 generate 之后，用同一套模板字符串去调用，行为应接近 <code>eval_llm.py</code>。</p>
 
       <h2>自测</h2>
       <ul>
-        <li>关掉缓存与打开缓存，同一随机种子下采样结果是否应几乎一致？若差很多，缓存或位置切片多半错了。</li>
+        <li>关掉缓存与打开缓存，同一随机种子下采样结果是否应几乎一致？</li>
         <li>top-p 若不把 mask[..., 0] 置 False，可能发生什么？</li>
         <li>为什么生成循环要包在 <code>torch.inference_mode()</code> 里？</li>
       </ul>
+      <details class="answer">
+        <summary>自测答案（先自己想）</summary>
+        <ol>
+          <li>应当几乎一致（允许一点浮点误差）。差很多说明缓存拼接、因果掩码或 RoPE 的 start_pos 错了。</li>
+          <li>若最大那个概率已经 &gt; top_p，整行都被盖成 -inf，softmax 全是 nan，采样崩溃。</li>
+          <li>生成不需要梯度。inference_mode 比 no_grad 更彻底，也能防止误把张量留下来占显存。</li>
+        </ol>
+      </details>
     </article>
     <nav class="pager" data-pager></nav>
   </main>

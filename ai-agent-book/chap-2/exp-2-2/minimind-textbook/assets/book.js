@@ -1,6 +1,8 @@
 const CHAPTERS = [
   { file: "index.html", title: "封面与目录", short: "封面", part: "开始" },
   { file: "ch00-how-to-read.html", title: "如何读这本书", short: "阅读方法", part: "开始" },
+  { file: "glossary.html", title: "术语表：把每个词说成人话", short: "术语表", part: "开始" },
+  { file: "files.html", title: "动手地图：文件、模块、函数", short: "动手地图", part: "开始" },
   { file: "ch01-what-we-build.html", title: "我们要造什么", short: "全貌", part: "第一部 · 全貌" },
   { file: "ch02-tokens.html", title: "词、编号与分词器", short: "分词", part: "第一部 · 全貌" },
   { file: "ch02b-minbpe.html", title: "亲手写 BPE：minbpe", short: "minbpe", part: "第一部 · 全貌" },

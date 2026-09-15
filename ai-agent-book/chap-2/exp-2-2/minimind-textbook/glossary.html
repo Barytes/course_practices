@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>术语表 — MiniMind 手把手</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">开始</p>
+      <h1>术语表：把每个词说成人话</h1>
+      <p class="lead">后面章节会反复用这些词。这里集中翻译成大白话。看不懂某一章时，先回到这一页查词，再往下读。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">怎么用这一页</p>
+        <p>不需要一次背完。第一次见到生词就来查。每个词只记「它在这台机器里干什么」，不必先啃论文定义。</p>
+      </div>
+
+      <h2>输入和输出</h2>
+      <table class="plain">
+        <thead><tr><th>说法</th><th>人话</th></tr></thead>
+        <tbody>
+          <tr><td>token / 词元</td><td>模型真正看见的最小碎片。不一定是「一个汉字」或「一个英文单词」。可能是半个字、一个词、一块标点。</td></tr>
+          <tr><td>词表 / vocab</td><td>一本编号词典。MiniMind 里一共 6400 个编号，从 0 到 6399。</td></tr>
+          <tr><td>分词器 / tokenizer</td><td>把人类的字符串切成词元，再换成编号；生成完再把编号拼回文字列。</td></tr>
+          <tr><td>BPE</td><td>一种切词规则：从字节出发，反复把最常见的相邻两块焊成新词。</td></tr>
+          <tr><td>特殊标记</td><td>不是普通字，是给模型看的结构标签。例如「这段话开始」「助手开始说话」。</td></tr>
+          <tr><td>bos / eos / pad</td><td>bos=一句话开头，eos=一句话结束，pad=为了凑齐长度而填的空白编号。</td></tr>
+        </tbody>
+      </table>
+
+      <h2>形状：怎么念 [B, T, D]</h2>
+      <p>一个<strong>张量</strong>就是按格子排好的一堆数字。中括号里的数叫<strong>形状</strong>，告诉你格子怎么排。</p>
+      <table class="plain">
+        <thead><tr><th>字母</th><th>英文</th><th>人话</th><th>MiniMind-3 常见取值</th></tr></thead>
+        <tbody>
+          <tr><td>B</td><td>batch</td><td>一次并行处理几句话</td><td>训练时 16 或 32；自己试形状时用 2 就够</td></tr>
+          <tr><td>T 或 seq_len</td><td>sequence length</td><td>一句话有几个词元</td><td>教学例子用 4～16；训练常用几百</td></tr>
+          <tr><td>D 或 hidden</td><td>hidden size</td><td>每个词元用几个数字来表示</td><td>768</td></tr>
+          <tr><td>V</td><td>vocab size</td><td>词典里有多少个编号</td><td>6400</td></tr>
+        </tbody>
+      </table>
+      <p class="say"><strong>朗读练习：</strong><code>[2, 5, 768]</code> 念作「2 句话，每句 5 个词，每个词 768 个数」。后面凡是看到形状，都先这样念一遍。</p>
+
+      <h2>网络内部</h2>
+      <table class="plain">
+        <thead><tr><th>说法</th><th>人话</th></tr></thead>
+        <tbody>
+          <tr><td>嵌入 / embedding</td><td>一张大表。用词元编号当行号，取出那一行向量。编号 42 没有任何「42 很大」的意思，只是钥匙。</td></tr>
+          <tr><td>隐藏状态</td><td>某个位置上那串正在被加工的数字。形状通常是 [B, T, 768]。</td></tr>
+          <tr><td>线性层 / Linear</td><td>对每个词各自做一次「乘一张可学习的表，得到另一串数字」。句子长度不变。</td></tr>
+          <tr><td>权重 / 参数</td><td>那些可学习的数字。训练就是改这些数字，让猜词更准。</td></tr>
+          <tr><td>logits</td><td>还没变成概率的原始打分。词表里每个候选都有一个分数。</td></tr>
+          <tr><td>softmax</td><td>把一串分数变成一串加起来等于 1 的权重（或概率）。谁分数高，谁权重大。</td></tr>
+          <tr><td>交叉熵</td><td>一种打分方式：正确那个词的概率越低，惩罚越大。</td></tr>
+          <tr><td>残差</td><td>子层算完之后，把原始输入再加回去。像留一条「原路」，信息不容易走丢。</td></tr>
+          <tr><td>归一化</td><td>把一串数字的整体大小拉回稳定范围，避免一层层放大后爆炸。</td></tr>
+          <tr><td>RMSNorm</td><td>MiniMind 用的归一化：不减均值，只按均方根缩放，再乘可学习的系数。</td></tr>
+          <tr><td>Dropout</td><td>训练时随机把一些数字变成 0，减少死记硬背。MiniMind-3 默认关掉（系数 0）。</td></tr>
+        </tbody>
+      </table>
+
+      <h2>注意力这一族</h2>
+      <table class="plain">
+        <thead><tr><th>说法</th><th>人话</th></tr></thead>
+        <tbody>
+          <tr><td>查询 Q</td><td>当前位置在问：「我要找什么样的信息？」</td></tr>
+          <tr><td>键 K</td><td>每个位置的索引标签：「我这份内容适合被怎样检索？」</td></tr>
+          <tr><td>值 V</td><td>每个位置真正要提供的内容。</td></tr>
+          <tr><td>自注意力</td><td>Q、K、V 都来自同一串输入，只是经过三块不同的线性层。</td></tr>
+          <tr><td>因果</td><td>猜位置 t 的下一个词时，不能看 t 后面的词。否则等于考试偷看答案。</td></tr>
+          <tr><td>掩码 / mask</td><td>在算权重之前，把不允许看的格子改成负无穷，softmax 之后它们的权重就是 0。</td></tr>
+          <tr><td>键值缓存 / KV Cache</td><td>生成时把已经算过的 K、V 存下来，新词到来时不必把整段历史重算一遍。</td></tr>
+          <tr><td>多头</td><td>把 768 维切成好几份，每份独立做一套注意力，再拼回去。像几个人同时从不同角度读同一句话。</td></tr>
+          <tr><td>GQA / 分组查询</td><td>查询头比较多，键值头比较少。几个人共用同一本索引，省缓存。</td></tr>
+          <tr><td>RoPE / 旋转位置编码</td><td>不把「第几个词」直接加到输入上，而是把 Q 和 K 按位置旋转。点积里就会自动带上相对距离。</td></tr>
+          <tr><td>head_dim</td><td>每个头自己的宽度。MiniMind-3：768 / 8 = 96。</td></tr>
+        </tbody>
+      </table>
+
+      <h2>一层网络和两种模型</h2>
+      <table class="plain">
+        <thead><tr><th>说法</th><th>人话</th></tr></thead>
+        <tbody>
+          <tr><td>前馈 / FFN / MLP</td><td>注意力读完上下文之后，每个词自己再做一次非线性思考。位置之间这一步互不观看。</td></tr>
+          <tr><td>SwiGLU</td><td>带门控的前馈：一部分数字当开关，一部分当内容，相乘后再压回 768 维。</td></tr>
+          <tr><td>Decoder-Only</td><td>只有从左到右写的解码器，没有单独的「先读完整段再翻译」的编码器。</td></tr>
+          <tr><td>层 / block</td><td>「归一化→注意力→残差」再「归一化→前馈→残差」。MiniMind 把这一层复制 8 份。</td></tr>
+          <tr><td>稠密 / Dense</td><td>每个词都走同一套完整前馈。</td></tr>
+          <tr><td>MoE / 混合专家</td><td>前馈复制成好几个专家，每个词只去其中几个。总参数变多，单次计算不必全用。</td></tr>
+          <tr><td>路由器 / gate</td><td>一个小线性层，负责给每个词打分：该去哪个专家。</td></tr>
+        </tbody>
+      </table>
+
+      <h2>训练和生成</h2>
+      <table class="plain">
+        <thead><tr><th>说法</th><th>人话</th></tr></thead>
+        <tbody>
+          <tr><td>预训练</td><td>在大量普通文本上练「猜下一个词」。</td></tr>
+          <tr><td>SFT / 监督微调</td><td>换成「用户问、助手答」这种格式继续猜下一个词，而且通常只在助手要说的那些词上算对错。</td></tr>
+          <tr><td>标签 / labels</td><td>每个位置「正确答案是几号」。padding 处写成 -100，表示「这里不算分」。</td></tr>
+          <tr><td>学习率</td><td>每次根据对错，把参数往正确方向推多少。太大容易冲过头，太小学得太慢。</td></tr>
+          <tr><td>温度</td><td>生成时把分数除以 T。T 小更认死理，T 大更爱瞎碰。</td></tr>
+          <tr><td>top-k / top-p</td><td>生成时丢掉太离谱的候选，只从比较靠前的几个里抽。</td></tr>
+          <tr><td>LoRA</td><td>不改原权重，在旁边加两块很瘦的矩阵。便宜地适应一个小领域。</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout">
+        <p class="label">还是晕？</p>
+        <p>第 0 章有一节专门教「形状怎么读」。第 5 章有一个 3 个词、2 维向量的完整手算。真正卡住时，先把那两个例子用计算器算一遍，再回来查这张表。不知道代码该贴哪，打开<a href="files.html">动手地图</a>。</p>
+      </div>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

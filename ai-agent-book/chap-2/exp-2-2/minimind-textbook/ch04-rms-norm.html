@@ -14,20 +14,44 @@
     <header class="chap-head">
       <p class="kicker">第二部 · 积木</p>
       <h1>第 4 章 · 均方根归一化</h1>
-      <p class="lead">深层网络里，向量的尺度会一层层漂移。归一化把每个词元向量重新拉回稳定的长度，再交给注意力和前馈。MiniMind 用均方根归一化，并且放在子层前面。</p>
+      <p class="lead">深层网络里，向量的尺度会一层层漂移。归一化把每个词的那串数字重新拉回稳定的长度，再交给注意力和前馈。MiniMind 用均方根归一化，并且放在子层前面。</p>
     </header>
     <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>对每个词自己的 768 个数，算出均方根，再拿原向量去除以它，最后乘一组可学习的缩放系数。目的不是让模型更聪明，而是让 8 层叠起来还能训练得动。</p>
+      </div>
+
       <h2>没有它会怎样</h2>
-      <p>注意力里有点积，前馈里有放大又缩小的线性层。8 层叠起来后，有的位置向量特别大、有的特别小，点积分数会爆炸或消失，训练就不稳。归一化不是为了「让模型更聪明」，而是为了让训练能走下去。</p>
+      <p>注意力里有点积（两个向量对应相乘再相加），前馈里有放大又缩小的线性层。8 层叠起来后，有的位置向量特别大、有的特别小。点积分数会爆炸或消失，训练就不稳。</p>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>像音响前面的归一化：有人说话特别大声、有人特别轻。先把音量拉到差不多，后面的均衡器才调得动。归一化不管「这句话说了什么」，只管「音量别跑飞」。</p>
+      </div>
 
       <h2>层归一化在做什么，均方根归一化少做了什么</h2>
       <p>经典层归一化（LayerNorm）对最后一个维度计算均值和方差：先减均值，再除以标准差，再乘可学习的缩放、加可学习的平移。</p>
       <p>均方根归一化（RMSNorm）发现：对 Transformer 来说，<strong>减均值这一步往往不是必须的</strong>。它只做：</p>
       <div class="formula">
         <div class="eq">RMS(x) = sqrt(mean(x<sup>2</sup>) + ε)　　y = (x / RMS(x)) × γ</div>
-        <div class="hint">均值在最后一个维度上取。γ 是和隐藏维度同长的可学习向量，初始化为全 1。没有平移项 β。</div>
+        <div class="hint">均值在最后一个维度上取。γ（gamma）是和隐藏维度同长的可学习向量，初始化为全 1。没有平移项 β。</hint>
       </div>
+      <p>人话版三步：</p>
+      <ol>
+        <li>把这 768 个数每个平方，求平均，再开方。得到一个正数，叫均方根，衡量「这串数字整体有多大」。</li>
+        <li>每个数都除以这个均方根。除完之后，这串数字的均方根大约是 1。</li>
+        <li>再逐个乘上 γ。γ 一开始全是 1，等于没改；训练后允许某些维度保持得更大或更小。</li>
+      </ol>
       <p>少一次减均值，计算更便宜，效果在现代解码器里通常不差。Qwen3 和 MiniMind-3 都用它。</p>
+
+      <h3>超小例子</h3>
+      <p>一个词只有 2 个数：<code>x = [3, 4]</code>。</p>
+      <ul>
+        <li>平方：9 和 16，平均 12.5，开方 ≈ 3.535（这就是 RMS）。</li>
+        <li>相除：<code>[3/3.535, 4/3.535] ≈ [0.849, 1.131]</code>。</li>
+        <li>检查：0.849² + 1.131² 再平均再开方，大约是 1。</li>
+      </ul>
+      <p>ε（epsilon，极小的正数，如 1e-6）加在开方里面，防止这串数字全是 0 时除以 0。</p>
 
       <h2>为什么是「先归一化再算子层」</h2>
       <p>有两种摆法：</p>
@@ -51,13 +75,24 @@
           <path d="M40 50 V120 H620 V50" stroke="#3d6e67" fill="none"/>
           <text x="330" y="148" text-anchor="middle" font-size="12" fill="#1f4a45" font-family="IBM Plex Sans, sans-serif">残差：原始 x 直接加回来，不经过归一化</text>
         </svg>
-        <p class="cap">预归一化。子层看到的是尺度稳定的向量；残差看到的是原始 x。</p>
+        <p class="cap">预归一化。子层看到的是尺度稳定的向量；残差看到的是原始 x。两条路不要加错对象。</p>
       </div>
 
       <h2>现在动手写</h2>
-      <p>官方把开方倒数写成 <code>torch.rsqrt</code>，并先转成 float 再算，避免半精度下方差过小变 inf。你应按同样顺序写。</p>
+      <p>官方把开方倒数写成 <code>torch.rsqrt</code>（算 1/√·，一次完成），并先转成 float 再算，避免半精度下方差过小变 inf。你应按同样顺序写。</p>
+      <div class="where">
+        <p class="label">现在动手 · 写到哪里</p>
+        <table class="plain">
+          <tbody>
+            <tr><th>文件</th><td><code>exp-2-2/minimind3/norm.py</code></td></tr>
+            <tr><th>符号</th><td>类 <code>RMSNorm</code>；真正算均方根的是 <code>_norm</code>，对外入口是 <code>forward</code></td></tr>
+            <tr><th>怎么跑</th><td><code>python -m minimind3.norm</code>，形状应仍是 <code>[2, 4, 768]</code>，均方根接近 1</td></tr>
+            <tr><th>对应原理</th><td>上文「人话版三步」：平方求平均再开方 → 相除 → 乘 γ。ε 防止除以 0。</td></tr>
+          </tbody>
+        </table>
+      </div>
       <figure class="code">
-        <figcaption>现在动手写 · RMSNorm</figcaption>
+        <figcaption>minimind3/norm.py · class RMSNorm</figcaption>
         <pre><code>import torch
 from torch import nn
 
@@ -65,7 +100,7 @@ class RMSNorm(nn.Module):
     def __init__(self, dim: int, eps: float = 1e-6):
         super().__init__()
         self.eps = eps
-        self.weight = nn.Parameter(torch.ones(dim))
+        self.weight = nn.Parameter(torch.ones(dim))  # 这就是 γ，初始全 1
 
     def _norm(self, x: torch.Tensor) -&gt; torch.Tensor:
         # x: [..., dim]，在最后一维上求均方根
@@ -86,13 +121,39 @@ if __name__ == "__main__":
     print(rms.mean().item())
 </code></pre>
       </figure>
+      <dl class="walk">
+        <dt><code>mean(dim=-1, keepdim=True)</code></dt>
+        <dd>只在最后一维（768）上求平均。keepdim 是为了还能和原来的 x 相乘，形状对得上。</dd>
+        <dt><code>x.float()</code> 再 <code>type_as(x)</code></dt>
+        <dd>用 float32 算稳定的均方根，算完再变回原来的精度（可能是 float16）。</dd>
+        <dt><code>self.weight * output</code></dt>
+        <dd>γ 会广播到每个词上：同一套 768 个系数，每个位置都用。</dd>
+      </dl>
+      <div class="bridge">
+        <p class="label">代码怎么对上原理</p>
+        <ul>
+          <li><code>x.pow(2).mean(dim=-1)</code> → 「把这 768 个数每个平方，求平均」。dim=-1 是每个词自己，不是把一句话的所有词混在一起。</li>
+          <li><code>torch.rsqrt(... + eps)</code> → 1 / RMS。乘回去等价于「每个数都除以均方根」。</li>
+          <li><code>self.weight</code> 初始 <code>torch.ones(dim)</code> → γ 一开始全是 1，等于没改；训练后才允许某些维度更大或更小。</li>
+          <li><code>x.float()</code> 再 <code>type_as(x)</code> → 用更稳的精度算音量，算完再变回原来的数据类型。</li>
+        </ul>
+      </div>
 
       <div class="callout">
         <p class="label">ε 取多少</p>
-        <p>官方配置 <code>rms_norm_eps=1e-6</code>，类的默认参数写的是 <code>1e-5</code>。真正生效的是配置里传入的值。教学代码请一律从 <code>config.rms_norm_eps</code> 传入，不要混用两个默认。</p>
+        <p>官方配置 <code>rms_norm_eps=1e-6</code>，类的默认参数有的地方写的是 <code>1e-5</code>。真正生效的是配置里传入的值。教学代码请一律从 <code>config.rms_norm_eps</code> 传入，不要混用两个默认。</p>
       </div>
 
       <p>第 9 章还会把同一个 RMSNorm 用在每个注意力头的 96 维上，那叫查询/键归一化。模块是同一个，只是 <code>dim=head_dim</code> 而不是 <code>dim=hidden_size</code>。</p>
+
+      <div class="callout stuck">
+        <p class="label">常见卡住</p>
+        <ul>
+          <li>对 <code>[B, T, 768]</code> 在 dim=1（词这一维）上求均值。——错了。每个词自己归一化，应该是最后一维 dim=-1。</li>
+          <li>残差加的是 norm(x) 而不是 x。——高速公路被剪断。第 11 章会再强调一次。</li>
+          <li>半精度训练时出现 inf。——漏了 <code>x.float()</code>。</li>
+        </ul>
+      </div>
 
       <h2>自测</h2>
       <ul>
@@ -100,6 +161,14 @@ if __name__ == "__main__":
         <li>若不用 <code>x.float()</code>，在 float16 下可能出现什么数值问题？</li>
         <li>RMSNorm 没有偏置 β。这意味着它不能平移表示，只能缩放。这对预归一化结构为什么通常够用？</li>
       </ul>
+      <details class="answer">
+        <summary>自测答案（先自己想）</summary>
+        <ol>
+          <li>预归一化想留一条「未经处理的原路」给梯度走。如果加回去的是 norm(x)，原路就被改掉了，深层会更难训练。</li>
+          <li>float16 能表示的最小正数比较粗。均方根过小或平方溢出时，可能得到 inf / nan，后面全军覆没。</li>
+          <li>后面的线性层自己带得动平移（乘表就相当于换坐标系）。归一化的任务主要是管尺度；少一个 β，参数更少，也和 Qwen3 对齐。</li>
+        </ol>
+      </details>
     </article>
     <nav class="pager" data-pager></nav>
   </main>
