@@ -2,16 +2,15 @@ name: Deploy MiniMind textbook
 
 on:
   push:
-    branches: [main, cursor/fix-pages-deploy-0976]
+    branches: [main]
     paths:
       - "ai-agent-book/chap-2/exp-2-2/minimind-textbook/**"
       - ".github/workflows/deploy-minimind-textbook.yml"
   workflow_dispatch:
 
-# Official actions/deploy-pages needs a Pages site that already exists.
-# Creating that site is a repo admin action; GITHUB_TOKEN cannot do it, so the
-# previous workflow 404'd at configure-pages. Publishing the gh-pages branch
-# works with contents:write. After that we try to point Pages at the branch.
+# Official actions/deploy-pages 404s until a Pages site exists.
+# Creating that site is a repo admin action; GITHUB_TOKEN cannot do it.
+# Publishing the gh-pages branch only needs contents:write.
 permissions:
   contents: write
   pages: write
@@ -46,14 +45,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set +e
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/pages" \
+          if gh api --method POST "repos/${GITHUB_REPOSITORY}/pages" \
             -f "build_type=legacy" \
             -f "source[branch]=gh-pages" \
-            -f "source[path]=/"
-          post=$?
-          if [ "$post" -ne 0 ]; then
-            gh api --method PUT "repos/${GITHUB_REPOSITORY}/pages" \
-              -f "source[branch]=gh-pages" \
-              -f "source[path]=/"
+            -f "source[path]=/"; then
+            echo "GitHub Pages enabled."
+            exit 0
           fi
+          echo "::notice::Actions cannot enable GitHub Pages. Open https://github.com/${GITHUB_REPOSITORY}/settings/pages and set Source to the gh-pages branch."
           gh api "repos/${GITHUB_REPOSITORY}/pages" || true
