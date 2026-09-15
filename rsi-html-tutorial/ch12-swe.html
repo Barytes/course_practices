@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 12 章 · 软件工程里的 RSI</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第三部 · 四个场景</p>
+      <h1>第 12 章 · 软件工程里的 RSI</h1>
+      <p class="lead">产品和开发它的智能体都是可执行代码。仓库能给测试失败、运行轨迹、代码评审。这是目前最接近「看得见、测得着」的 RSI 实验室。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>软件 RSI 的环：开发挑战 → 智能体级修改 → 以仓库为根据的试验 → 带回归意识的选择 → 带版本的继承。必须同时问：这次改动现在有没有用，以及它有没有增加继续改进的能力。</p>
+      </div>
+
+      <h2>三条场景特有的难</h2>
+      <ol>
+        <li>系统必须持续生成针对当前能力缺口、又仍可验证、又对未来学习有价值的软件任务。</li>
+        <li>一次修改可能抬了当前基准分，却让后续搜索停滞；暂时更弱的变体可能产生更强后代。当前分 ≠ 元生产力。</li>
+        <li>多部件一起演化时，要保住外层契约：评价标准、改进目标不能被默默改掉。</li>
+      </ol>
+
+      <h2>演化编码智能体实现和 Harness</h2>
+      <p>最直接的形式：把编码智能体自己当成可编辑的软件项目。</p>
+      <div class="work" id="sica">
+        <h3>SICA：同一个系统既是开发者又是被开发对象</h3>
+        <p class="meta">Robeyns 等人，2025 · 自我改 Python 代码库</p>
+        <h4>实现怎么走</h4>
+        <ol>
+          <li>智能体检查先前版本和基准结果。</li>
+          <li>修改自己的 Python 代码库（文件编辑工具、子智能体、上下文管理……）。</li>
+          <li>选中的版本进入下一改进轮。</li>
+        </ol>
+        <p>对文件编辑工具或上下文管理的改动，会同时改进普通写代码和后续的自我修改。基准、效用函数、沙箱仍外部固定，所以是有界 L5 特征，不是完整 L5。</p>
+      </div>
+      <ul>
+        <li><strong>Self-Harness</strong>：用执行轨迹找反复出现的弱点，让同一底座模型对当前 harness 提出小改动，只有回归测试通过才留下。比改整个代码库更窄，因此更可审计。</li>
+        <li><strong>Agentic Harness Engineering</strong>：把 harness 部件暴露成可单独编辑、可回退的文件；把长轨迹蒸馏成结构化证据；检查每项改动是否产生它预测的效果。进化器角色分开，环不那么直接自指，但被接受的 harness 仍跨以后执行持久存在。</li>
+        <li><strong>Ouroboros</strong>：把这个想法接到部署：经过审核的对工具、上下文拼接、提示、核心实现的改动，成为以后干活的运行时。</li>
+      </ul>
+      <p>版本控制、回归测试、回滚，把自我修改变成可审计的持久过程——这是软件场景相对科学/医疗的最大优势。</p>
+
+      <h2>演化经验、技能与协作</h2>
+      <p>更轻的形式不重写完整实现，只改如何使用先前开发经验。</p>
+      <ul>
+        <li><strong>SWE-Exp</strong>：把成功和失败的 issue 解决轨迹抽进经验库，以后的仓库任务检索相关教训。</li>
+        <li><strong>CODESKILL</strong>：学习一个管理政策，在多层次抽取程序性技能，随新轨迹到达而更新或删除，维持紧凑技能库给未来智能体。</li>
+      </ul>
+      <p>持久输出是可复用的开发知识，支持跨任务适应。固定的抽取和更新程序本身并不因使用而变好。</p>
+      <p><strong>EvoMAC</strong> 把多智能体编码工作流表示成角色提示和通信链接的网络，用测试反馈和「文本反向传播」同时修订智能体和它们的连接。这改进的是构造当前程序所用的工作流；报告的更新发生在每项任务的测试时，所以跨任务持久性要单独检查。</p>
+
+      <h2>演化改进过程本身</h2>
+      <p>最强的系统不走单一接受编辑序列，还在替代进化路径上搜索。DGM 已在第 9 章拆过。其余几条把「当前分」和「产生后代的能力」进一步分开：</p>
+      <ul>
+        <li><strong>HGM</strong>：从智能体的后代谱系估计元生产力，把评价力气投向长期改进潜力更强的智能体。</li>
+        <li><strong>Group-Evolving Agents</strong>：多个父代在产生新组时共享成功修改和失败经验，有用发现不锁在一支上。</li>
+        <li><strong>DarwinX</strong>：在冻结模型周围进化完整 harness 种群，只有扩展任务覆盖且不回归先前已解题时才录取。</li>
+        <li><strong>HELIX</strong>：模型–harness 环：harness 演化改进当前执行并生成验证轨迹来更新模型，然后为改变后的模型重建 harness。</li>
+      </ul>
+
+      <h2>离真正的软件 RSI 还有多远</h2>
+      <p>B0 任务局部精炼普遍。L1 出现在跨任务经验和技能学习。L2 是最强的已确立级别：在固定目标和评测器下选择对 harness、工具或工作流的改动。L3 通过 Self-play SWE-RL 和 Socratic-SWE 的学习者条件任务生成正在出现。L4 环境适应大体缺席（生产里的 Ouroboros / Tax AI 是候选）。SICA 和 DGM 表现有界 L5 特征；HGM 引入基于谱系的元选择，但选择规则本身未适应。完整 L5——改进「软件开发改进器」——尚未演示。</p>
+      <p>真正的软件工程 RSI 需要稳健的规格、可归因的改进、跨仓库和软件版本的可靠迁移。当测试生成和改进策略变得可适应，用户意图、安全约束、可审计性和回滚必须保持外部受保护。</p>
+      <p>SWE-bench、DarwinX、HELIX、SICA 等见 <a href="papers-apps.html">场景深挖</a> 与 <a href="papers-l5.html">深挖 L5</a>。</p>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

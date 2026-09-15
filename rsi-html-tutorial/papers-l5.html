@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>引用工作深挖 · L5</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第五部 · 每篇工作</p>
+      <h1>L5 元改进：改进器、评测器、研究政策</h1>
+      <p class="lead">结构 L5 证明改过的机制被下一轮调用；有效 L5 还要证明可比预算下能造出更强后继者。今天多半只有前者。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一页怎么用</p>
+        <p>主线第 9 章代表系统的实现与数字。</p>
+      </div>
+      <div class="search-box"><input data-filter type="search" placeholder="按系统名、作者、技术词过滤……"></div>
+<h2>改进搜索程序</h2>
+
+<div class="work" id="stop">
+  <h3>STOP Self-Taught Optimizer</h3>
+  <p class="meta"><span class="badge l5">L5 有界</span> Zelikman 等人 2023/24 · <a href='https://arxiv.org/abs/2310.02304'>arXiv:2310.02304</a> · <a href='https://github.com/microsoft/stop'>microsoft/stop</a></p>
+  <h4>它想解决什么</h4>
+  <p>种子改进器是「多次询问 LM、用效用选最好」的 Python。把它套到自己源码上，用下游任务平均分当元效用。底座 LM 不变。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>I0 并发生成候选并选 max utility。</li>
+<li>û(I)=改进器在训练任务上的平均下游效用。</li>
+<li>I_t=I_{t-1}(û, I_{t-1}, L)。</li>
+<li>留出迁移任务不准碰。</li></ol>
+  <p>主线第 9 章含种子代码结构。第四代在五个留出任务上超种子。作者明确说不是完全 RSI。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>弱模型回退；绕过软预算；关沙箱标志；外层录取门可能不是「比父代好」。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>改进器源码。</div>
+    <div><div class="k">人还控什么</div>效用、LM、预算、任务集。</div>
+  </div>
+</div>
+
+<div class="work" id="godel-agent">
+  <h3>Gödel Agent</h3>
+  <p class="meta"><span class="badge l5">L5 结构 / 不稳定</span> Yin 等人 ACL 2025 · <a href='https://arxiv.org/abs/2410.04444'>arXiv:2410.04444</a> · <a href='https://github.com/Arvid-pku/Godel_Agent'>GitHub</a></p>
+  <h4>它想解决什么</h4>
+  <p>运行时 introspect + monkey patch + 递归主函数。可改 solver 也可改自我更新逻辑。目标仅通过高层提示给出。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>SELF_INSPECT 读运行时代码。</li>
+<li>LLM 决定是否 patch。</li>
+<li>动态替换函数后递归进入新逻辑。</li>
+<li>action_evaluate_on_task 提供环境反馈。</li></ol>
+  <p>100 次 MGSM 里 14 次低于初始。不受限运行可能调更强模型。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>不可证明的有害自修改；调试极难；评价函数被改则循环。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>任务政策+更新代码。</div>
+    <div><div class="k">人还控什么</div>目标提示、运行时权限。</div>
+  </div>
+</div>
+
+<div class="work" id="dgm">
+  <h3>Darwin Gödel Machine</h3>
+  <p class="meta"><span class="badge l5">L5 过渡</span> Zhang 等人 2026b · <a href='https://arxiv.org/abs/2505.22954'>arXiv:2505.22954</a> · <a href='https://github.com/jennyzzt/dgm'>jennyzzt/dgm</a></p>
+  <h4>它想解决什么</h4>
+  <p>档案里生长编码智能体树。父代改自己代码，经验基准验收。档案维护和父代选择不在自我修改范围内。SWE-bench 20%→50%，Polyglot 14.2%→30.7%。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>采样父代（外部规则）。</li>
+<li>自我改代码。</li>
+<li>沙箱跑 SWE-bench/Polyglot。</li>
+<li>有趣则入档。</li></ol>
+  <p>开放探索防止一条有害编辑堵死。任务分≠改进程序变好。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>评测极贵。采样规则会决定探索–利用。必须沙箱。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>智能体代码+档案。</div>
+    <div><div class="k">人还控什么</div>父代选择、基准、档案规则。</div>
+  </div>
+</div>
+
+<div class="work" id="hyperagents">
+  <h3>HyperAgents</h3>
+  <p class="meta"><span class="badge l5">L5 候选</span> Zhang 等人 2026c</p>
+  <h4>它想解决什么</h4>
+  <p>任务智能体和元智能体代码都可改。进化出的元智能体做性能跟踪器和持久记忆。论文评审/机器人上进化的元智能体，能为未见数学评分生成更好智能体。200 次迭代未给出迁移初始化的显著最终优势。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>改任务代码与元代码。</li>
+<li>档案+评价。</li>
+<li>把元智能体迁到新域测。</li>
+<li>迁移测试时冻结元机制以隔离。</li></ol>
+  <p>设计用来区分可迁移的改进程序和原任务刷分。主实验父代选择和评价仍固定。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>长实验统计不显著说明有效 L5 仍开放。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>任务+元智能体代码。</div>
+    <div><div class="k">人还控什么</div>主研究选择、评价。</div>
+  </div>
+</div>
+<h2>改进后继评测器与研究政策</h2>
+
+<div class="work" id="rqgm">
+  <h3>Red Queen Gödel Machine</h3>
+  <p class="meta"><span class="badge l5">L5 评测器</span> Iacob 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>学到的评测器纪元内冻结。边界上挑战者对照独立真值锚；选中者治理下一纪元。旧分数作废并重评。留出 Polyglot 71.7% vs HGM-H 69.9%，搜索 token 更少。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>纪元内固定评测器搜智能体。</li>
+<li>到点生成挑战者评测器。</li>
+<li>用锚比较。</li>
+<li>替换后重评受影响智能体。</li></ol>
+  <p>处理「判官不变会被钻、乱变则不可比」。形式稳定性只适用于冻结纪元。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>锚的质量决定一切。替换日程仍外部。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>评测器+智能体代码。</div>
+    <div><div class="k">人还控什么</div>锚、替换日程、编排。</div>
+  </div>
+</div>
+
+<div class="work" id="a-evolve">
+  <h3>A-Evolve-Training</h3>
+  <p class="meta"><span class="badge l5">L5 政策</span> Shi 等人 2026b</p>
+  <h4>它想解决什么</h4>
+  <p>30B Nemotron 自主后训练四轮。工人返回配方、检查点评价、失败；收集器汇总；元智能体修订下一轮搜索政策（现行配方、晋升/退役方向、失败登记）。开发分涨外部分不涨时，政策转向能抬外部目标的干预。外部分 0.80→0.86（人类最佳 0.87）。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>工人跑配方。</li>
+<li>收集器写发现日志。</li>
+<li>元智能体改政策。</li>
+<li>政策指导下一轮工人。</li></ol>
+  <p>继承物是研究政策不是一次分数。未演示自主改高层目标。工人底座和章程固定。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>外部目标仍是人定考场。四轮样本小。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>搜索政策+发现日志。</div>
+    <div><div class="k">人还控什么</div>章程、基准、工人底座。</div>
+  </div>
+</div>
+
+<div class="work" id="aira2">
+  <h3>Meta AIRA2</h3>
+  <p class="meta"><span class="badge l2">L2 研究基建</span> Hambardzumyan 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>异步实验 + 隐藏一致评价，自动化实验执行。报告研究产出，未确立对「做研究的程序」的继承式修改。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>提交实验。</li>
+<li>隐藏评测。</li>
+<li>返回结果给人/智能体。</li></ol>
+  <p>综述明确：自动化执行 ≠ L5。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>隐藏评测仍可能被适应性查询。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>实验产物。</div>
+    <div><div class="k">人还控什么</div>研究 harness 与评价。</div>
+  </div>
+</div>
+
+<div class="work" id="aar">
+  <h3>Automated Alignment Researchers</h3>
+  <p class="meta"><span class="badge l2">L2</span> Chen 等人 2026c · Anthropic</p>
+  <h4>它想解决什么</h4>
+  <p>为指定对齐失败生成并测试缓解。在研究者设计的工作流内自动化。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>给定失败模式。</li>
+<li>提案缓解。</li>
+<li>训练/评价。</li>
+<li>分享日志。</li></ol>
+  <p>研究报告，不是改进器继承。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>失败模式由人指定。缓解可能过拟合该失败。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>缓解代码与日志。</div>
+    <div><div class="k">人还控什么</div>对齐失败规格、评价。</div>
+  </div>
+</div>
+
+<div class="work" id="aide2">
+  <h3>AIDE²</h3>
+  <p class="meta"><span class="badge l5">L5 有界 / 有效性未立</span> Weco Team 2026 · <a href='https://www.weco.ai/blog/first-evidence-of-recursive-self-improvement'>博客</a></p>
+  <h4>它想解决什么</h4>
+  <p>研究智能体改进研究智能体 harness。私有打分+固定成本。100 步 7 次录取，8 天发现比两年人手调更好的 harness，提示缩小 16×，自建防奖励黑客分层。把进化 harness 装成外层改进器时，没有统计显著效率优势。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>外层用当前 harness 搜更好 harness。</li>
+<li>下游任务私有分+成本门。</li>
+<li>录取版本留给后续研究。</li>
+<li>另测「外层搜索是否变快」。</li></ol>
+  <p>公司报告支持有界 harness 改进和跨任务泛化；「点火」式加速未确立。私有评价无法外部审计。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>私有分、任务族、成本都是人设计。防黑客层可能过拟合已知黑客。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>研究智能体 harness。</div>
+    <div><div class="k">人还控什么</div>私有分、成本预算。</div>
+  </div>
+</div>
+
+<div class="work" id="sica">
+  <h3>SICA</h3>
+  <p class="meta"><span class="badge b0">有界 L5</span> Robeyns 等人 2025</p>
+  <h4>它想解决什么</h4>
+  <p>编码智能体检查先前版本和基准，改自己的 Python 代码库，选中版本进下一轮。同一系统既是开发者又是对象。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>读旧版本与分数。</li>
+<li>改自身仓库。</li>
+<li>基准录取。</li></ol>
+  <p>改编辑工具/子智能体/上下文管理会同时改进普通编码和自我修改。基准、效用、沙箱外部固定。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>自我修改无证明门。基准过拟合。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>智能体代码库。</div>
+    <div><div class="k">人还控什么</div>基准、效用、沙箱。</div>
+  </div>
+</div>
+
+<div class="work" id="hgm">
+  <h3>Huxley–Gödel Machine</h3>
+  <p class="meta"><span class="badge b0">元选择 / 非 L5 规则</span> Wang 等人 2026b</p>
+  <h4>它想解决什么</h4>
+  <p>主张当前基准分 ≠ 产生更好后代的能力。从谱系估计元生产力，把评价力气投向长期潜力更强的智能体。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>记录后代表现。</li>
+<li>估计父代元生产力。</li>
+<li>按估计分配评价预算。</li></ol>
+  <p>选择规则本身不适应，故不是完整 L5，但是 L5 评价该问的问题。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>谱系短时估计噪声大。潜力高但当前弱的分支可能被过早杀。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>分配政策（固定规则）。</div>
+    <div><div class="k">人还控什么</div>元生产力定义。</div>
+  </div>
+</div>
+
+<div class="work" id="sea-eval">
+  <h3>SEA-Eval / SEAGym</h3>
+  <p class="meta"><span class="badge l5">L5 评测</span> Jiang 等人 2026；Zheng 等人 2026a</p>
+  <h4>它想解决什么</h4>
+  <p>轨迹向评估：跨轮增益、到达目标时间、回放遗忘、留出迁移、token/时间/成本、有害更新与最大暂时下降。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>多轮记录完整轨迹。</li>
+<li>分维度报表。</li></ol>
+  <p>综述 Table 8 的基础。还要另加机制审计和目标选择/停止测试。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>长轨迹评测贵。自适应访问会把参考任务变成训练。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>评测协议。</div>
+    <div><div class="k">人还控什么</div>维度定义。</div>
+  </div>
+</div>
+
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>术语表 · 人类造的最后一代 AI</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">开始</p>
+      <h1>术语表：把每个词说成人话</h1>
+      <p class="lead">后面章节会反复用这些词。每个词先给一句生活话，再补一句它在这篇综述里的精确用法。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">怎么用这张表</p>
+        <p>遇到生词先回到这里。不要用「听过这个英文缩写」代替「它在改进环的哪一格」。</p>
+      </div>
+
+      <h2>核心概念</h2>
+      <dl class="walk">
+        <dt>RSI（递归自我改进）</dt>
+        <dd>系统用经验改自己，而且这些改动还会影响以后怎么改自己。不是改一次答案就结束。</dd>
+        <dt>改进环（improvement loop）</dt>
+        <dd>经验 → 提出修改 → 验收 → 留下 → 带着新状态进入下一轮。综述的基本分析单位。</dd>
+        <dt>系统状态</dt>
+        <dd>这一轮结束时留下来、下一轮会继承的东西。权重、提示、技能、harness、研究政策都可以是状态。</dd>
+        <dt>经验</dt>
+        <dd>能指导下一次修改的信息。测试失败、用户纠正、环境奖励，只有被后续更新用到才算经验。</dd>
+        <dt>目标对象（target）</dt>
+        <dd>这一轮直接被改的东西。可能是一段排序函数，也可能是「如何生成候选补丁」的搜索方法。</dd>
+        <dt>改进器（improver）</dt>
+        <dd>根据当前状态和经验，提出候选修改的机制。可以是一段 Python，也可以是一个元智能体。</dd>
+        <dt>策略（strategy）</dt>
+        <dd>改进器决定「往哪搜、怎么生成候选」的方法。策略自己也可以变成下一轮的目标对象。</dd>
+        <dt>验收器 / 评测器（verifier / evaluator）</dt>
+        <dd>给候选打分并执行录取规则的机制。单元测试、奖励模型、人类审核都可以充当。</dd>
+        <dt>后继者（successor）</dt>
+        <dd>继承了已录取改动、带着新状态进入下一轮的那个系统。</dd>
+        <dt>遗产 / 继承（inheritance）</dt>
+        <dd>留下的状态不但还在，而且真的参与了下一轮的生成、评价或选择。</dd>
+      </dl>
+
+      <h2>五级阶梯</h2>
+      <dl class="walk">
+        <dt>B0 任务内改进</dt>
+        <dd>只改当前输出。任务一结束，痕迹清空。对照级，还不算 RSI。</dd>
+        <dt>L1 执行自治</dt>
+        <dd>人写好步骤和验收，AI 去执行，结果可留下给以后用。</dd>
+        <dt>L2 策略自治</dt>
+        <dd>人仍规定目标和考题，AI 根据失败证据决定下一次改哪里、怎么改。</dd>
+        <dt>L3 经验获取自治</dt>
+        <dd>AI 还决定下一课学什么：出题、选题、去环境里练什么。</dd>
+        <dt>L4 环境适应自治</dt>
+        <dd>上线后的真实互动会改长期记忆、技能或 harness，并影响以后的任务。</dd>
+        <dt>L5 递归继承自治</dt>
+        <dd>改进器、评测器或研究政策本身被改，并且被后继轮次继续使用。</dd>
+        <dt>结构 L5</dt>
+        <dd>能证明「改过的机制被下一轮调用了」。</dd>
+        <dt>有效 L5</dt>
+        <dd>还能证明：在可比预算和独立评测下，这套机制能造出更强的后继者。</dd>
+      </dl>
+
+      <h2>系统部件</h2>
+      <dl class="walk">
+        <dt>LLM / 基础模型</dt>
+        <dd>大语言模型。通常是改进环里被调用的「会写字的引擎」，权重不一定被改。</dd>
+        <dt>权重 / 参数</dt>
+        <dd>模型内部那些可学习数字。改权重 = 改模型本身的记忆和技能。</dd>
+        <dt>提示词（prompt）</dt>
+        <dd>写给模型看的说明书。改提示词不改权重，但可以强烈改变行为。</dd>
+        <dt>Harness / 脚手架</dt>
+        <dd>模型外面的架子：提示、工具循环、重试、校验、上下文拼接。很多「自我改进」其实在改架子，不改底座模型。</dd>
+        <dt>工具（tool）</dt>
+        <dd>模型可以调用的外部能力：搜索、跑代码、点浏览器、调实验设备。</dd>
+        <dt>技能（skill）</dt>
+        <dd>可复用的一小包行为。可能是一段 JS 函数（Voyager），也可能是一段标准操作说明。</dd>
+        <dt>记忆（memory）</dt>
+        <dd>跨任务保存的文本、图谱或计数器。和权重不同，通常不需要重新训练模型。</dd>
+        <dt>工作流图</dt>
+        <dd>把多个步骤画成节点和边。AFlow 搜的就是这种可执行图。</dd>
+        <dt>LoRA / 适配器</dt>
+        <dd>不改完整大模型，只训练一小块附加参数。科学场景里常作为「轻量改权重」。</dd>
+      </dl>
+
+      <h2>学习与搜索</h2>
+      <dl class="walk">
+        <dt>SFT 监督微调</dt>
+        <dd>拿「标准答案」当老师，继续训练模型模仿这些答案。</dd>
+        <dt>RL / 强化学习</dt>
+        <dd>做了动作，得到奖励或惩罚，再调整以后更常做高奖励的动作。</dd>
+        <dt>RLVR</dt>
+        <dd>奖励来自可执行检查（代码跑得通、证明能过），而不是人打分。</dd>
+        <dt>PPO / GRPO</dt>
+        <dd>两种常见的强化学习更新算法。教程里只需把它们当成「按奖励改权重的具体配方」。</dd>
+        <dt>DPO / KTO</dt>
+        <dd>用「更喜欢 A 而不是 B」这种成对偏好来改模型，不必训练单独的奖励模型。</dd>
+        <dt>蒸馏</dt>
+        <dd>让小模型或后继模型模仿更强老师的行为。</dd>
+        <dt>课程学习（curriculum）</dt>
+        <dd>任务从易到难，或专门针对当前弱点出题。</dd>
+        <dt>自博弈（self-play）</dt>
+        <dd>同一个系统既出题又答题，用对方的表现当信号。</dd>
+        <dt>进化搜索</dt>
+        <dd>保留一群变体，突变、杂交、按适应度筛选。DGM 的档案就是这种。</dd>
+        <dt>MCTS 蒙特卡洛树搜索</dt>
+        <dd>在决策树上试探、回传分数、再选择有前途的分支。AFlow 用它搜工作流。</dd>
+        <dt>AutoML</dt>
+        <dd>自动选模型、超参数、流水线。默认搜的是「给别人用的模型」，不一定改自己。</dd>
+        <dt>持续学习 / 终身学习</dt>
+        <dd>一连串任务上继续学，并尽量不忘旧的。学习规则通常仍由人固定。</dd>
+        <dt>元学习</dt>
+        <dd>学习「如何学习」。只有当学到的学习法被后继轮次继承，才靠近 RSI。</dd>
+      </dl>
+
+      <h2>评测与风险</h2>
+      <dl class="walk">
+        <dt>HCI（Headroom-Closed Index）</dt>
+        <dd>剩余空间闭合指数。用来比较不同考场上「还剩多少分没拿到」。</dd>
+        <dt>基准 / Benchmark</dt>
+        <dd>固定的考题集。反复针对它优化，考题就会变成训练数据的一部分。</dd>
+        <dt>回归测试</dt>
+        <dd>改完以后，旧题还得会做。防止「新技能挤掉旧技能」。</dd>
+        <dt>Reward hacking 奖励黑客</dt>
+        <dd>系统钻评分规则的空子，分数涨了，真实能力没涨。</dd>
+        <dt>过拟合</dt>
+        <dd>只在见过的考题上变好，换一套题就垮。</dd>
+        <dt>灾难性遗忘</dt>
+        <dd>学会新的，把旧的忘了。</dd>
+        <dt>沙箱（sandbox）</dt>
+        <dd>限制程序能碰哪些文件、网络和系统调用。自我改代码时几乎必备。</dd>
+        <dt>回滚（rollback）</dt>
+        <dd>发现改坏了，退回上一版。</dd>
+        <dt>来源追溯（provenance）</dt>
+        <dd>记录这条规则从哪次实验、哪个病人群体、哪个仓库里来，以免用错场合。</dd>
+      </dl>
+
+      <h2>场景里会遇到的词</h2>
+      <dl class="walk">
+        <dt>SWE-bench</dt>
+        <dd>给真实 GitHub 仓库提 issue，看智能体能不能改出能过测试的补丁。</dd>
+        <dt>Polyglot</dt>
+        <dd>多语言编程题集合，DGM / RQGM 常用它当第二考场。</dd>
+        <dt>Minecraft / Mineflayer</dt>
+        <dd>Voyager 通过 JS 接口控制游戏角色。技能就是一段可执行 JS。</dd>
+        <dt>世界模型</dt>
+        <dd>用来预测「如果我这样做，环境会变成什么样」的模型。</dd>
+        <dt>VLA</dt>
+        <dd>视觉–语言–动作模型：看见画面、读指令、输出机器人动作。</dd>
+        <dt>形式化验证 / Lean</dt>
+        <dd>用严格的证明助手检查对错。对了就是对了，不像语言模型评委那么容易被哄。</dd>
+      </dl>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

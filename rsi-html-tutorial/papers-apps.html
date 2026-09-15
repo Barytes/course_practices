@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>引用工作深挖 · 四个场景</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第五部 · 每篇工作</p>
+      <h1>科学 / 具身 / 软件 / 医疗引用工作</h1>
+      <p class="lead">同一套环，反馈贵贱不同。每张卡片对齐场景特有难点。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一页怎么用</p>
+        <p>主线第 10–13 章的全部代表系统。</p>
+      </div>
+      <div class="search-box"><input data-filter type="search" placeholder="按系统名、作者、技术词过滤……"></div>
+<h2>S1 科学：假设、实验智能体、改进器</h2>
+
+<div class="work" id="hypoforge">
+  <h3>HypoForge</h3>
+  <p class="meta"><span class="badge b0">科学 · L2</span> Qian 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>把科学经验蒸馏成假设生成、实验设计、执行的程序性技能。无直接实验反馈时用判别器批评更新生成技能；有执行结果时按归因失败 refinement 测试技能。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>生成假设/设计。</li>
+<li>判别器或真实执行给反馈。</li>
+<li>归因后更新对应技能。</li></ol>
+  <p>要改的是以后如何提出假设，不是只选当前更好假设。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>判别器代替实验会写入偏见。归因在科学里本身就是未解问题。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>程序性科学技能。</div>
+    <div><div class="k">人还控什么</div>技能模式、判别器。</div>
+  </div>
+</div>
+
+<div class="work" id="evoscientist">
+  <h3>EvoScientist</h3>
+  <p class="meta"><span class="badge b0">科学 · L1 记忆</span> Lyu 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>维护有前途/已失败研究方向的构思记忆，以后检索来调整提案。模型、记忆模式、更新程序固定。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>记录成败方向。</li>
+<li>新课题检索。</li>
+<li>调整提案。</li></ol>
+  <p>持久记忆适应，不是生成器本身被搜。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>失败方向可能只是实验做错，记忆会错误封杀。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>构思记忆。</div>
+    <div><div class="k">人还控什么</div>记忆模式、更新程序。</div>
+  </div>
+</div>
+
+<div class="work" id="ttt-discover">
+  <h3>TTT-Discover</h3>
+  <p class="meta"><span class="badge b0">科学 · L1 权重</span> Yuksekgonul 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>测试时强化学习：解新科学问题时用反馈改权重。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>接到新问题。</li>
+<li>与环境/仿真互动。</li>
+<li>RL 更新权重。</li></ol>
+  <p>科学反馈进入参数。训练/选择程序仍固定，领域特定。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>单课题更新会破坏其他领域。测试时算力与稳定性。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>模型权重。</div>
+    <div><div class="k">人还控什么</div>RL 配方、何时停。</div>
+  </div>
+</div>
+
+<div class="work" id="polymer">
+  <h3>自改进聚合物发现</h3>
+  <p class="meta"><span class="badge b0">科学 · L1</span> Khajeh 等人 2025</p>
+  <h4>它想解决什么</h4>
+  <p>把仿真评价过的候选加入训练数据，重训生成模型。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>生成候选聚合物。</li>
+<li>仿真评价。</li>
+<li>加入训练集。</li>
+<li>重训生成器。</li></ol>
+  <p>数据飞轮，选择程序固定。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>仿真与真实化学有 gap。飞轮会强化仿真里好、现实里差的分子。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>生成模型 + 数据。</div>
+    <div><div class="k">人还控什么</div>仿真器、重训日程。</div>
+  </div>
+</div>
+
+<div class="work" id="ttte">
+  <h3>Test-Time Tool Evolution</h3>
+  <p class="meta"><span class="badge b0">科学 · L2</span> Lu 等人 2026b</p>
+  <h4>它想解决什么</h4>
+  <p>推理期合成、验证、复用可执行科学工具。SciEvo：1590 任务、925 演化工具。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>为当前科学题合成工具代码。</li>
+<li>验证。</li>
+<li>入库复用。</li></ol>
+  <p>动作空间持久可扩展。工具生成和录取规则外部指定。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>工具在题 A 验证过，题 B 可能危险或错。需要前置条件。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>工具库。</div>
+    <div><div class="k">人还控什么</div>验证与录取规则。</div>
+  </div>
+</div>
+
+<div class="work" id="cascade">
+  <h3>CASCADE</h3>
+  <p class="meta"><span class="badge b0">科学 · L2</span> Huang 等人 2026d</p>
+  <h4>它想解决什么</h4>
+  <p>化学与材料：创造、修复、积累可执行技能。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>尝试实验技能。</li>
+<li>失败则修复。</li>
+<li>成功则积累。</li></ol>
+  <p>实验智能体演化。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>化学实验有安全约束，自动修复必须沙箱/模拟优先。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>化学技能库。</div>
+    <div><div class="k">人还控什么</div>安全与验证。</div>
+  </div>
+</div>
+
+<div class="work" id="s1nexus">
+  <h3>S1-NexusAgent</h3>
+  <p class="meta"><span class="badge b0">科学 · L2</span> Team 2026</p>
+  <h4>它想解决什么</h4>
+  <p>把完整研究轨迹蒸馏成 Scientific Skills。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>跑研究轨迹。</li>
+<li>蒸馏成技能。</li>
+<li>以后加载。</li></ol>
+  <p>轨迹级技能，不是单次工具调用。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>完整轨迹含偶然成功，蒸馏会抄到不可复现步骤。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>Scientific Skills。</div>
+    <div><div class="k">人还控什么</div>蒸馏模板。</div>
+  </div>
+</div>
+
+<div class="work" id="skillfoundry">
+  <h3>SkillFoundry</h3>
+  <p class="meta"><span class="badge b0">科学 · L2</span> Shen 等人 2026a</p>
+  <h4>它想解决什么</h4>
+  <p>从论文、仓库、文档、API 挖掘，编译成可执行技能包，按执行和下游效用验证、合并或剪枝。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>异构资源挖掘。</li>
+<li>编译技能包。</li>
+<li>执行+下游效用门。</li>
+<li>合并/剪枝。</li></ol>
+  <p>技能库维护全生命周期。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>论文代码不可运行是常态。效用估计有偏。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>技能包库。</div>
+    <div><div class="k">人还控什么</div>挖掘源、效用定义。</div>
+  </div>
+</div>
+
+<div class="work" id="drugsage">
+  <h3>DrugSAGE</h3>
+  <p class="meta"><span class="badge b0">科学 · L3 侧面</span> Zhang 等人 2026h</p>
+  <h4>它想解决什么</h4>
+  <p>跨任务记忆存验证过的建模程序、训练策略、反复错误修复。16 任务经验改进 17 个留出任务。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>任务结束后写经验。</li>
+<li>新任务检索。</li>
+<li>测留出任务。</li></ol>
+  <p>直接证据：继承改变新问题行为。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>16→17 仍是窄域。经验可能含数据集特定捷径。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>跨任务科学记忆。</div>
+    <div><div class="k">人还控什么</div>记忆格式。</div>
+  </div>
+</div>
+
+<div class="work" id="stella">
+  <h3>STELLA</h3>
+  <p class="meta"><span class="badge b0">科学 · L2</span> Jin 等人 2025</p>
+  <h4>它想解决什么</h4>
+  <p>生物医学：更新推理模板并扩展 Tool Ocean。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>用反馈改模板。</li>
+<li>加新工具。</li></ol>
+  <p>模板+工具海。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>生医工具调用有合规问题。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>模板+工具。</div>
+    <div><div class="k">人还控什么</div>评价。</div>
+  </div>
+</div>
+
+<div class="work" id="earthlink">
+  <h3>EarthLink</h3>
+  <p class="meta"><span class="badge b0">科学 · L1/L2</span> Guo 等人 2025b</p>
+  <h4>它想解决什么</h4>
+  <p>气候科学：留下成功脚本和分析工作流。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>跑分析。</li>
+<li>成功则存脚本/工作流。</li>
+<li>以后复用。</li></ol>
+  <p>工作流继承。要记录适用气候模式和数据版本。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>气候数据协议一变脚本失效。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>脚本与工作流。</div>
+    <div><div class="k">人还控什么</div>领域约束。</div>
+  </div>
+</div>
+
+<div class="work" id="origene">
+  <h3>OriGene</h3>
+  <p class="meta"><span class="badge b0">科学 · L2</span> Zhang 等人 2026i</p>
+  <h4>它想解决什么</h4>
+  <p>用人类和实验反馈 refinement 思维模板、工具组合和分析协议。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>执行分析。</li>
+<li>收人/实验反馈。</li>
+<li>改模板和协议。</li></ol>
+  <p>人在环的科学 L2。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>人反馈慢且有偏。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>模板、工具组合、协议。</div>
+    <div><div class="k">人还控什么</div>人审。</div>
+  </div>
+</div>
+
+<div class="work" id="fluid">
+  <h3>自演化流体控制智能体</h3>
+  <p class="meta"><span class="badge b0">科学 · L2</span> Sun 等人 2026a</p>
+  <h4>它想解决什么</h4>
+  <p>同时修订智能体定义和它产出的白盒控制器。必须分开量「智能体变好」和「控制器变好」。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>改智能体脚手架。</li>
+<li>产出新控制器。</li>
+<li>物理/仿真评价。</li></ol>
+  <p>评价边界的教学案例。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>两个对象耦合，消融困难。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>智能体定义+控制器。</div>
+    <div><div class="k">人还控什么</div>评价拆分。</div>
+  </div>
+</div>
+
+<div class="work" id="sia">
+  <h3>SIA Feedback-Agent</h3>
+  <p class="meta"><span class="badge b0">科学 · L2 最宽</span> Hebbar 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>按任务结果在改脚手架、工具、重试/搜索逻辑、LoRA 权重之间选择，并配不同策略。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>看任务结局。</li>
+<li>选更新对象和策略。</li>
+<li>应用并验证。</li></ol>
+  <p>当前 AI4Sci 最宽的部件级更新环。选择程序仍像 L2（固定高层目标）。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>对象一多，诊断归属很难——第 15 章问题 1。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>脚手架/工具/LoRA 等。</div>
+    <div><div class="k">人还控什么</div>对象集合与验证。</div>
+  </div>
+</div>
+
+<div class="work" id="coral">
+  <h3>CORAL</h3>
+  <p class="meta"><span class="badge b0">科学 · L3 侧面</span> Qu 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>长期异步智能体代替固定进化启发式。自主检查先前尝试，决定何时测试或调用评测器，把发现外化为共享尝试、笔记、技能；心跳触发反思维持长探索。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>并行尝试。</li>
+<li>共享笔记与技能。</li>
+<li>心跳反思转向。</li></ol>
+  <p>自适应探索 + 跨任务经验。评测器调用政策仍受研究 harness 约束。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>异步使归因更难。共享状态竞争。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>共享尝试/笔记/技能。</div>
+    <div><div class="k">人还控什么</div>harness、评价。</div>
+  </div>
+</div>
+
+<div class="work" id="saga">
+  <h3>SAGA 目标演化</h3>
+  <p class="meta"><span class="badge b0">科学 · 目标层</span> Du 等人 2026 · <a href='https://arxiv.org/abs/2512.21782'>arXiv:2512.21782</a></p>
+  <h4>它想解决什么</h4>
+  <p>固定高层科学目标下，诊断候选群体失败模式，提出或重权具体目标，实现为可执行评分函数引导后续搜索。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>看优化种群。</li>
+<li>诊断失败模式。</li>
+<li>改评分函数。</li>
+<li>继续搜。</li></ol>
+  <p>可编辑面到了目标层，但高层目标仍固定。靠近政策级 L5 的科学版，证据仍有界。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>重权目标可能放弃安全或伦理约束。评分函数可被搜。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>可执行评分函数。</div>
+    <div><div class="k">人还控什么</div>高层目标。</div>
+  </div>
+</div>
+<h2>S2 具身：环境、技能、政策、世界模型</h2>
+
+<div class="work" id="poet">
+  <h3>POET</h3>
+  <p class="meta"><span class="badge b0">具身 · L4 仿真</span> Wang 等人 2019 · <a href='https://arxiv.org/abs/1901.01753'>arXiv:1901.01753</a></p>
+  <h4>它想解决什么</h4>
+  <p>环境–智能体成对共演化。突变环境，用最小准则录取（非平凡也非无解），优化政策，定期跨环境迁移政策当踏脚石。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>突变环境。</li>
+<li>最小准则门。</li>
+<li>优化对应政策。</li>
+<li>迁移政策。</li></ol>
+  <p>主线第 11 章。课表由环境种群长出。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>阈值难调。主要在仿真。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>环境种群+政策。</div>
+    <div><div class="k">人还控什么</div>最小准则、迁移日程。</div>
+  </div>
+</div>
+
+<div class="work" id="envgen">
+  <h3>EnvGen</h3>
+  <p class="meta"><span class="badge b0">具身 · L3/L4 仿真</span> Zala 等人 2024</p>
+  <h4>它想解决什么</h4>
+  <p>LLM 当课程设计师生成仿真配置；小 RL 智能体训练；技能级表现返回 LLM，再生成针对弱点的环境。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>LLM 出环境配置。</li>
+<li>RL 训练。</li>
+<li>技能分回传。</li>
+<li>再出环境。</li></ol>
+  <p>避免直接让大模型当具身智能体的成本。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>LLM 生成的环境可能物理无效。技能分定义影响课表。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>环境配置+RL 政策。</div>
+    <div><div class="k">人还控什么</div>仿真器、技能量规。</div>
+  </div>
+</div>
+
+<div class="work" id="genenv">
+  <h3>GenEnv</h3>
+  <p class="meta"><span class="badge b0">具身 · L3</span> Guo 等人 2025a</p>
+  <h4>它想解决什么</h4>
+  <p>仿真器参数化成可训练课程政策。α-Curriculum 奖励靠近能力前沿的任务；学习者 GRPO，仿真器奖励加权回归。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>课程政策出任务。</li>
+<li>学习者训练。</li>
+<li>用前沿奖励更新课程政策。</li></ol>
+  <p>静态训练数据与改进中学习者的错配被直接优化。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>「前沿」估计不准会只出中等题。仿真器更新可能破坏已验证任务。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>课程政策+学习者。</div>
+    <div><div class="k">人还控什么</div>奖励、GRPO 配方。</div>
+  </div>
+</div>
+
+<div class="work" id="omni-epic">
+  <h3>OMNI-EPIC</h3>
+  <p class="meta"><span class="badge b0">具身 · L3</span> Faldor 等人 2025 · <a href='https://arxiv.org/abs/2405.15568'>arXiv:2405.15568</a></p>
+  <h4>它想解决什么</h4>
+  <p>LLM 生成可执行环境和奖励代码，按先前任务档案和当前学习进度找既可学又新颖的挑战。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>条件生成环境+奖励代码。</li>
+<li>智能体尝试。</li>
+<li>按可学性与新颖性入档。</li></ol>
+  <p>搜索空间不再被人手写环境分布锁死。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>生成代码可能不安全或不可跑。新颖性度量会偏奇怪环境。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>环境代码档案。</div>
+    <div><div class="k">人还控什么</div>可学/新颖准则。</div>
+  </div>
+</div>
+
+<div class="work" id="simworld">
+  <h3>SimWorld Studio / SimCoder</h3>
+  <p class="meta"><span class="badge b0">具身 · L3</span> Kang 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>写 Unreal Engine 代码，用编译错误、物理检查、VLM 批评改环境，存成功工具；学习者表现推向更难 Gym 世界。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>写 UE 代码。</li>
+<li>编译/物理/VLM 门。</li>
+<li>存工具。</li>
+<li>按表现加难。</li></ol>
+  <p>针对生成 3D 内容静态、不可验证、不适合训练。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>UE 代码生成脆。VLM 批评不等于物理正确。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>环境代码+工具。</div>
+    <div><div class="k">人还控什么</div>检查器。</div>
+  </div>
+</div>
+
+<div class="work" id="lrll">
+  <h3>LRLL</h3>
+  <p class="meta"><span class="badge b0">具身 · L3</span> Tziafas and Kasaei 2024</p>
+  <h4>它想解决什么</h4>
+  <p>自我引导探索 + 醒–睡过程，增长并重组可组合机器人程序库。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>醒：探索执行。</li>
+<li>睡：重组程序库。</li></ol>
+  <p>技能持久在程序，不要求改底座 LM。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>重组可能破坏仍有用的旧程序。真机探索贵。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>可组合程序库。</div>
+    <div><div class="k">人还控什么</div>醒睡日程。</div>
+  </div>
+</div>
+
+<div class="work" id="embodiskill">
+  <h3>EmbodiSkill</h3>
+  <p class="meta"><span class="badge b0">具身 · L2</span> Ju 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>区分「技能错」和「智能体没按有效指导做」，只在轨迹提供相关证据时更新技能。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>分析失败。</li>
+<li>归因到技能 vs 执行。</li>
+<li>仅相关证据时改技能。</li></ol>
+  <p>防错更新。信用分配仍难。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>归因模型会错。证据不足时保守则学得慢。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>技能（有条件更新）。</div>
+    <div><div class="k">人还控什么</div>归因规则。</div>
+  </div>
+</div>
+
+<div class="work" id="aspire-robot">
+  <h3>ASPIRE 机器人修复</h3>
+  <p class="meta"><span class="badge b0">具身 · L2</span> Lu 等人 2026c</p>
+  <h4>它想解决什么</h4>
+  <p>诊断机器人执行失败，验证候选修复，成功修复当可迁移技能留下。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>诊断。</li>
+<li>提修复。</li>
+<li>验证。</li>
+<li>当技能留下。</li></ol>
+  <p>与同名含糊目标 ASPIRE（Wu）不是同一系统。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>真机验证次数有限。修复可能过拟合当前硬件。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>修复技能。</div>
+    <div><div class="k">人还控什么</div>验证协议。</div>
+  </div>
+</div>
+
+<div class="work" id="enpire">
+  <h3>ENPIRE</h3>
+  <p class="meta"><span class="badge b0">具身 · 有界 L5</span> Xiao 等人 2026b</p>
+  <h4>它想解决什么</h4>
+  <p>编码智能体通过反复真机实验修订机器人政策、训练程序和支持基础设施。环境接口、评测器、安全约束仍外部。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>写/改训练与政策代码。</li>
+<li>真机实验。</li>
+<li>留下有效基础设施改动。</li></ol>
+  <p>最接近具身 L5 的报告，但仍锁在人定安全壳里。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>真机不可逆。基础设施自修改风险极高。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>政策、训练程序、基础设施。</div>
+    <div><div class="k">人还控什么</div>接口、评测、安全。</div>
+  </div>
+</div>
+
+<div class="work" id="efm">
+  <h3>Self-Improving Embodied Foundation Models</h3>
+  <p class="meta"><span class="badge b0">具身 · L1</span> Ghasemipour 等人 2025</p>
+  <h4>它想解决什么</h4>
+  <p>从预训练模型导出奖励和成功信号，让机器人在有限人监督下练习并改进政策。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>预训练模型当评委/奖励。</li>
+<li>机器人练习。</li>
+<li>更新政策。</li></ol>
+  <p>政策级自我改进，算法和允许改的部件事先规定。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>预训练评委有域外失效。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>政策权重。</div>
+    <div><div class="k">人还控什么</div>奖励定义、允许模块。</div>
+  </div>
+</div>
+
+<div class="work" id="medal">
+  <h3>MEDAL++</h3>
+  <p class="meta"><span class="badge b0">具身 · L1</span> Sharma 等人 2023</p>
+  <h4>它想解决什么</h4>
+  <p>同时学习如何完成和如何撤销任务，减少人手重置环境。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>学 forward 政策。</li>
+<li>学 undo 政策。</li>
+<li>自主练习循环。</li></ol>
+  <p>解决物理试验不能随意重置的工程问题。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>undo 不完美会损坏场景。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>完成+撤销政策。</div>
+    <div><div class="k">人还控什么</div>任务集合。</div>
+  </div>
+</div>
+
+<div class="work" id="qplan">
+  <h3>Q-Planning</h3>
+  <p class="meta"><span class="badge b0">具身 · L1</span> Giridhar 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>大行为克隆政策冻结，小价值函数用部署成败轨迹持续训练。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>部署收集轨迹。</li>
+<li>更新小 Q。</li>
+<li>规划时用 Q。</li></ol>
+  <p>只改小模块，稳定但表达力有限。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>分布偏移让 Q 不准。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>价值函数。</div>
+    <div><div class="k">人还控什么</div>冻结政策、更新规则。</div>
+  </div>
+</div>
+
+<div class="work" id="serp">
+  <h3>SERP 导航再规划</h3>
+  <p class="meta"><span class="badge b0">具身 · L1/L2</span> Li 等人 2026a</p>
+  <h4>它想解决什么</h4>
+  <p>Agentic self-evolutionary replanning：根据最近导航失败调整动作模型再规划。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>导航失败。</li>
+<li>改动作模型。</li>
+<li>重规划。</li></ol>
+  <p>互动成为后继者证据。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>局部调整可能破坏其他导航技能。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>动作模型。</div>
+    <div><div class="k">人还控什么</div>允许改的部分。</div>
+  </div>
+</div>
+
+<div class="work" id="vlaw">
+  <h3>VLAW</h3>
+  <p class="meta"><span class="badge b0">具身 · L1 共演化</span> Guo 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>真机 rollout 改进动作条件视频世界模型，再生成合成经验训练 VLA。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>真机数据改世界模型。</li>
+<li>世界模型造合成经验。</li>
+<li>训 VLA。</li></ol>
+  <p>改进预测后果的机制。目标与更新程序固定。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>世界模型幻觉会污染政策。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>世界模型+VLA。</div>
+    <div><div class="k">人还控什么</div>更新程序。</div>
+  </div>
+</div>
+
+<div class="work" id="worldvla">
+  <h3>World-VLA-Loop</h3>
+  <p class="meta"><span class="badge b0">具身 · L1 迭代</span> Liu 等人 2026d</p>
+  <h4>它想解决什么</h4>
+  <p>政策失败 refinement 世界模型，更可靠模型再当下一轮政策优化环境。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>政策失败。</li>
+<li>改世界模型。</li>
+<li>在模型里再优化政策。</li></ol>
+  <p>迭代闭合，仍非无约束递归。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>模型偏差自我强化。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>世界模型+政策。</div>
+    <div><div class="k">人还控什么</div>循环日程。</div>
+  </div>
+</div>
+
+<div class="work" id="motus2">
+  <h3>Motus2</h3>
+  <p class="meta"><span class="badge b0">具身 · L1</span> Bi 等人 2026 · <a href='https://arxiv.org/abs/2608.30237'>arXiv:2608.30237</a></p>
+  <h4>它想解决什么</h4>
+  <p>政策、仿真、评价集成进共享模型，用失败和次优互动改进动力学和价值预测。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>执行。</li>
+<li>用失败改动力学/价值头。</li></ol>
+  <p>共享模型让信用分配更缠。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>评价函数与动力学耦合，分数不可比。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>共享世界–政策模型。</div>
+    <div><div class="k">人还控什么</div>目标。</div>
+  </div>
+</div>
+
+<div class="work" id="sail">
+  <h3>SAIL</h3>
+  <p class="meta"><span class="badge b0">具身 · L1</span> Luo 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>视频规划器执行自己生成的计划，并在得到的轨迹上微调。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>生成视频计划。</li>
+<li>执行。</li>
+<li>用真实轨迹微调。</li></ol>
+  <p>自我生成经验训练自己。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>执行失败时微调会学到失败动力学。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>视频规划器权重。</div>
+    <div><div class="k">人还控什么</div>微调规则。</div>
+  </div>
+</div>
+<h2>S3 软件工程</h2>
+
+<div class="work" id="swebench">
+  <h3>SWE-bench</h3>
+  <p class="meta"><span class="badge b0">评测基础设施</span> Jimenez 等人 2024 · <a href='https://arxiv.org/abs/2310.06770'>arXiv:2310.06770</a></p>
+  <h4>它想解决什么</h4>
+  <p>真实 GitHub issue，要改出能过测试的补丁。几乎所有软件 RSI 论文的考场。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>给仓库+issue。</li>
+<li>智能体提交补丁。</li>
+<li>跑仓库测试。</li></ol>
+  <p>可执行反馈使软件 RSI 走得最快。测试覆盖不全则应试。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>污染、泄漏、环境难以复现。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>无（基准）。</div>
+    <div><div class="k">人还控什么</div>题目与测试。</div>
+  </div>
+</div>
+
+<div class="work" id="self-harness">
+  <h3>Self-Harness</h3>
+  <p class="meta"><span class="badge b0">软件 · L2</span> Zhang 等人 2026a</p>
+  <h4>它想解决什么</h4>
+  <p>执行轨迹找反复弱点，同一底座模型对当前 harness 提小改，回归测试通过才留下。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>挖轨迹弱点。</li>
+<li>提案小补丁。</li>
+<li>回归。</li>
+<li>留下。</li></ol>
+  <p>比改整个代码库更可审计。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>小补丁累积的交互效应。回归套件盲区。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>harness。</div>
+    <div><div class="k">人还控什么</div>基准与晋升规则。</div>
+  </div>
+</div>
+
+<div class="work" id="ahe">
+  <h3>Agentic Harness Engineering</h3>
+  <p class="meta"><span class="badge b0">软件 · L2</span> Lin 等人 2026b</p>
+  <h4>它想解决什么</h4>
+  <p>harness 部件做成可单独编辑可回退文件；长轨迹蒸馏成结构化证据；检查改动是否产生预测效应。进化器角色分开。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>蒸馏轨迹为证据。</li>
+<li>改单个文件。</li>
+<li>预测效应检查。</li>
+<li>可回退。</li></ol>
+  <p>自指比 Self-Harness 弱，持久性仍在。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>预测效应检查本身可能被骗。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>分文件 harness。</div>
+    <div><div class="k">人还控什么</div>证据格式。</div>
+  </div>
+</div>
+
+<div class="work" id="ouroboros">
+  <h3>Ouroboros</h3>
+  <p class="meta"><span class="badge b0">软件 · L4 候选</span> Razzhigaev 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>用审核过的上线证据，对工具、上下文拼接、提示、核心实现提带版本修改；测试+人审后替换以后运行时。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>收集部署证据。</li>
+<li>提案版本化改动。</li>
+<li>测试+人审。</li>
+<li>替换运行时。</li></ol>
+  <p>主线第 1 章 Case 2。专家握重大修正和发布权。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>部署证据有偏。版本爆炸。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>运行时 harness/实现。</div>
+    <div><div class="k">人还控什么</div>人审、发布。</div>
+  </div>
+</div>
+
+<div class="work" id="sweexp">
+  <h3>SWE-Exp</h3>
+  <p class="meta"><span class="badge b0">软件 · L1</span> Chen 等人 2026b · <a href='https://arxiv.org/abs/2507.23361'>arXiv:2507.23361</a></p>
+  <h4>它想解决什么</h4>
+  <p>成功和失败 issue 轨迹抽进经验库，以后仓库任务检索教训。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>完成后写经验。</li>
+<li>新 issue 检索。</li></ol>
+  <p>轻量跨任务适应。抽取程序固定。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>失败经验可能教「放弃」。跨语言/框架检索错。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>经验库。</div>
+    <div><div class="k">人还控什么</div>抽取与检索。</div>
+  </div>
+</div>
+
+<div class="work" id="codeskill">
+  <h3>CODESKILL</h3>
+  <p class="meta"><span class="badge b0">软件 · L1</span> Li 等人 2026d</p>
+  <h4>它想解决什么</h4>
+  <p>学管理政策：多层次抽程序性技能，随新轨迹更新或删除，维持紧凑库。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>抽多层技能。</li>
+<li>更新/删除。</li>
+<li>给未来智能体用。</li></ol>
+  <p>比只存案例多了库管理，管理政策本身不因使用自动变好。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>多层抽取粒度难。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>技能库+管理政策。</div>
+    <div><div class="k">人还控什么</div>政策训练。</div>
+  </div>
+</div>
+
+<div class="work" id="evomac">
+  <h3>EvoMAC</h3>
+  <p class="meta"><span class="badge b0">软件 · 测试时</span> Hu 等人 2024</p>
+  <h4>它想解决什么</h4>
+  <p>多智能体编码工作流=角色提示+通信链接网络。测试反馈+文本反向传播同时改智能体和连接。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>跑测试。</li>
+<li>文本梯度改提示和边。</li></ol>
+  <p>改进当前程序所用工作流；更新发生在每题测试时，跨任务持久性要另证。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>文本反向传播不稳定。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>角色提示+通信图（当场）。</div>
+    <div><div class="k">人还控什么</div>测试套件。</div>
+  </div>
+</div>
+
+<div class="work" id="group-evo">
+  <h3>Group-Evolving Agents</h3>
+  <p class="meta"><span class="badge b0">软件 · 种群</span> Weng 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>多父代产生新组时共享成功修改和失败经验。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>组内分享补丁与失败。</li>
+<li>生成下一组。</li></ol>
+  <p>有用发现不锁在一支。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>分享会传播有害补丁。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>组代码。</div>
+    <div><div class="k">人还控什么</div>分享协议。</div>
+  </div>
+</div>
+
+<div class="work" id="darwinx">
+  <h3>DarwinX</h3>
+  <p class="meta"><span class="badge b0">软件 · L2</span> Zhang 等人 2026g</p>
+  <h4>它想解决什么</h4>
+  <p>冻结模型周围进化完整 harness 种群，只有扩展覆盖且不回归已解题才录取。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>变异 harness。</li>
+<li>测覆盖与回归。</li>
+<li>录取。</li></ol>
+  <p>明确的反回归门。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>覆盖度量可能投机。种群贵。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>harness 种群。</div>
+    <div><div class="k">人还控什么</div>覆盖/回归定义。</div>
+  </div>
+</div>
+
+<div class="work" id="helix">
+  <h3>HELIX</h3>
+  <p class="meta"><span class="badge b0">软件 · 模型-harness 环</span> Fan and Huang 2026</p>
+  <h4>它想解决什么</h4>
+  <p>harness 演化改进执行并生成验证轨迹更新模型，再为新模型重建 harness。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>进化 harness。</li>
+<li>收集验证轨迹。</li>
+<li>更新模型。</li>
+<li>重建 harness。</li></ol>
+  <p>共演化，目标仍外部。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>两环相位需要对齐否则震荡。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>模型+harness。</div>
+    <div><div class="k">人还控什么</div>外层契约。</div>
+  </div>
+</div>
+
+<div class="work" id="swe-rl">
+  <h3>Self-play SWE-RL / Socratic-SWE</h3>
+  <p class="meta"><span class="badge b0">软件 · L3 新兴</span> Wei 等人 2026b；Xiao 等人 2026a</p>
+  <h4>它想解决什么</h4>
+  <p>学习者条件的软件任务生成：针对当前缺口出可验证编程任务。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>评估当前缺口。</li>
+<li>生成仓库级任务。</li>
+<li>用测试验证。</li>
+<li>训练。</li></ol>
+  <p>软件 L3 正在出现。规格质量仍关键。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>自造测试可能太弱。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>任务生成器+编码模型。</div>
+    <div><div class="k">人还控什么</div>验证方式。</div>
+  </div>
+</div>
+
+<div class="work" id="yao2024">
+  <h3>τ-bench（tau-bench）</h3>
+  <p class="meta"><span class="badge b0">评测 / 动机</span> Yao, Shinn 等人 2024 · <a href='https://arxiv.org/abs/2406.12045'>arXiv:2406.12045</a></p>
+  <h4>它想解决什么</h4>
+  <p>测工具智能体在零售、航空等真实领域里，能否在有用户、有政策、有 API 的多轮对话中把事办成。综述在开头用它和 SWE-bench 一起说明：交互式任务贵，人还得决定改什么、资源够不够、改完算不算成。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>模拟用户按目标说话。</li>
+<li>智能体调领域 API。</li>
+<li>对照政策与数据库检查是否成功。</li>
+<li>报告成功率与一致性。</li></ol>
+  <p>这是评测基础设施，不是自我改进系统。它让你看见 B0 智能体在有状态工具环境里有多容易翻车。仓库级修 bug 请看同页的 SWE-bench。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>模拟用户不等于真用户。领域政策一变分数跳。pass^k 一致性比单次成功更严，也更吵。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>无（基准）。</div>
+    <div><div class="k">人还控什么</div>领域、用户模拟器、成功定义。</div>
+  </div>
+</div>
+<h2>S4 医疗</h2>
+
+<div class="work" id="agent-hospital">
+  <h3>Agent Hospital / MedAgent-Zero</h3>
+  <p class="meta"><span class="badge b0">医疗 · L1</span> Li 等人 2025b</p>
+  <h4>它想解决什么</h4>
+  <p>冻结权重医生智能体：存成功治疗，对失败反思得诊断规则，以后模拟遭遇检索。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>模拟诊疗。</li>
+<li>成功入库/失败写规则。</li>
+<li>检索。</li></ol>
+  <p>病例级记忆。模拟标签外部给。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>模拟≠真实临床。错规则放大。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>病例记忆+规则。</div>
+    <div><div class="k">人还控什么</div>模拟器、标签。</div>
+  </div>
+</div>
+
+<div class="work" id="mental-clinic">
+  <h3>Agent Mental Clinic</h3>
+  <p class="meta"><span class="badge b0">医疗 · L1</span> Lan 等人 2024</p>
+  <h4>它想解决什么</h4>
+  <p>监督模块比较精神科诊断和带标签结局，写入分层记忆。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>诊断。</li>
+<li>对照标签。</li>
+<li>写分层记忆。</li></ol>
+  <p>分层减少检索混乱。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>精神科标签争议大。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>分层诊断记忆。</div>
+    <div><div class="k">人还控什么</div>监督模块。</div>
+  </div>
+</div>
+
+<div class="work" id="medagentsim">
+  <h3>MedAgentSim</h3>
+  <p class="meta"><span class="badge b0">医疗 · L1</span> Almansoori 等人 2025 · MICCAI</p>
+  <h4>它想解决什么</h4>
+  <p>病历+经验记录，复用更早模拟医患互动知识。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>模拟互动。</li>
+<li>写经验。</li>
+<li>以后检索。</li></ol>
+  <p>自演化多智能体模拟。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>真实临床验证缺。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>病历+经验。</div>
+    <div><div class="k">人还控什么</div>模拟协议。</div>
+  </div>
+</div>
+
+<div class="work" id="dxevolve">
+  <h3>DxEvolve</h3>
+  <p class="meta"><span class="badge b0">医疗 · L2</span> Ren 等人 2026a</p>
+  <h4>它想解决什么</h4>
+  <p>诊断遭遇蒸馏成诊断认知原语（信息获取与推理模式），新病例检索。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>蒸馏原语。</li>
+<li>新病例检索应用。</li></ol>
+  <p>演化记忆结构不只堆积轨迹。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>原语可能过拟合模拟疾病分布。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>认知原语。</div>
+    <div><div class="k">人还控什么</div>蒸馏。</div>
+  </div>
+</div>
+
+<div class="work" id="gsem">
+  <h3>GSEM</h3>
+  <p class="meta"><span class="badge b0">医疗 · L2</span> Han 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>双层图组织经验，后续反馈校准节点质量和边权，改「记住什么」和「哪些适用」。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>图存储经验。</li>
+<li>反馈改节点/边。</li></ol>
+  <p>适用性可检查。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>边权错误会误诊路径。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>经验图。</div>
+    <div><div class="k">人还控什么</div>校准规则。</div>
+  </div>
+</div>
+
+<div class="work" id="evo-medagent">
+  <h3>Evo-MedAgent</h3>
+  <p class="meta"><span class="badge b0">医疗 · L2</span> Shen 等人 2026b</p>
+  <h4>它想解决什么</h4>
+  <p>互补存储回顾情节、程序性启发式、工具可靠性。每次胸片后反思更新，以后继承教训和对工具的信任。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>胸片病例。</li>
+<li>反思更新三存储。</li></ol>
+  <p>工具信任校准是亮点。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>单科室。工具可靠性估计方差大。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>三存储。</div>
+    <div><div class="k">人还控什么</div>反思程序。</div>
+  </div>
+</div>
+
+<div class="work" id="evoclinician">
+  <h3>EvoClinician</h3>
+  <p class="meta"><span class="badge b0">医疗 · L2</span> He 等人 2026b</p>
+  <h4>它想解决什么</h4>
+  <p>Diagnose–Grade–Evolve：Actor 提问/开检查；Process Grader 按临床收益和成本评每步；Evolver 改提示和记忆。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>逐步问诊。</li>
+<li>逐步打分。</li>
+<li>改政策。</li></ol>
+  <p>继承对象是诊断政策。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>量规成本/收益是人定，且真临床不能乱开检查。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>提示+记忆（诊断政策）。</div>
+    <div><div class="k">人还控什么</div>Grader。</div>
+  </div>
+</div>
+
+<div class="work" id="evomdt">
+  <h3>EvoMDT</h3>
+  <p class="meta"><span class="badge b0">医疗 · L2</span> Liu 等人 2026b</p>
+  <h4>它想解决什么</h4>
+  <p>肿瘤决策拆给角色智能体，用专家评估和结局信号更新提示、共识权重、检索范围。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>多专科意见。</li>
+<li>专家/结局反馈。</li>
+<li>改权重与提示。</li></ol>
+  <p>协调机制也可演化。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>肿瘤结局延迟极大。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>提示、共识权重、检索范围。</div>
+    <div><div class="k">人还控什么</div>专家评估。</div>
+  </div>
+</div>
+
+<div class="work" id="psychagent">
+  <h3>PsychAgent</h3>
+  <p class="meta"><span class="badge b0">医疗 · L2</span> Yang 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>从历史咨询轨迹抽技能，加入技能库，再拒绝微调内化选中技能。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>抽技能。</li>
+<li>入库。</li>
+<li>RFT 内化。</li></ol>
+  <p>记忆+权重两条继承通道。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>咨询伦理与隐私。内化不可审计。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>技能库+权重。</div>
+    <div><div class="k">人还控什么</div>RFT 数据。</div>
+  </div>
+</div>
+
+<div class="work" id="macro">
+  <h3>MACRO</h3>
+  <p class="meta"><span class="badge b0">医疗 · L2</span> Fan 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>从固定影像工具集找验证轨迹里的多步模式，合成复合工具并注册为新高层动作。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>挖多步模式。</li>
+<li>合成复合工具。</li>
+<li>验证后注册。</li></ol>
+  <p>改动作空间不只检索旧解。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>复合工具在新病种上可能错。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>复合工具集。</div>
+    <div><div class="k">人还控什么</div>验证。</div>
+  </div>
+</div>
+
+<div class="work" id="skemex">
+  <h3>SkeMex</h3>
+  <p class="meta"><span class="badge b0">医疗 · L2</span> Sun 等人 2026b</p>
+  <h4>它想解决什么</h4>
+  <p>蒸馏通用/任务/动作级技能，估计上下文依赖效用，Read–Write–Assess–Govern 生命周期。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>蒸馏三层技能。</li>
+<li>效用估计。</li>
+<li>晋升/合并/更新/删除。</li></ol>
+  <p>完整技能治理。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>效用来自环境反馈，临床反馈混杂。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>分层技能库。</div>
+    <div><div class="k">人还控什么</div>生命周期规则。</div>
+  </div>
+</div>
+
+<div class="work" id="tissuelab">
+  <h3>TissueLab</h3>
+  <p class="meta"><span class="badge b0">医疗 · L3 元素</span> Li 等人 2025c</p>
+  <h4>它想解决什么</h4>
+  <p>A co-evolving agentic AI system for medical imaging analysis。专家检查中间医学影像并纠正，引导主动学习、分类器 refinement 和后续工作流，覆盖病理、放射、空间组学。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>出示中间结果。</li>
+<li>专家纠正。</li>
+<li>主动学习选下一批。</li>
+<li>改工作流。</li></ol>
+  <p>用当前不确定性/经验塑造后续专家标注，像 L3；人群和录取仍外部。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>专家时间是瓶颈。跨机构迁移未证。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>分类器+工作流。</div>
+    <div><div class="k">人还控什么</div>专家、任务分布。</div>
+  </div>
+</div>
+
+<div class="work" id="healthflow">
+  <h3>HealthFlow</h3>
+  <p class="meta"><span class="badge b0">医疗 · L2</span> Zhu 等人 2026b</p>
+  <h4>它想解决什么</h4>
+  <p>完成的 EHR 分析变成保障、工作流、数据集锚、代码片段。评测器找缺陷，反射器在检索前验证、更新或退役。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>分析。</li>
+<li>评测缺陷。</li>
+<li>反射器门。</li>
+<li>以后检索。</li></ol>
+  <p>技术成功≠跨人群安全。必须可逆。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>EHR 偏移。退役不及时。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>工作流与代码片段。</div>
+    <div><div class="k">人还控什么</div>评测器。</div>
+  </div>
+</div>
+
+<div class="work" id="evopatient">
+  <h3>模拟标准化病人与医生共演化</h3>
+  <p class="meta"><span class="badge b0">医疗 · L4 式模拟</span> Du 等人 2025 · ACL</p>
+  <h4>它想解决什么</h4>
+  <p>共演化模拟病人和医生。模拟器临床真实性和评价标准仍外部决定。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>病人模拟器与医生智能体互相适应。</li></ol>
+  <p>探索 L4 式适应，不是真机纵向结局。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>共演化可能远离真实流行病学。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>模拟病人+医生。</div>
+    <div><div class="k">人还控什么</div>模拟器与评价。</div>
+  </div>
+</div>
+
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

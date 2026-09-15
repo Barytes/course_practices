@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>人类造的最后一代 AI — 递归自我改进白话教程</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <section class="cover">
+      <p class="cover-meta">白话教程 · 对齐 Zhou 等人 综述 arXiv:2609.11873（2026-09）</p>
+      <h1>人类造的<br>最后一代 AI</h1>
+      <p class="deck">把《The Last AI Built by Humans: Toward Genuine Recursive Self-Improvement》拆成小白也能跟上的课。每一级自治先用人话讲清楚，再把手伸进被引用工作的真实实现：它改了哪一块代码、哪一块权重、哪一块评测，以及卡在哪里。</p>
+    </section>
+
+    <article class="prose" style="margin-top:2.4rem;">
+      <div class="plain-box">
+        <p class="label">这本书在干什么</p>
+        <p>不是教你训练一个新的大模型。是教你看懂一件更底层的事：<strong>AI 怎样用经验改自己，并且让「改自己的方法」也一起变强</strong>。综述把它叫做递归自我改进，英文缩写 RSI。</p>
+      </div>
+
+      <div class="callout ok">
+        <p class="label">怎么开始</p>
+        <p>用浏览器打开本页即可。请先读第 0 章和术语表。主线按 B0→L5 往上走；第五部把综述引用的每一项工作单独摊开。遇到陌生词，先回术语表，不要硬跳。</p>
+      </div>
+
+      <h2>先记住一个生活例子</h2>
+      <p>想象你在学修自行车。</p>
+      <ul>
+        <li><strong>B0</strong>：这次车胎漏了，你补上。下次还漏，你得重新想。</li>
+        <li><strong>L1</strong>：师傅写好检修清单，你按清单修，并把修好的零件放回工具箱，下次还能用。</li>
+        <li><strong>L2</strong>：清单还是师傅定的验收标准，但「先查气门还是先查内胎」由你根据这次失败自己决定。</li>
+        <li><strong>L3</strong>：你不但决定怎么修，还决定下一周该练哪种故障——因为你发现自己最不会修变速器。</li>
+        <li><strong>L4</strong>：你真正上街修车了。路上遇到的新问题会写成长期规则，影响以后每一位客人。</li>
+        <li><strong>L5</strong>：你开始改「学修车的方法」本身：换教材、换考试、换收徒弟的规矩。下一届学徒用的已经是你改过的方法。</li>
+      </ul>
+      <p class="say">整份教程都围着这件事转：<strong>改的是这次答案，还是改会留下去、下次还能用的系统？改的是系统，还是改「以后怎么改系统」？</strong></p>
+
+      <h2>综述到底说了什么</h2>
+      <p>这篇综述来自上海交通大学、清华大学、字节跳动、上海人工智能实验室等机构的研究者。标题里的「人类造的最后一代 AI」不是宣布已经实现，而是一条路线图：如果改进环真的能自己转起来，后人就不必再亲手设计下一代模型的每一步。</p>
+      <p>它做了四件事：</p>
+      <ol>
+        <li>用 HCI（剩余空间闭合指数）说明：知识问答已经很强，但写代码、用工具、长期干活还有很大空档。</li>
+        <li>把 RSI 定义成一条<strong>会留下去、会再进来、能改改进方式</strong>的闭环，而不是某一种算法。</li>
+        <li>用 B0 到 L5 五级（外加 B0 对照）按「AI 接管了哪一类决定」给现有系统排队。</li>
+        <li>把同一套问题放到科学、机器人、软件、医疗、工业现场里对照，并指出八个还没打通的缺口。</li>
+      </ol>
+
+      <div class="callout warn">
+        <p class="label">请先放下三个误会</p>
+        <p><strong>误会一</strong>：聊天时模型改口，不等于自我改进。那只是这一次对话里的临时修改。<br>
+        <strong>误会二</strong>：分数变高，不等于改进器变强。可能只是多试了几次，或钻了评测的空子。<br>
+        <strong>误会三</strong>：标题不是成绩单。综述自己强调：真正端到端的 L5 证据仍然很少，而且大多关在固定考场里。</p>
+      </div>
+    </article>
+
+    <div class="toc-grid">
+      <h2>开始 · 先把读法搞清楚</h2>
+      <a href="ch00-how-to-read.html"><span class="n">00</span><span>如何读这份教程</span><span class="t">方法</span></a>
+      <a href="glossary.html"><span class="n">词</span><span>术语表：把每个词说成人话</span><span class="t">词典</span></a>
+
+      <h2>第一部 · 先看全貌</h2>
+      <a href="ch01-why.html"><span class="n">01</span><span>为什么需要递归自我改进</span><span class="t">动机</span></a>
+      <a href="ch02-hci.html"><span class="n">02</span><span>HCI：把能力进度画成一条尺子</span><span class="t">尺子</span></a>
+      <a href="ch03-loop.html"><span class="n">03</span><span>改进环：九个零件与 RSI 定义</span><span class="t">定义</span></a>
+
+      <h2>第二部 · 五级自治阶梯</h2>
+      <a href="ch04-b0.html"><span class="n">04</span><span>B0：只改这次答案</span><span class="t">边界</span></a>
+      <a href="ch05-l1.html"><span class="n">05</span><span>L1：按说明书执行改进</span><span class="t">执行</span></a>
+      <a href="ch06-l2.html"><span class="n">06</span><span>L2：自己决定怎么改</span><span class="t">策略</span></a>
+      <a href="ch07-l3.html"><span class="n">07</span><span>L3：自己决定下一课学什么</span><span class="t">经验</span></a>
+      <a href="ch08-l4.html"><span class="n">08</span><span>L4：上线以后继续改自己</span><span class="t">适应</span></a>
+      <a href="ch09-l5.html"><span class="n">09</span><span>L5：改进「改进器」本身</span><span class="t">递归</span></a>
+
+      <h2>第三部 · 四个应用场景</h2>
+      <a href="ch10-science.html"><span class="n">10</span><span>科学发现里的 RSI</span><span class="t">科学</span></a>
+      <a href="ch11-embodied.html"><span class="n">11</span><span>具身智能里的 RSI</span><span class="t">机器人</span></a>
+      <a href="ch12-swe.html"><span class="n">12</span><span>软件工程里的 RSI</span><span class="t">代码</span></a>
+      <a href="ch13-healthcare.html"><span class="n">13</span><span>医疗里的 RSI</span><span class="t">医疗</span></a>
+
+      <h2>第四部 · 工业与未解难题</h2>
+      <a href="ch14-industry.html"><span class="n">14</span><span>工业实践：六家现场怎么做</span><span class="t">现场</span></a>
+      <a href="ch15-challenges.html"><span class="n">15</span><span>八个未解难题与怎么读证据</span><span class="t">缺口</span></a>
+
+      <h2>第五部 · 综述引用的每一项工作</h2>
+      <a href="papers-index.html"><span class="n">表</span><span>217 篇参考文献总表（可跳到对应卡片）</span><span class="t">索引</span></a>
+      <a href="papers-b0.html"><span class="n">B0</span><span>B0、持续学习、AutoML、Agent 相邻工作</span><span class="t">实现</span></a>
+      <a href="papers-l1.html"><span class="n">L1</span><span>数据、训练、平台、评测、部署流水线</span><span class="t">实现</span></a>
+      <a href="papers-l2.html"><span class="n">L2</span><span>提示、智能体、训练程序、内核搜索</span><span class="t">实现</span></a>
+      <a href="papers-l3.html"><span class="n">L3</span><span>自博弈出题与环境里自主练习</span><span class="t">实现</span></a>
+      <a href="papers-l4.html"><span class="n">L4</span><span>记忆、技能库、Harness 修订与上线门禁</span><span class="t">实现</span></a>
+      <a href="papers-l5.html"><span class="n">L5</span><span>STOP、Gödel Agent、DGM、RQGM、AIDE²</span><span class="t">实现</span></a>
+      <a href="papers-apps.html"><span class="n">场</span><span>科学 / 具身 / 软件 / 医疗引用工作</span><span class="t">实现</span></a>
+      <a href="papers-surveys.html"><span class="n">评</span><span>评测、综述、安全与基础设施</span><span class="t">实现</span></a>
+      <a href="industry-catalog.html"><span class="n">工</span><span>附录 B：72 家公司与产品地图</span><span class="t">地图</span></a>
+    </div>
+
+    <article class="prose">
+      <h2>和原文的关系</h2>
+      <p>原文：<a href="https://arxiv.org/abs/2609.11873">arXiv:2609.11873</a>，项目页 <a href="https://theseus-labs-rsi.github.io/">theseus-labs-rsi.github.io</a>。教材文字是重新写过的教学文本，会比论文啰嗦，也会把被引用工作的实现路径补全。关键数字、层级判定和作者原意对齐综述；实现细节来自各篇论文、开源仓库与官方技术报告。</p>
+      <p>第五部按引用出现的位置收录综述参考文献中的工作。工业附录还收录了综述 Table 12 里公开提到、但未必单独列入参考文献表的产品。</p>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

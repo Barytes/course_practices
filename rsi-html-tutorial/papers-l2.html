@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>引用工作深挖 · L2</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第五部 · 每篇工作</p>
+      <h1>L2 策略自治：提示、智能体、训练与内核</h1>
+      <p class="lead">目标、边界、录取标准仍外部；AI 根据证据决定下一刀砍哪里。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一页怎么用</p>
+        <p>主线第 6 章的完整引用。ADAS/AFlow 的代码级细节亦见 B0 页。</p>
+      </div>
+      <div class="search-box"><input data-filter type="search" placeholder="按系统名、作者、技术词过滤……"></div>
+<h2>提示搜索</h2>
+
+<div class="work" id="promptbreeder">
+  <h3>Promptbreeder</h3>
+  <p class="meta"><span class="badge l2">L2</span> Fernando 等人 2024 · <a href='https://arxiv.org/abs/2309.16797'>arXiv:2309.16797</a></p>
+  <h4>它想解决什么</h4>
+  <p>同时进化「任务提示」和「如何突变提示的提示」（mutation prompt），适应度是固定任务表现。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>种群里每个个体含任务提示+突变提示。</li>
+<li>用突变提示让 LLM 改任务提示。</li>
+<li>在任务验证集上打分。</li>
+<li>选择高分个体进入下一代；突变提示也会被进化。</li></ol>
+  <p>比只搜任务提示多了一层：连「怎么改提示」都在搜。但适应度函数固定，所以仍是 L2 不是 L5——它没有改任务的成功定义。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>进化会过拟合开发集。突变提示可能进化成「把答案写进提示」这类作弊。种群评价成本高。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>任务提示 + 突变提示种群。</div>
+    <div><div class="k">人还控什么</div>任务、适应度、种群超参。</div>
+  </div>
+</div>
+
+<div class="work" id="gepa">
+  <h3>GEPA</h3>
+  <p class="meta"><span class="badge l2">L2</span> Agrawal 等人 ICLR 2026</p>
+  <h4>它想解决什么</h4>
+  <p>用执行轨迹做反思进化：把失败归因到模块，生成针对性提示补丁，并在帕累托前沿保留互补变体。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>系统拆成可单独改提示的模块。</li>
+<li>跑训练集收集轨迹。</li>
+<li>反思模型阅读失败并提案模块补丁。</li>
+<li>按固定任务指标评分，维护帕累托档案。</li>
+<li>Dropbox 用它改「检索是否相关」的判官提示。</li></ol>
+  <p>主线第 6 章已拆。语义反馈代替大量 RL 试错，但反馈不可证明正确。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>归因错误、档案膨胀、开发集成优化面。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>模块提示 + 帕累托变体。</div>
+    <div><div class="k">人还控什么</div>任务指标、模块切分。</div>
+  </div>
+</div>
+
+<div class="work" id="mpo">
+  <h3>MPO 多模态提示优化</h3>
+  <p class="meta"><span class="badge l2">L2</span> Choi 等人 2026 · <a href='https://arxiv.org/abs/2510.09201'>arXiv:2510.09201</a></p>
+  <h4>它想解决什么</h4>
+  <p>把可编辑面扩到多模态提示：评价得到的语义反馈同时引导文本和非文本提示候选。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>对图文任务跑当前提示。</li>
+<li>从错误里抽出语义反馈。</li>
+<li>生成新的文本提示和视觉提示（例如加何种示例图）。</li>
+<li>固定任务指标录取。</li></ol>
+  <p>证明 L2 不限于纯文本。搜索机械可外部指定，具体修订从评价反馈长出。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>非文本提示的搜索空间更难定义。视觉示例可能泄漏测试分布。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>多模态提示。</div>
+    <div><div class="k">人还控什么</div>任务指标。</div>
+  </div>
+</div>
+
+<div class="work" id="cevolve">
+  <h3>C-Evolve</h3>
+  <p class="meta"><span class="badge l2">L2</span> Li 等人 2026c</p>
+  <h4>它想解决什么</h4>
+  <p>把候选生成嵌在固定进化协议里：协议（选择、交叉、变异日程）不变，具体提示修订由反馈产生。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>按固定协议采样父代。</li>
+<li>LLM 生成子代提示。</li>
+<li>任务指标评价。</li>
+<li>写回种群。</li></ol>
+  <p>用来强调：搜索机械外部指定 ≠ 没有策略自治。自治在「生成哪句修订」。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>固定协议可能不适合新任务，而系统不能改协议（那会是 L5）。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>提示种群。</div>
+    <div><div class="k">人还控什么</div>进化协议 + 指标。</div>
+  </div>
+</div>
+
+<div class="work" id="dropbox-gepa">
+  <h3>Dropbox 检索相关性判官</h3>
+  <p class="meta"><span class="badge l2">L2 应用</span> Wang and Meyerzon 2026</p>
+  <h4>它想解决什么</h4>
+  <p>用 GEPA 重写「如何判断检索到的文件或消息是否相关」的提示，相关性定义本身不变。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>收集搜索满意度或标注。</li>
+<li>GEPA 优化判官提示。</li>
+<li>在固定相关性定义下部署。</li></ol>
+  <p>工业 L2：人仍定义「相关」，AI 决定提示怎么写才能更好执行该定义。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>用户满意度 ≠ 真实相关。提示过拟合内部标注。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>判官提示。</div>
+    <div><div class="k">人还控什么</div>相关性定义。</div>
+  </div>
+</div>
+<h2>智能体、Harness 与实验搜索</h2>
+
+<div class="work" id="foundry-opt">
+  <h3>Microsoft Foundry Agent Optimizer</h3>
+  <p class="meta"><span class="badge l2">L2</span> Quintanilla and Dibia 2026</p>
+  <h4>它想解决什么</h4>
+  <p>根据评测失败重写托管智能体的系统指令、技能和本地函数工具描述。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>跑评价集。</li>
+<li>定位失败模式。</li>
+<li>改写指令/技能/工具描述。</li>
+<li>再评，留下变好的版本。</li></ol>
+  <p>可编辑对象已是可执行 harness 的文本面。评价过程固定。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>改工具描述可能让模型调用未授权行为，需要工具层硬约束。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>指令、技能、工具描述。</div>
+    <div><div class="k">人还控什么</div>评价过程。</div>
+  </div>
+</div>
+
+<div class="work" id="adas2">
+  <h3>ADAS</h3>
+  <p class="meta"><span class="badge l2">L2</span> Hu 等人 ICLR 2025 · 见 B0 页详细实现</p>
+  <h4>它想解决什么</h4>
+  <p>见 papers-b0.html 的 ADAS 卡片。主线第 6 章同步讲解。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>档案+元智能体写 forward。</li></ol>
+  <p>代码搜索智能体设计。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>任意代码风险。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>forward 档案。</div>
+    <div><div class="k">人还控什么</div>基准。</div>
+  </div>
+</div>
+
+<div class="work" id="aflow2">
+  <h3>AFlow</h3>
+  <p class="meta"><span class="badge l2">L2</span> Zhang 等人 2025</p>
+  <h4>它想解决什么</h4>
+  <p>见 papers-b0.html。MCTS 搜可执行工作流图。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>图+MCTS+执行回传。</li></ol>
+  <p>工作流级 L2。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>分支爆炸。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>工作流图。</div>
+    <div><div class="k">人还控什么</div>评价器。</div>
+  </div>
+</div>
+
+<div class="work" id="agentsquare2">
+  <h3>AgentSquare</h3>
+  <p class="meta"><span class="badge l2">L2</span> Shang 等人 2025</p>
+  <h4>它想解决什么</h4>
+  <p>模块进化与重组，见 papers-b0.html。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>模块突变交叉。</li></ol>
+  <p>积木级 L2。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>接口限制发明空间。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>模块库。</div>
+    <div><div class="k">人还控什么</div>基准。</div>
+  </div>
+</div>
+
+<div class="work" id="tao">
+  <h3>NVIDIA TAO / Cosmos 3 后训练</h3>
+  <p class="meta"><span class="badge l2">L2 配置</span> Rodge 2026</p>
+  <h4>它想解决什么</h4>
+  <p>编码智能体在固定验证目标下调用 LLM 引导的 AutoML，为人提供的模型、任务、数据、指标分配下一组配置。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>读取上次试验指标与日志。</li>
+<li>语义解释失败原因。</li>
+<li>提出下一超参/数据混合。</li>
+<li>按固定验证指标留下。</li></ol>
+  <p>不是黑盒贝叶斯优化：能读懂训练曲线。指标仍外部。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>语义解释会编造因果。每次试验贵，样本效率仍关键。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>训练配置。</div>
+    <div><div class="k">人还控什么</div>模型、数据、指标。</div>
+  </div>
+</div>
+
+<div class="work" id="agentnas">
+  <h3>AgentNAS</h3>
+  <p class="meta"><span class="badge l2">L2 结构</span> Jeong 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>现代 NAS 仍依赖人手写任务专用搜索空间。AgentNAS 用 LLM 提出任务专用种子结构，再从该设计导出结构化搜索空间，后续组合搜索。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>LLM 读任务描述提出种子架构。</li>
+<li>从种子导出可变维度（宽度、头数……）。</li>
+<li>在固定验证指标下组合搜索。</li></ol>
+  <p>减少对人手写空间的依赖，但「什么叫好」仍是外部验证指标。候选选择仍是组合搜索。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>种子错则整个空间歪。导出的空间可能不含真正最优结构。与硬件/优化器耦合未消除。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>种子结构 + 搜索空间 + 选出的架构。</div>
+    <div><div class="k">人还控什么</div>验证指标。</div>
+  </div>
+</div>
+
+<div class="work" id="nanogpt-astra">
+  <h3>GPT-6 Astra NanoGPT 评测</h3>
+  <p class="meta"><span class="badge l2">L2 训练规则</span> OpenAI 2026b</p>
+  <h4>它想解决什么</h4>
+  <p>固定验证目标、一张 H100、受限训练设置；智能体自己诊断瓶颈、改训练代码、调配置和训练循环。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>读训练日志。</li>
+<li>改训练程序。</li>
+<li>在固定验证上比较。</li>
+<li>留下改进。</li></ol>
+  <p>和 autoresearch 同类，但是官方模型评测设定。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>必须防止改评价函数或减数据作弊。硬件故障要能恢复。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>训练代码与配置。</div>
+    <div><div class="k">人还控什么</div>验证目标、算力。</div>
+  </div>
+</div>
+
+<div class="work" id="autoresearch">
+  <h3>Karpathy autoresearch</h3>
+  <p class="meta"><span class="badge l2">L2</span> Karpathy 2026a · <a href='https://github.com/karpathy/autoresearch'>GitHub</a></p>
+  <h4>它想解决什么</h4>
+  <p>数据管道、评价函数、指标、每次实验算力预算固定；智能体反复改训练程序，只有受保护验证指标变好才留下。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>编辑 train.py。</li>
+<li>受预算训练。</li>
+<li>读验证指标。</li>
+<li>变好 commit，变差回滚。</li></ol>
+  <p>主线第 6 章教学标本。工业 L2 的最小闭环。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>挑种子、走捷径、试图抽测试标签（Wen 等人 2026 在自动研究里报告过类似行为）。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>训练程序。</div>
+    <div><div class="k">人还控什么</div>指标、预算、数据。</div>
+  </div>
+</div>
+
+<div class="work" id="auto-research-ning">
+  <h3>Auto Research（多智能体谱系）</h3>
+  <p class="meta"><span class="badge l2">L2</span> Ning 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>多个专科智能体共享谱系做 ML 实验，评价仍外部。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>专科智能体提出实验。</li>
+<li>共享日志与谱系。</li>
+<li>外部评测器打分。</li></ol>
+  <p>分工提高覆盖，不改变「谁定义成功」。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>专科之间目标冲突。谱系记录不全则无法归因。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>实验代码 + 谱系。</div>
+    <div><div class="k">人还控什么</div>外部评测器。</div>
+  </div>
+</div>
+
+<div class="work" id="autokernel">
+  <h3>AutoKernel</h3>
+  <p class="meta"><span class="badge l2">L2 系统</span> Jaber and Jaber 2026</p>
+  <h4>它想解决什么</h4>
+  <p>先剖析找端到端影响最大的算子，再让智能体写 Triton/CUDA，必须过正确性检查和真实 GPU 加速才录取。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>剖析。</li>
+<li>对热点生成内核。</li>
+<li>数值正确性对比。</li>
+<li>测真实速度。</li>
+<li>用结果决定下一改哪里。</li></ol>
+  <p>从剖析而不是任意代码生成开始，是关键工程选择。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>剖析与端到端不完全一致。正确性检查的公差会放进静默误差。GPU 计时噪声需要重复测量。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>内核实现。</div>
+    <div><div class="k">人还控什么</div>正确性+速度标准。</div>
+  </div>
+</div>
+
+<div class="work" id="wen2026">
+  <h3>Automated Weak-to-Strong Researcher（评测利用证据）</h3>
+  <p class="meta"><span class="badge l2">L2 风险证据</span> Wen 等人 2026 · Anthropic 博客</p>
+  <h4>它想解决什么</h4>
+  <p>这篇公开材料的标题是自动化的弱到强对齐研究。综述引用它，是因为实验日志里出现了典型的 L2 评价危害：挑随机种子、发现捷径、试图通过反复查询评测器抽取测试标签。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>研究智能体在固定工作流里提案、训练、评价。</li>
+<li>观察它与评测器的交互。</li>
+<li>标注利用行为。</li></ol>
+  <p>一旦基准被适应性查询，它就成为优化面。防御必须假设对手在环内：隔离测试标签、限制查询、匹配算力预算。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>公开实验可能只覆盖部分利用手法。同一实验室还有 Automated Alignment Researchers（Chen 等人 2026c），不要把「会做对齐实验」和「评测没被钻」当成一件事。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>无（行为证据）。</div>
+    <div><div class="k">人还控什么</div>评测器隔离、查询预算。</div>
+  </div>
+</div>
+
+<div class="work" id="openai-intern">
+  <h3>自动化研究实习生阶段</h3>
+  <p class="meta"><span class="badge l2">L2 定位</span> OpenAI 2026d</p>
+  <h4>它想解决什么</h4>
+  <p>把当前前沿智能体描述为：在人类监督下对定义清楚的研究任务达到自动研究实习生；人仍定优先级和部署。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>内部研究工作流观察。</li></ol>
+  <p>帮助划清 L2：交出的是「证据→下一实验」，不是整个研究议程。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>公司自述，证据强度弱于可复现实验。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>研究代码/实验（受监督）。</div>
+    <div><div class="k">人还控什么</div>优先级与部署。</div>
+  </div>
+</div>
+
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

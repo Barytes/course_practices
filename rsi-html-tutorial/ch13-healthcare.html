@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 13 章 · 医疗里的 RSI</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第三部 · 四个场景</p>
+      <h1>第 13 章 · 医疗里的 RSI</h1>
+      <p class="lead">诊断、影像、治疗规划都可以进入改进环。但医疗不允许无限制试错，反馈又延迟又混杂，一处医院验证过的更新不能直接搬到另一处。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>医疗 RSI 是安全反馈获取、可靠归因、以及受治理的能力继承问题。当前最强前沿是 L2：在人定目标、评测器和部署门下，选择对记忆、推理政策、工具和工作流的更新。真机纵向结局上的 L4/L5 基本未探索。</p>
+      </div>
+
+      <h2>三条场景特有的难</h2>
+      <ol>
+        <li>诊断和治疗可能伤害病人，需要专家、伦理和机构监督。</li>
+        <li>临床反馈延迟、异质、有混杂，很难把病人结局记到某一个智能体决定或某一次更新上。</li>
+        <li>改进依赖人群和机构。一处验证过的更新，若不记录来源、范围和不确定性，不能安全继承。</li>
+      </ol>
+      <p>典型环：智能体做临床任务，从诊断结果、临床医生纠正或指南得到可验证反馈，持久更新临床知识、推理策略或工作流，改进留在记忆、技能库或参数里，供后续病例复用。</p>
+
+      <h2>演化临床记忆与知识</h2>
+      <p>最常见：把完成病例的反馈变成能影响后续病人的持久知识。早期系统主要留病例级经验。</p>
+      <ul>
+        <li><strong>Agent Hospital / MedAgent-Zero</strong>：冻结权重的医生智能体，存储成功治疗病例，对失败病例反思得到可复用诊断规则，以后在模拟遭遇里检索。</li>
+        <li><strong>Agent Mental Clinic</strong>：监督模块比较精神科智能体诊断和带标签结局，把诊断经验写入分层记忆。</li>
+        <li><strong>MedAgentSim</strong>：病历 + 经验记录，诊断智能体复用更早模拟医患互动积累的知识。</li>
+      </ul>
+      <p>更近的工作演化「记忆的结构和可靠性」，而不只堆积原始轨迹：</p>
+      <ul>
+        <li><strong>DxEvolve</strong>：把诊断遭遇蒸馏成诊断认知原语，编码信息获取和诊断推理的可复用模式，新病例里检索。</li>
+        <li><strong>GSEM</strong>：双层图组织经验，后续反馈重新校准节点质量和经验间边权，从而同时改「记住什么」和「哪些记忆适用」。</li>
+        <li><strong>Evo-MedAgent</strong>：互补存储回顾性临床情节、程序性启发式和工具可靠性。每次胸片病例后，反思更新这些存储，以后病例继承临床教训和对诊断工具的修订信任。</li>
+      </ul>
+      <p>证据仍多半基于模拟或回顾性、带外部标签的病例。真实病例上的演化验证仍然缺。</p>
+      <div class="hard">
+        <p class="label">实现难点</p>
+        <p>模拟里的「标准诊断」在真实世界可能不存在。规则一旦写进记忆，会在许多后续病人身上起作用，错规则的伤害被放大。必须有适用人群标签和退役机制，不能只有追加。</p>
+      </div>
+
+      <h2>演化临床推理策略</h2>
+      <p>不只记事实，还演化「如何获取、解释、整合证据」。</p>
+      <ul>
+        <li><strong>EvoClinician</strong>：Diagnose–Grade–Evolve。Actor 依次提问和开检查；Process Grader 按临床收益和资源成本评价每一步；Evolver 用反馈在下一病例前修订 Actor 的提示和记忆。继承对象是诊断政策：下一步澄清哪个症状、优先哪项检查。</li>
+        <li><strong>EvoMDT</strong>：肿瘤决策拆给角色专门化智能体，用专家评估和面向结局的信号更新提示、共识权重和检索范围。反馈能改的不只是单个智能体的推理，还有以后如何加权与调和专家意见。</li>
+        <li><strong>PsychAgent</strong>：从历史咨询轨迹抽取接地实践的技能，加入演化中的技能库，再通过拒绝微调把选中的技能内化进模型。</li>
+      </ul>
+
+      <h2>演化医疗工具与工作流</h2>
+      <ul>
+        <li><strong>MACRO</strong>：从固定医学影像工具集出发，在验证过的执行轨迹里找反复出现的多步模式，合成复合工具，注册为后续影像任务的新高层动作。智能体改变的是它能直接调用什么，而不只是检索早先的解。</li>
+        <li><strong>SkeMex</strong>：把信息量大的临床轨迹蒸馏成通用、任务特定、动作级技能，从环境反馈估计上下文依赖的效用，用 Read–Write–Assess–Govern 生命周期晋升、合并、更新或删除条目。</li>
+        <li><strong>TissueLab</strong>：领域专家检查中间医学影像结果并提供纠正，引导主动学习、分类器 refinement 和后续工作流构造，覆盖病理、放射和空间组学。</li>
+        <li><strong>HealthFlow</strong>：把完成的 EHR 分析变成持久保障、可复用工作流、数据集特定锚和代码片段。评测器先找执行或方法缺陷，反射器在检索给以后分析之前验证、更新或退役经验。</li>
+      </ul>
+      <p>技术成功或个案临床医生反馈，不保证跨病人群体的安全。演化工作流必须在跨病例继承前被验证且可逆。</p>
+
+      <h2>离真正的医疗 RSI 还有多远</h2>
+      <p>B0 病例内反思已经普遍，但不持久改变未来行为。L1 通过病例记忆、诊断规则、可复用临床知识得到演示。L2 是当前最强前沿。少数系统用当前不确定性或积累经验来塑造后续证据获取、模拟遭遇或专家标注，像 L3；其病人群体、任务分布和录取标准仍大体外部指定。EvoPatient 通过共演化模拟病人和医生探索 L4 式适应，但模拟器的临床真实性和评价标准仍外部决定。来自真实纵向结局的端到端 L4，以及临床改进器本身的 L5，大体未探索。</p>
+      <p>往上走主要需要：可靠归因纵向病人结局、在没有无限制临床探索的前提下安全获取改进反馈、跨人群和机构有选择地迁移更新。同样需要受治理的能力承诺过程：每一条持久更新都经临床验证、前瞻监测、可追溯到支持证据，并在假设或安全保证不再成立时可逆。</p>
+      <p>Agent Hospital、DxEvolve、HealthFlow 等见 <a href="papers-apps.html">场景深挖</a>。</p>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

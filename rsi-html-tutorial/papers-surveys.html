@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>引用工作深挖 · 评测与综述</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第五部 · 每篇工作</p>
+      <h1>评测、综述、定义与基础设施</h1>
+      <p class="lead">这些引用不都是「一个自我改进系统」，但它们决定我们敢不敢相信某个系统真的在递归。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一页怎么用</p>
+        <p>HCI 未链考场、相邻综述、RSI 定义、工业基准。</p>
+      </div>
+      <div class="search-box"><input data-filter type="search" placeholder="按系统名、作者、技术词过滤……"></div>
+<h2>HCI 轨迹里未链上的考场（审计保留）</h2>
+<p>综述画 HCI 曲线时，下列基准因版本或评测架子无法链到已有家族，只进审计。它们说明智能体评测比知识评测更容易悄悄换规则。</p>
+
+<div class="work" id="terminalbench">
+  <h3>Terminal-Bench</h3>
+  <p class="meta"><span class="badge b0">评测</span> Merrill 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>终端智能体任务。协议变化导致无法并入主轨迹。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>在真实或模拟终端完成任务。</li>
+<li>按成功/步数评分。</li></ol>
+  <p>交互式能力空档的证据来源之一，但不能和旧版分数横比。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>环境镜像一变分数跳。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>无。</div>
+    <div><div class="k">人还控什么</div>任务集版本。</div>
+  </div>
+</div>
+
+<div class="work" id="deepswe">
+  <h3>DeepSWE</h3>
+  <p class="meta"><span class="badge b0">评测</span> Huang 等人 2026c</p>
+  <h4>它想解决什么</h4>
+  <p>深度软件工程任务，harness 或版本与主曲线不兼容。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>仓库级任务。</li></ol>
+  <p>审计保留。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>协议桥缺失。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>无。</div>
+    <div><div class="k">人还控什么</div>harness。</div>
+  </div>
+</div>
+
+<div class="work" id="cybergym">
+  <h3>CyberGym</h3>
+  <p class="meta"><span class="badge b0">评测</span> Wang 等人 2026d</p>
+  <h4>它想解决什么</h4>
+  <p>网络安全智能体环境。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>给定系统做攻防相关任务。</li></ol>
+  <p>网络安全 HCI 虚线与此类协议变化有关。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>伦理与范围。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>无。</div>
+    <div><div class="k">人还控什么</div>题目子集。</div>
+  </div>
+</div>
+
+<div class="work" id="exploitbench">
+  <h3>ExploitBench</h3>
+  <p class="meta"><span class="badge b0">评测</span> Lee and Brumley 2026</p>
+  <h4>它想解决什么</h4>
+  <p>漏洞利用相关智能体评测。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>受限环境中的利用任务。</li></ol>
+  <p>仅审计。教程不展开利用步骤。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>高风险任务，评测必须隔离。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>无。</div>
+    <div><div class="k">人还控什么</div>隔离环境。</div>
+  </div>
+</div>
+
+<div class="work" id="automationbench">
+  <h3>AutomationBench</h3>
+  <p class="meta"><span class="badge b0">评测</span> Shepard and Salimans 2026</p>
+  <h4>它想解决什么</h4>
+  <p>自动化/计算机使用任务。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>GUI 或工作流自动化。</li></ol>
+  <p>工具智能体轨迹的候选源。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>任务定义漂移。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>无。</div>
+    <div><div class="k">人还控什么</div>版本。</div>
+  </div>
+</div>
+
+<div class="work" id="browsecomp">
+  <h3>BrowseComp</h3>
+  <p class="meta"><span class="badge b0">评测</span> Wei 等人 2025a</p>
+  <h4>它想解决什么</h4>
+  <p>浏览/检索竞技。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>网络浏览找答案。</li></ol>
+  <p>搜索智能体能力参考。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>网页时效。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>无。</div>
+    <div><div class="k">人还控什么</div>题目。</div>
+  </div>
+</div>
+<h2>相邻综述与评价文献</h2>
+
+<div class="work" id="tao2024">
+  <h3>自我演化系统综述</h3>
+  <p class="meta"><span class="badge b0">综述</span> Tao 等人 2024</p>
+  <h4>它想解决什么</h4>
+  <p>按自我演化阶段组织。本综述改用完整改进环当单位。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>分类既有工作。</li></ol>
+  <p>词汇来源。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>阶段≠责任移交。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>无。</div>
+    <div><div class="k">人还控什么</div>分类轴。</div>
+  </div>
+</div>
+
+<div class="work" id="gao2026">
+  <h3>自我演化机制综述</h3>
+  <p class="meta"><span class="badge b0">综述</span> Gao 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>按更新对象/机制分类。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>机制目录。</li></ol>
+  <p>解释「改什么、怎么改」，不解释「谁做决定」。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>同对象不同自治。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>无。</div>
+    <div><div class="k">人还控什么</div>机制表。</div>
+  </div>
+</div>
+
+<div class="work" id="ren2026b">
+  <h3>自我演化另一综述</h3>
+  <p class="meta"><span class="badge b0">综述</span> Ren 等人 2026b</p>
+  <h4>它想解决什么</h4>
+  <p>时机与技术机制视角。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>分类。</li></ol>
+  <p>互补。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>同上。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>无。</div>
+    <div><div class="k">人还控什么</div>轴。</div>
+  </div>
+</div>
+
+<div class="work" id="liu2026c">
+  <h3>能力层级 / AI-for-AI</h3>
+  <p class="meta"><span class="badge b0">综述 / 定义</span> Liu 等人 2026c</p>
+  <h4>它想解决什么</h4>
+  <p>阿里方向：把 RSI 定义得更严——改进机制本身必须可被修改。也讨论能力层级。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>定义机制可修改。</li></ol>
+  <p>本综述用它对照：能力层级≠责任移交；同时吸收其 L5 严格定义。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>过严会把有用的 L2/L4 实践排除出讨论。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>定义。</div>
+    <div><div class="k">人还控什么</div>定义选择。</div>
+  </div>
+</div>
+
+<div class="work" id="zong2026">
+  <h3>智能体共演化</h3>
+  <p class="meta"><span class="badge b0">综述</span> Zong 等人 2026 · <a href='https://arxiv.org/abs/2608.10299'>arXiv:2608.10299</a></p>
+  <h4>它想解决什么</h4>
+  <p>讨论超越人手设计的共演化。本综述用责任标准而不是共演化部件数量。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>共演化分类。</li></ol>
+  <p>互补框架。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>共演化可能双方都在漂。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>取决于系统。</div>
+    <div><div class="k">人还控什么</div>框架。</div>
+  </div>
+</div>
+
+<div class="work" id="xu2026">
+  <h3>动态图视角的自我演化智能体</h3>
+  <p class="meta"><span class="badge b0">综述</span> Xu 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>把自我演化看成动态图变换：节点是提示、记忆、工具、智能体，边是数据流。状态变 ≠ 改进机制变。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>按图上被改的对象分类。</li></ol>
+  <p>对齐本教程「留下什么」。图一膨胀，检索和治理就变成主问题。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>状态膨胀。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>图状态。</div>
+    <div><div class="k">人还控什么</div>图模式。</div>
+  </div>
+</div>
+
+<div class="work" id="ye2026">
+  <h3>AI-for-AI 综述：当改进者变成被改进者</h3>
+  <p class="meta"><span class="badge b0">综述</span> Ye 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>用 AI 开发 AI。本综述在「与已有综述的差别」里引用它：能力层级或部件数量 ≠ 责任移交。更细的邻居讨论见 papers-b0.html。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>按是否修改改进机制来区分系统。</li></ol>
+  <p>AI4AI 口号容易把 L1 执行说成 RSI，需要三问来拆。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>口号密度高。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>取决于系统。</div>
+    <div><div class="k">人还控什么</div>各系统外部控制。</div>
+  </div>
+</div>
+
+<div class="work" id="li2025a">
+  <h3>模型评判综述</h3>
+  <p class="meta"><span class="badge b0">评价</span> Li 等人 2025a</p>
+  <h4>它想解决什么</h4>
+  <p>LLM-as-judge 的方法与失败。RSI 必须把结构递归和有效递归分开，因为分数可被判官操纵。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>整理 judge 协议。</li></ol>
+  <p>支撑第 1 章「可靠验收」。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>judge 与被评模型同族。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>评测器。</div>
+    <div><div class="k">人还控什么</div>协议。</div>
+  </div>
+</div>
+
+<div class="work" id="yehudai">
+  <h3>智能体评估综述</h3>
+  <p class="meta"><span class="badge b0">评价</span> Yehudai 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>智能体如何评。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>任务、过程、结局指标。</li></ol>
+  <p>过程指标才能看见 harness 是否被用。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>只看结局会掩盖第 8 章的「更新了但没用上」。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>协议。</div>
+    <div><div class="k">人还控什么</div>指标。</div>
+  </div>
+</div>
+
+<div class="work" id="shan-shao">
+  <h3>量规引导学习与监督失败</h3>
+  <p class="meta"><span class="badge b0">评价</span> Shan and Shao 2026</p>
+  <h4>它想解决什么</h4>
+  <p>量规学习和 oversight 失败。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>分析量规被博弈。</li></ol>
+  <p>对齐 DecoEvo 要解的循环。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>量规演化不可比。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>量规。</div>
+    <div><div class="k">人还控什么</div>审计。</div>
+  </div>
+</div>
+
+<div class="work" id="kim2024">
+  <h3>通往超级对齐的路（监督失败背景）</h3>
+  <p class="meta"><span class="badge b0">评价/安全</span> Kim 等人 2024</p>
+  <h4>它想解决什么</h4>
+  <p>超级对齐与监督失败的综述背景：人的监督、模型监督、可扩展监督各自会在哪里垮。L5 若让评测器跟着进化，必须先承认监督者可能被说服或被钻。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>整理对齐与监督文献。</li>
+<li>标出监督失败模式。</li></ol>
+  <p>不是一个可运行的 RSI 系统，是读 RQGM、DecoEvo 时的安全词典。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>「监督失败」案例不可复现时，只能当警示不能当定理。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>无。</div>
+    <div><div class="k">人还控什么</div>监督协议。</div>
+  </div>
+</div>
+
+<div class="work" id="slattery">
+  <h3>AI 风险仓库</h3>
+  <p class="meta"><span class="badge b0">评价/安全</span> Slattery 等人 2024</p>
+  <h4>它想解决什么</h4>
+  <p>把公开讨论过的 AI 风险做成可检索的元评论、数据库和分类法。综述用它补评测与 oversight 实践，而不是当作某个自我改进算法。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>收集风险条目。</li>
+<li>分类并交叉引用来源。</li></ol>
+  <p>工业评测设计时用来查「漏了哪类风险」。文档必然滞后于最新实践。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>分类法会过时；条目质量取决于来源。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>无（数据库）。</div>
+    <div><div class="k">人还控什么</div>收录范围。</div>
+  </div>
+</div>
+
+<div class="work" id="pan2024">
+  <h3>自动纠正大模型：机制综述</h3>
+  <p class="meta"><span class="badge b0">机制综述</span> Pan 等人 2024</p>
+  <h4>它想解决什么</h4>
+  <p>把「模型出错之后怎么改」做成地图：提示级纠正、工具验证、训练级纠正。用来对照 B0（改这一个答案）和持久纠正（改以后的规则）。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>按时机和反馈来源分类纠正方法。</li></ol>
+  <p>部件目录。读的时候始终问：纠正有没有留下。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>「纠正」一词在文献里既指改答案也指改模型，要对齐本教程的留下门槛。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>取决于方法。</div>
+    <div><div class="k">人还控什么</div>时机与反馈。</div>
+  </div>
+</div>
+
+<div class="work" id="venktesh">
+  <h3>Trust but Verify：测试时验证设计综述</h3>
+  <p class="meta"><span class="badge b0">评价</span> Venktesh 等人 2025 · <a href='https://arxiv.org/abs/2508.16665'>arXiv:2508.16665</a></p>
+  <h4>它想解决什么</h4>
+  <p>测试时缩放（多采样、长思考）必须配验证：谁来判对错、判据能不能被刷。RSI 的验收器问题在测试时缩放里提前出现。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>整理验证器设计。</li>
+<li>讨论可被利用的判据。</li></ol>
+  <p>和 HealthBench、RQGM 一起读：没有独立锚，验证器会和生成器一起漂。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>验证器本身的训练数据会过时。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>验证协议。</div>
+    <div><div class="k">人还控什么</div>锚与预算。</div>
+  </div>
+</div>
+
+<div class="work" id="niu2026">
+  <h3>测试时自我改进综述</h3>
+  <p class="meta"><span class="badge b0">机制</span> Niu 等人 2026 · <a href='https://arxiv.org/abs/2609.01679'>arXiv:2609.01679</a></p>
+  <h4>它想解决什么</h4>
+  <p>覆盖测试时用反馈适应、学习和缩放。和本教程的持续学习邻居相关，但主轴是推理期，不是跨任务改课表。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>按反馈来源和更新对象分类。</li></ol>
+  <p>测试时更新权重或记忆，常常停在 L1；只有更新规则自己被后轮改，才靠近 L5。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>测试时适应可能破坏其他任务。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>测试时状态。</div>
+    <div><div class="k">人还控什么</div>何时停、是否写回。</div>
+  </div>
+</div>
+
+<div class="work" id="long2024">
+  <h3>LLM 合成数据综述</h3>
+  <p class="meta"><span class="badge b0">机制</span> Long 等人 2024 · ACL Findings</p>
+  <h4>它想解决什么</h4>
+  <p>生成、策展、评价合成数据。L1 的 FineWeb / Nemotron / SynthLLM 都落在这条流水线上。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>生成。</li>
+<li>过滤。</li>
+<li>用下游或评委评价。</li></ol>
+  <p>执行可以很自动；「什么叫高质量」仍是人定政策。不要和 L4 记忆综述搞混。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>合成飞轮会放大教师模型偏见。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>合成语料。</div>
+    <div><div class="k">人还控什么</div>质量政策。</div>
+  </div>
+</div>
+
+<div class="work" id="huang2026b">
+  <h3>智能体记忆综述（后半场）</h3>
+  <p class="meta"><span class="badge b0">机制</span> Huang 等人 2026b · TMLR · <a href='https://arxiv.org/abs/2602.06052'>arXiv:2602.06052</a></p>
+  <h4>它想解决什么</h4>
+  <p>把智能体记忆当成自我演化和长地平线智能体的基底：写什么、怎么检索、怎么遗忘。Cheatsheet、ACE、ReasoningBank 都落在这张图上。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>按记忆类型（情节、语义、程序）分类。</li>
+<li>讨论跨任务复用和淹没。</li></ol>
+  <p>记忆变了不等于改进机制变了。没有录取门的记忆，是 L4 最常见的翻车点。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>写策略错会把偶发成功写成普遍规则。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>记忆。</div>
+    <div><div class="k">人还控什么</div>写/检索/遗忘政策。</div>
+  </div>
+</div>
+
+<div class="work" id="zhou2026a">
+  <h3>LLM 智能体外化：记忆 / 技能 / 协议 / Harness</h3>
+  <p class="meta"><span class="badge b0">机制</span> Zhou 等人 2026a · <a href='https://arxiv.org/abs/2604.08224'>arXiv:2604.08224</a></p>
+  <h4>它想解决什么</h4>
+  <p>把智能体的记忆、技能、协议和 harness 工程放进同一张外化地图。AFlow、Metis、Agent Skills 都能在这张图上找到位置。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>按外化载体分类。</li></ol>
+  <p>状态变 ≠ 改进机制变。外化之后才谈得上跨轮继承。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>载体一多就要治理，否则变成库漂移。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>外化状态。</div>
+    <div><div class="k">人还控什么</div>载体模式。</div>
+  </div>
+</div>
+
+<div class="work" id="ramnath">
+  <h3>自动提示优化综述</h3>
+  <p class="meta"><span class="badge b0">机制</span> Ramnath 等人 2025</p>
+  <h4>它想解决什么</h4>
+  <p>APE、OPRO、进化提示等自动提示优化的方法地图。Promptbreeder / GEPA 的背景。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>按搜索空间和反馈分类。</li></ol>
+  <p>L2 提示搜索。指标固定。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>过拟合开发集。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>提示。</div>
+    <div><div class="k">人还控什么</div>任务指标。</div>
+  </div>
+</div>
+
+<div class="work" id="lee2025">
+  <h3>复合 AI 系统优化综述</h3>
+  <p class="meta"><span class="badge b0">机制</span> Lee 等人 2025</p>
+  <h4>它想解决什么</h4>
+  <p>提示、工作流、多智能体编排如何一起优化。挑战是评价贵、部件多、失败难归因。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>整理复合系统优化方法。</li></ol>
+  <p>L2 背景：策略搜索的对象已经大于一句提示。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>评价危害随部件数上升。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>复合系统配置。</div>
+    <div><div class="k">人还控什么</div>评价。</div>
+  </div>
+</div>
+
+<div class="work" id="yue2026">
+  <h3>从静态模板到运行时图</h3>
+  <p class="meta"><span class="badge b0">机制</span> Yue 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>工作流从写死的模板变成运行时可改的图。AFlow、AgentSquare 的综述背景。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>按图/模板分类。</li></ol>
+  <p>L2 工作流搜索。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>图一复杂，搜索和调试都变难。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>工作流图。</div>
+    <div><div class="k">人还控什么</div>搜索空间。</div>
+  </div>
+</div>
+
+<div class="work" id="li2026b">
+  <h3>智能体环境工程综述</h3>
+  <p class="meta"><span class="badge b0">机制</span> Li 等人 2026b · <a href='https://arxiv.org/abs/2606.12191'>arXiv:2606.12191</a></p>
+  <h4>它想解决什么</h4>
+  <p>环境怎么建模、合成、评价、用到训练里。Theseus 强调环境与模型共演化，这篇提供环境工程的词汇。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>环境建模。</li>
+<li>合成。</li>
+<li>评价。</li>
+<li>应用。</li></ol>
+  <p>本教程问完整改进环；这篇把「环在环境这一侧」拆开。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>合成环境与真环境 gap。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>环境制品。</div>
+    <div><div class="k">人还控什么</div>评价。</div>
+  </div>
+</div>
+
+<div class="work" id="zhou2026b">
+  <h3>自我演化编码智能体</h3>
+  <p class="meta"><span class="badge b0">软件/综述</span> Zhou 等人 2026b · <a href='https://arxiv.org/abs/2608.03392'>arXiv:2608.03392</a></p>
+  <h4>它想解决什么</h4>
+  <p>编码智能体如何自我演化。本综述第四部分软件场景的兄弟文献，分析单位仍建议用改进环而不是「又一个编码智能体」。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>按演化对象分类编码智能体。</li></ol>
+  <p>和 DGM / DarwinX / HELIX 对照着读。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>「自我演化」口号密度高，要回到留下什么。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>编码智能体状态。</div>
+    <div><div class="k">人还控什么</div>基准。</div>
+  </div>
+</div>
+
+<div class="work" id="zhu2026a">
+  <h3>自我演化临床系统之路</h3>
+  <p class="meta"><span class="badge b0">医疗/综述</span> Zhu 等人 2026a</p>
+  <h4>它想解决什么</h4>
+  <p>医疗智能体从辅助走到自主时，同一条改进环碰到延迟结局、跨机构迁移和治理。本综述用来对照操作条件，不是再列一遍 DxEvolve。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>按自主程度和验证约束比较临床系统。</li></ol>
+  <p>证据强度参差，真实纵向结局的 L4 仍然稀缺。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>模拟成功 ≠ 临床成功。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>临床系统状态。</div>
+    <div><div class="k">人还控什么</div>监管与验证。</div>
+  </div>
+</div>
+<h2>RSI 定义与工业观点</h2>
+
+<div class="work" id="openai-rsi">
+  <h3>OpenAI 研究加速与 RSI 操作化</h3>
+  <p class="meta"><span class="badge b0">定义</span> OpenAI 2026e</p>
+  <h4>它想解决什么</h4>
+  <p>强调自动化 AI 研究工作流和反馈环。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>内部研究自动化叙述。</li></ol>
+  <p>光谱上较宽的 RSI 说法。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>自述。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>工作流。</div>
+    <div><div class="k">人还控什么</div>人优先级。</div>
+  </div>
+</div>
+
+<div class="work" id="anthropic-inst">
+  <h3>When AI builds itself</h3>
+  <p class="meta"><span class="badge b0">定义</span> Anthropic Institute 2026</p>
+  <h4>它想解决什么</h4>
+  <p>最强形式：AI 自主设计并开发自己的后继者。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>路线图。</li></ol>
+  <p>L5 目标而非当前能力。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>时间表未给。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>后继者（目标）。</div>
+    <div><div class="k">人还控什么</div>安全边界。</div>
+  </div>
+</div>
+
+<div class="work" id="tencent-rsi">
+  <h3>腾讯早期 RSI 环</h3>
+  <p class="meta"><span class="badge b0">工业 L2</span> Tencent 2026</p>
+  <h4>它想解决什么</h4>
+  <p>实验结果喂进后续模型开发的早期环。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>实验。</li>
+<li>写回开发。</li></ol>
+  <p>操作化 RSI，严格性低于「改改进机制」。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>公开细节有限。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>配方/检查点。</div>
+    <div><div class="k">人还控什么</div>开发流程。</div>
+  </div>
+</div>
+<h2>工业测量与配套基准</h2>
+
+<div class="work" id="workspace-bench">
+  <h3>Workspace-Bench</h3>
+  <p class="meta"><span class="badge b0">评测</span> Tang 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>Theseus 工作区实验的改编来源：量规打分的工作区任务。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>多文件工作区任务。</li>
+<li>量规。</li></ol>
+  <p>干净 vs 噪声实验的底座。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>量规主观。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>无。</div>
+    <div><div class="k">人还控什么</div>任务与量规。</div>
+  </div>
+</div>
+
+<div class="work" id="nanochat">
+  <h3>NanoChat Autoresearch</h3>
+  <p class="meta"><span class="badge b0">评测</span> Karpathy 2026b</p>
+  <h4>它想解决什么</h4>
+  <p>Hyra 报告验证 BPB 0.9015 vs 0.9109。小模型训练研究任务。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>固定数据与评价。</li>
+<li>改训练。</li>
+<li>BPB。</li></ol>
+  <p>autoresearch 家族。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>BPB 不等于下游智能。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>训练代码。</div>
+    <div><div class="k">人还控什么</div>评价。</div>
+  </div>
+</div>
+
+<div class="work" id="nanogpt-speed">
+  <h3>NanoGPT Speedrun</h3>
+  <p class="meta"><span class="badge b0">评测</span> Jordan 等人 2024</p>
+  <h4>它想解决什么</h4>
+  <p>到固定 loss 的时间。Hyra 76.4s vs 77.5s。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>固定目标 loss。</li>
+<li>比墙钟。</li></ol>
+  <p>系统搜索考场。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>计时噪声、硬件。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>训练实现。</div>
+    <div><div class="k">人还控什么</div>目标 loss。</div>
+  </div>
+</div>
+
+<div class="work" id="sol-exec">
+  <h3>SOL-ExecBench</h3>
+  <p class="meta"><span class="badge b0">评测</span> Lin 等人 2026a</p>
+  <h4>它想解决什么</h4>
+  <p>GPU 内核优化。Hyra 均值 0.771 vs 0.754。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>写内核。</li>
+<li>正确性+速度。</li></ol>
+  <p>AutoKernel 类任务的公共考场。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>计时与数值公差。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>内核。</div>
+    <div><div class="k">人还控什么</div>正确性。</div>
+  </div>
+</div>
+
+<div class="work" id="forgetrain">
+  <h3>ForgeTrain</h3>
+  <p class="meta"><span class="badge b0">工业 L2</span> Zhu 等人 2026c · <a href='https://github.com/OpenBMB/ForgeTrain'>GitHub</a></p>
+  <h4>它想解决什么</h4>
+  <p>从空目录锻造生产级预训练框架。约 8 小时匹配 Megatron-LM v0.15，1.5–2.5 天据称超过；MFU 数字见第 14 章。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>空库+规格。</li>
+<li>AutoResearch 环。</li>
+<li>正确性与 MFU。</li></ol>
+  <p>公司报告。知识库跨项目复用。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>对比的「工程师月」是估算。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>训练框架代码。</div>
+    <div><div class="k">人还控什么</div>规格、评价、知识库。</div>
+  </div>
+</div>
+
+<div class="work" id="forgestencil">
+  <h3>ForgeStencil</h3>
+  <p class="meta"><span class="badge b0">工业 L2</span> The ForgeStencil Authors 2026</p>
+  <h4>它想解决什么</h4>
+  <p>同一方法到科学计算内核。公司报 1.15–1.9× 与端到端中位 1.41×。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>生成内核。</li>
+<li>对照公开 SOTA。</li></ol>
+  <p>执行反馈便宜的领域。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>基准选择偏袒。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>内核。</div>
+    <div><div class="k">人还控什么</div>基准。</div>
+  </div>
+</div>
+
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>
