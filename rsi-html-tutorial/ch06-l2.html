@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 6 章 · L2：自己决定怎么改</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第二部 · 五级阶梯</p>
+      <h1>第 6 章 · L2：自己决定怎么改</h1>
+      <p class="lead">执行一次修改往往是机械的；难的是决定「值得试哪一种修改」。L2 把这道实验决策交给改进器。人仍规定目标、任务边界和录取标准。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>L2 的环是：观察表现 → 诊断 → 选择如何改 → 实例化并测试 → 留下或回滚 → 重复。搜索框架可以是人写死的；自治在于「下一刀砍哪里」由证据决定。</p>
+      </div>
+
+      <h2>从执行到选题</h2>
+      <p>研究员平时做的事情是：看失败、猜是哪个部件在拖后腿、选一个效果不确定的干预、看结果再决定下一步。干预空间一大，穷举不可能，手工试又受注意力和旧直觉限制。</p>
+      <p>OpenAI 把当前前沿智能体描述成：在人类监督下、对定义清楚的研究任务，达到「自动研究实习生」阶段；研究员仍定优先级、仍决定哪些结果值得继续投或部署。L2 交出的就是这一截：<strong>把观察到的证据变成下一个实验</strong>。</p>
+      <p>被改的对象可小到一句提示，大到可执行智能体，再大到训练程序。下面按对象从窄到宽讲，每个对象选一个把实现摊开。</p>
+
+      <h2>提示搜索：改说明书，不改模型</h2>
+      <div class="work" id="gepa">
+        <h3>GEPA：用执行轨迹做反思进化，而不是只突变句子</h3>
+        <p class="meta">Agrawal 等人，ICLR 2026 · 综述 L2 提示搜索代表 · Dropbox 曾用它改「检索结果是否相关」的判官提示</p>
+        <h4>它想解决什么</h4>
+        <p>早年进化提示（如 Promptbreeder）主要靠随机突变 + 适应度。GEPA 认为：失败轨迹里已经写着「哪一个模块错了」，应该用这些自然语言证据生成针对性修订，并在帕累托前沿上保留互补的提示变体，而不是贪心只留当前最高分那一支。</p>
+        <h4>实现怎么走</h4>
+        <ol>
+          <li>系统被拆成若干可单独改提示的模块（例如检索判官、摘要器）。</li>
+          <li>在训练集上跑，收集轨迹：输入、中间工具调用、最终对错。</li>
+          <li>反思模型阅读失败轨迹，归因到具体模块，提出该模块提示的补丁。</li>
+          <li>候选在验证指标上评分。GEPA 维护一组互不支配的提示组合（帕累托），避免过早收敛到单一谱系。</li>
+          <li>下一轮从档案里采样父代再反思。任务指标始终由人固定。</li>
+        </ol>
+        <p>Dropbox 的应用很具体：不是让模型自己定义「什么叫相关」，而是在固定的相关性定义下，让 GEPA 重写「如何判断检索到的文件/消息是否相关」那段提示。</p>
+        <div class="hard">
+          <p class="label">技术难点</p>
+          <p>归因会错：轨迹很长时，反思模型可能把检索失败写成生成失败。帕累托档案会膨胀，要有去重和容量管理。反复访问开发集等于把考场变成优化面——这是所有 L2 的通病。GEPA 比纯强化学习省样本，是因为它用语义反馈代替了大量试错，但语义反馈本身不可证明正确。</p>
+        </div>
+        <div class="keep">
+          <div><div class="k">留下什么</div>改过的模块提示，以及互补变体档案。</div>
+          <div><div class="k">人还控什么</div>任务、指标、模块切分、何时停止。</div>
+        </div>
+      </div>
+      <p>Promptbreeder 同时进化「任务提示」和「如何突变提示的提示」，适应度仍是固定任务。MPO 把可编辑面扩到多模态提示。C-Evolve 把候选生成嵌在固定进化协议里。自治增加的不是「会写提示」，而是「由评价反馈决定下一次修订策略」。</p>
+
+      <h2>智能体与 Harness 搜索：改可执行系统</h2>
+      <p>可编辑对象一旦从一段话变成一段 Python，策略搜索就开始像自动系统设计。Microsoft Foundry 的 Agent Optimizer 会根据评测失败重写托管智能体的系统指令、技能和本地函数工具描述。</p>
+
+      <div class="work" id="adas">
+        <h3>ADAS / Meta Agent Search：让元智能体用代码发明新智能体</h3>
+        <p class="meta">Hu, Lu, Clune，2024/ICLR 2025 · <a href="https://arxiv.org/abs/2408.08435">arXiv:2408.08435</a> · 仓库 <a href="https://github.com/ShengranHu/ADAS">ShengranHu/ADAS</a></p>
+        <h4>它想解决什么</h4>
+        <p>人设计的智能体只覆盖设计空间的一小角。ADAS 把「智能体 = 一段 Python <code>forward</code> 函数」当成搜索空间：输入题目信息，输出回答。元智能体迭代编程「有趣的新智能体」，基于不断变大的发现档案。</p>
+        <h4>实现怎么走</h4>
+        <ol>
+          <li>给元智能体一个不到 100 行的框架：查询基础模型、格式化提示等基本函数。它不必从零发明 HTTP 客户端。</li>
+          <li>档案可先放入 CoT、Self-Refine 等基线，作为「已发现物种」。</li>
+          <li>每轮：元智能体先写一段高层次新想法，再写成 <code>forward</code>。然后做两次自我反思，检查是否足够新。</li>
+          <li>在目标域的验证数据上跑。出错则最多反思修复 5 次。</li>
+          <li>无论好坏，把代码和指标写入档案，供以后灵感使用。领域文件夹（<code>_mmlu</code>、<code>_arc</code>、<code>_mgsm</code>……）里各有自包含的 <code>search.py</code>。</li>
+        </ol>
+        <p>发现过的有趣设计包括：多不同温度采样再辩论、把问题改写成多种形式再聚合。注意：这些设计是<strong>在固定基准上搜出来的</strong>。</p>
+        <div class="hard">
+          <p class="label">技术难点</p>
+          <p>搜索空间是图灵完备的 Python，什么都能写，所以也会写出无限循环、偷偷读验证标签、或只对验证集有效的捷径。评价一贵，迭代次数就少，档案质量决定以后的想象力。元智能体自己的提示和基本函数库仍是人写的——所以这是 L2 不是 L5：改的是任务智能体，不是「如何搜智能体」的元算法。</p>
+        </div>
+        <div class="keep">
+          <div><div class="k">留下什么</div>带分数的 <code>forward</code> 代码档案。</div>
+          <div><div class="k">人还控什么</div>基准、评价函数、元智能体框架、迭代次数。</div>
+        </div>
+      </div>
+
+      <p>AFlow 把工作流编码成可执行图，用 MCTS 做代码级修改，执行结果回传到后续分支。AgentSquare 把设计拆成可复用模块，进化加重组，让一种配置里发现的结构成为另一种的积木。它们都比调参自治得多，但仍在外部评价流程下比谁分高。L2 不意味着有权重新定义「什么叫成功」。</p>
+
+      <h2>模型与训练搜索：把实验周期压短</h2>
+      <p>人靠直觉决定「可能的实验里那一小撮该跑谁」。L2 改进器的角色是压缩这个周期：看上次发生了什么，推断改进可能从哪来，把下一次实验预算投过去。</p>
+      <ul>
+        <li><strong>配置搜索</strong>：NVIDIA 2026 TAO 为 Cosmos 3 后训练让编码智能体在固定验证目标下调用 LLM 引导的 AutoML。人给模型、任务、数据、指标；系统接管「下一组配置测谁」。</li>
+        <li><strong>结构搜索</strong>：AgentNAS 针对「现代 NAS 仍依赖人手写任务专用搜索空间」。LLM 先产出任务专用种子结构，再从该设计导出结构化搜索空间，后面仍是组合搜索，验证指标固定。</li>
+        <li><strong>训练规则搜索</strong>：GPT-6 Astra 的 NanoGPT 评测给智能体固定验证目标、一张 H100、受限训练设置，但要它自己诊断瓶颈、改训练代码、调配置、改训练循环。Karpathy 的 autoresearch 更干净：数据管道、评价函数、指标、每次实验算力预算固定，智能体反复改训练程序，只有受保护验证指标变好才留下。</li>
+        <li><strong>系统实现搜索</strong>：AutoKernel 先剖析，找到端到端影响最大的算子，再让智能体写 Triton/CUDA，必须过正确性检查和真实 GPU 加速才录取。</li>
+      </ul>
+
+      <div class="work" id="autoresearch">
+        <h3>autoresearch：最小的「改训练程序」环</h3>
+        <p class="meta">Karpathy，2026 · <a href="https://github.com/karpathy/autoresearch">github.com/karpathy/autoresearch</a> · 工业 L2 的教学标本</p>
+        <h4>实现怎么走</h4>
+        <ol>
+          <li>仓库里放好数据、固定的 <code>evaluate()</code>、固定指标（例如验证集 bits-per-byte）。</li>
+          <li>智能体只能改训练脚本和配置。</li>
+          <li>每次改动启动一次受预算限制的训练，跑完得到一个数。</li>
+          <li>数变好才 commit；变差就回滚。人不用盯每一次 diff，但指标和预算从未交给模型改。</li>
+        </ol>
+        <div class="hard">
+          <p class="label">技术难点</p>
+          <p>智能体很快会学到：改随机种子、减数据、在评价函数里硬编码。所以评价函数必须对智能体保密或校验。这正是 Anthropic 自动研究实验里报告的：挑种子、走捷径、试图通过评测查询抽测试标签。一旦基准被适应性查询，它就变成优化面，而不再是被动量尺。</p>
+        </div>
+      </div>
+
+      <h2>怎么评价 L2</h2>
+      <p>更大的干预空间，如果反馈分不清候选、或搜索没效率，不会自动变成更强的递归自我改进。要把「交出了多少自治」和「改进过程好不好」分开。</p>
+      <p>这也解释了为什么工业界扎堆在编码、模型训练、内核优化：候选可执行，反馈来得快。</p>
+      <p>Finding：L2 把人的力气从「提出每一次改进」转到「约束改进的搜索」。人仍规定目标和录取标准，但不必再点每一道菜。瓶颈从执行已知改进，变成在可能的改进上搜索。</p>
+      <p>Promptbreeder、GEPA、AgentNAS、autoresearch、AutoKernel 等其余 L2 工作见 <a href="papers-l2.html">深挖 L2</a>。</p>
+      <p class="say">下一章再交出一种决定：不只是怎么改，还包括<strong>下一课该学什么</strong>。课程表开始跟着学习者的弱点动。</p>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

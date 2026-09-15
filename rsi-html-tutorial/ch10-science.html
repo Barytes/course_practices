@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 10 章 · 科学发现里的 RSI</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第三部 · 四个场景</p>
+      <h1>第 10 章 · 科学发现里的 RSI</h1>
+      <p class="lead">科学进步不只是解出当前这道题，还要改进以后如何提出问题、假设和实验。反馈又贵、又慢、又常常说不清到底是哪一步错了。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>科学 RSI 的环：研究挑战 → 假设与实验 → 计算或物理世界给证据 → 诊断 AI4Sci 系统本身。当前最强证据在 L2（选怎么改工具/脚手架），L5 几乎还没有。</p>
+      </div>
+
+      <h2>这个场景为什么特别难</h2>
+      <ol>
+        <li><strong>开放。</strong>相关假设空间和必要工具事先不知道。贵的实验让「探索本身」成为改进问题的一部分。</li>
+        <li><strong>反馈稀疏、延迟、且不指认。</strong>失败实验可能是假设错，也可能是模型不合适、协议无效、仪器不可靠。</li>
+        <li><strong>有效性有条件。</strong>一处成功的更新，若不记录来源、有效范围和不确定性，不能安全继承。</li>
+      </ol>
+      <p>所以科学 RSI 同时是证据获取、能力演化和认识控制问题。综述按三个可演化部件组织：假设模块、实验智能体、反思系统/改进器。</p>
+
+      <h2>演化假设模块</h2>
+      <p>要改的是「以后如何提出假设」，不是只为当前问题选一个更好的假设。</p>
+      <ul>
+        <li><strong>HypoForge</strong>：把科学经验蒸馏成假设生成、实验设计、执行的程序性技能。没有直接经验反馈时，用判别器的批评更新生成技能；有真实执行结果时，按归因后的失败 refinement 测试技能。</li>
+        <li><strong>EvoScientist</strong>：维护「有前途/已失败研究方向」的构思记忆，以后检索来调整提案。底层模型、记忆模式、更新程序仍固定，所以是记忆型适应。</li>
+        <li><strong>TTT-Discover</strong>：测试时强化学习，让科学反馈在解新问题的同时改权重。</li>
+        <li><strong>聚合物发现框架</strong>：把仿真评价过的候选加进训练数据，重训生成模型。</li>
+      </ul>
+      <p>这些演化仍是任务或领域特定的，由固定的训练和选择程序产生。证据支持有界的假设级改进，不是跨领域越来越会「提出科学假设」的一般机制。</p>
+      <div class="hard">
+        <p class="label">实现难点</p>
+        <p>假设的「好」往往事后很久才知道。用判别器代替实验，会把判别器的偏见写成技能。测试时改权重（TTT）还要防止单次实验把模型带偏到这个分子家族，换课题就忘。</p>
+      </div>
+
+      <h2>演化实验智能体</h2>
+      <p>实验智能体把假设变成可执行程序：选工具、写代码、或操作设备。当执行反馈变成可复用动作，才算演化。</p>
+      <ul>
+        <li><strong>Test-Time Tool Evolution</strong>：推理期合成、验证、复用可执行科学工具。SciEvo 基准含 1590 任务、925 个演化工具。</li>
+        <li><strong>CASCADE</strong>：为化学和材料创造、修复、积累可执行技能。</li>
+        <li><strong>S1-NexusAgent</strong>：把完整研究轨迹蒸馏成 Scientific Skills。</li>
+        <li><strong>SkillFoundry</strong>：从论文、仓库、文档、API 挖掘，编译成可执行技能包，按执行和下游效用验证、合并或剪枝。</li>
+        <li><strong>DrugSAGE</strong>：跨任务记忆存验证过的建模程序、训练策略、反复出现的错误修复。16 个任务上的经验改进 17 个留出任务——这是「继承改变新问题行为」的直接证据。</li>
+        <li><strong>STELLA / EarthLink / OriGene</strong>：分别在生医、气候、组学里更新推理模板、工具海、成功脚本或分析协议。</li>
+        <li><strong>自演化流体控制智能体</strong>：同时修订智能体定义和它产出的白盒控制器。评价时必须把「实验智能体变好」和「科学制品（控制器）变好」分开量。</li>
+      </ul>
+      <p>最强证据来自在以后任务上的验证复用，而不是工具库变大。没有技能前置条件、执行测试、来源、版本和回滚，局部成功的工作流会被继承到它从未被验证过的条件里。</p>
+
+      <h2>演化反思系统和改进器</h2>
+      <p>固定批评家改当前输出，执行的是预定义改进程序。演化的改进器必须从更早改进的结果，更新自己的诊断、干预或晋升政策。</p>
+      <ul>
+        <li><strong>SIA</strong>：当前 AI4Sci 里最宽的部件级更新环。Feedback-Agent 按任务结果在「改脚手架、工具、重试/搜索逻辑、LoRA 权重」之间选择，并配不同策略。</li>
+        <li><strong>CORAL</strong>：用长期异步智能体代替固定进化启发式。它们自主检查先前尝试、决定何时测试或调用评测器，把发现外化为共享尝试、笔记和可复用技能；心跳触发的反思和转向维持长地平线探索。</li>
+        <li><strong>SAGA</strong>：把可编辑面扩到目标层。在固定高层科学目标下，诊断优化候选群体的失败模式，提出或重权具体目标，并把它们实现为可执行评分函数，引导后续搜索。</li>
+      </ul>
+
+      <h2>离真正的科学 RSI 还有多远</h2>
+      <p>B0 式输出精炼已经普遍。L1 持久更新通过重训和记忆积累得到演示。L2 是当前最强前沿：系统能自主选择对权重、工具、技能、工作流、脚手架的更新。少数系统通过自适应探索和跨任务经验复用表现出 L3 的侧面。端到端 L4 环境适应和 L5 改进器演化大体尚未探索。</p>
+      <p>往上走主要需要：更可靠地归因实验结果、更有选择地跨任务迁移改进、更强地评价「连续系统更新是否真的改进了未来研究」。同样重要的是：在越来越强的部件变得可适应时，保持来源、可复现、以及稳定的科学与安全约束。</p>
+      <p>各系统的逐步实现见 <a href="papers-apps.html">场景深挖</a>。</p>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

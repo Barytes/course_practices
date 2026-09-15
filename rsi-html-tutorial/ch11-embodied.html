@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 11 章 · 具身智能里的 RSI</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第三部 · 四个场景</p>
+      <h1>第 11 章 · 具身智能里的 RSI</h1>
+      <p class="lead">机器人的动作会在物理或仿真世界留下可观察后果，这是天然的改进环。但经验由当前政策决定、失败难以归因到单一零件、物理试验不能随意重来。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>具身 RSI 必须同时处理：自己产生经验、跨感知–规划–控制归因、以及在安全约束下继承。仿真里已经看到环境与智能体共演化；真机上的 L5 仍被接口和安全锁住。</p>
+      </div>
+
+      <h2>三条场景特有的难</h2>
+      <ol>
+        <li><strong>经验是内生的。</strong>当前政策决定智能体走到哪些状态，因此也决定以后能看到什么证据。</li>
+        <li><strong>能力分布在感觉运动系统上。</strong>失败可能来自感知、规划、控制或身体本身，很难记到单一零件上。</li>
+        <li><strong>物理试验不能自由复制、撤销、重置。</strong>候选更新必须在安全、硬件和资源约束下评价。</li>
+      </ol>
+      <p>互动环：环境与课程提供学习任务 → harness 组织能力 → 政策执行 → 世界模型和评测器解释后果 → 验证过的反馈写回这些部件。</p>
+
+      <h2>演化环境与课程</h2>
+      <div class="work" id="poet">
+        <h3>POET：环境–政策成对共演化</h3>
+        <p class="meta">Wang 等人，2019 · <a href="https://arxiv.org/abs/1901.01753">arXiv:1901.01753</a> · 开放式学习的经典实现</p>
+        <h4>实现怎么走</h4>
+        <ol>
+          <li>维护一群「环境–智能体」对。环境是可变的地形或障碍参数。</li>
+          <li>突变环境，用最小准则录取：对当前人口既不是trivial 也不是无解。</li>
+          <li>在被录取的环境里优化对应政策。</li>
+          <li>定期把政策迁到其他环境，复用行为踏脚石——在 A 地形上学到的步态，可能突然让 B 地形可解。</li>
+        </ol>
+        <p>这直接针对「人手写课表」：课表是环境种群自己长出来的。难点是最小准则的阈值；太松则全是垃圾环境，太紧则探索停滞。迁移何时发生也是人定的。</p>
+      </div>
+      <ul>
+        <li><strong>EnvGen</strong>：LLM 当课程设计师，生成仿真器配置；较小的 RL 智能体在里面训练；技能级表现返回 LLM，再生成针对剩余弱点的环境。避免直接把大模型当具身智能体的成本。</li>
+        <li><strong>GenEnv</strong>：把仿真器参数化成可训练课程政策。α-Curriculum 奖励靠近学习者能力前沿的任务；学习者用 GRPO 优化，仿真器用奖励加权回归更新。</li>
+        <li><strong>OMNI-EPIC</strong>：LLM 生成可执行环境和奖励代码，按先前任务档案和当前学习进度，找既可学又新颖的挑战。搜索空间不再被人手写的环境分布锁死。</li>
+        <li><strong>SimWorld Studio</strong>：SimCoder 写 Unreal Engine 代码，用编译错误、物理检查、视觉语言模型批评来改环境，把成功工具存下来；学习者表现再把它推向更难的 Gym 兼容世界。针对「生成的 3D 内容常常静态、不可验证、不适合训练」。</li>
+      </ul>
+
+      <h2>演化技能、记忆与 Harness</h2>
+      <p>Voyager 把成功 Minecraft 行为写入可执行技能库（第 7 章已拆）。LRLL 用自我引导探索和醒–睡过程增长并重组可组合机器人程序。EmbodiSkill 区分「技能本身错」和「智能体没按有效指导做」，只在轨迹提供相关证据时更新技能。</p>
+      <p>更新目标从单技能扩到周围架构：SHAPER 通过环境 rollout 联合进化可复用技能和上下文代码 harness。ASPIRE（具身版）诊断机器人执行失败，验证候选修复，把成功修复当可迁移技能留下。ENPIRE 走得更远：让编码智能体通过反复真机实验修订机器人政策、训练程序和支持基础设施。</p>
+
+      <h2>演化政策与动作模型</h2>
+      <ul>
+        <li><strong>Self-Improving Embodied Foundation Models</strong>：从预训练模型导出奖励和成功信号，让机器人在有限人类监督下练习并改进政策。</li>
+        <li><strong>MEDAL++</strong>：同时学习如何完成和如何撤销任务，减少人手重置环境。</li>
+        <li><strong>Q-Planning</strong>：大的行为克隆政策冻结，从小的价值函数用部署轨迹（成功+失败）持续训练。</li>
+        <li><strong>SERP</strong>：在重新规划前，根据最近导航失败调整动作模型。</li>
+      </ul>
+      <p>互动成为后继者的训练证据，但更新算法、奖励定义、允许改的模型部件仍事先规定，所以主要是政策级自我改进。在安全继承之前，系统还必须预测和评价「自己的动作到底造成了什么」。</p>
+
+      <h2>演化世界模型与评测器</h2>
+      <ul>
+        <li><strong>VLAW</strong>：用真机 rollout 改进以动作为条件的视频世界模型，再生成合成经验训练 VLA 政策。</li>
+        <li><strong>World-VLA-Loop</strong>：政策失败 refinement 世界模型，更可靠的模型再当下一轮政策优化的环境。迭代闭合。</li>
+        <li><strong>Motus2</strong>：把政策、仿真、评价函数集成进共享模型，用失败和次优互动改进动力学和价值预测。</li>
+        <li><strong>SAIL</strong>：视频规划器执行自己生成的计划，并在得到的轨迹上微调。</li>
+      </ul>
+      <p>它们不仅改进政策，还改进预测后果、产生未来训练信号的机制。目标与更新程序仍外部固定，所以是有界的模型–政策共演化，不是无约束递归。</p>
+
+      <h2>离真正的具身 RSI 还有多远</h2>
+      <p>B0 回合内反思和重规划已经普遍。L1 通过基于具身体验的政策和模型更新得到演示。L2 是主要前沿：在固定评价程序下选择并应用对技能、提示、控制程序、harness 的更新。Voyager、LRLL 表现出 L3。L4 智能体–环境共演化主要出现在仿真（POET、EnvGen、GenEnv、SimWorld）。ENPIRE 通过让编码智能体修订政策、训练程序和基础设施，接近有界 L5；其环境接口、评测器和安全约束仍外部指定。</p>
+      <p>真正的具身 RSI 要求：主动获取有信息量的经验、在整个感觉运动系统上归因、在不能自由重置的物理条件下验证更新。改进必须跨任务、环境、身体仍然有效，并带明确来源、不确定性和回滚。系统还必须学会改进自己的 harness 和评价过程，同时不削弱固定安全约束。当前方法分开演示了这些能力，尚未集成进安全、持久、自主的真机改进环。</p>
+      <p>POET、Voyager、ENPIRE 等实现卡片见 <a href="papers-apps.html">场景深挖</a>。</p>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

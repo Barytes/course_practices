@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 2 章 · HCI：把能力进度画成一条尺子</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第一部 · 全貌</p>
+      <h1>第 2 章 · HCI：把能力进度画成一条尺子</h1>
+      <p class="lead">不同考场的裸分不能直接加。综述先把分数拉到同一把 0–100 的尺子上，再看哪类能力已经接近顶，哪类还很空。空的地方，正是 RSI 最可能有用的地方。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>HCI=0 表示「该考场第一年的前列水平」，HCI=100 表示满分。2026 年，研究生级科学已经走到 85 左右，工具智能体只有大约 40。交互式、有状态的任务，才是自我改进最该去补的坑。</p>
+      </div>
+
+      <h2>为什么不能直接比裸分</h2>
+      <p>有的考场满分是 100，有的报告通过率，有的换过题目子集。把「MMLU 88 分」和「SWE-bench 50%」直接平均，没有意义。综述做了三步清洗，你只要理解每一步在防什么作弊。</p>
+
+      <h3>第一步：只把协议相同的结果放进同一家族</h3>
+      <p>两个分数能放在一起，必须考场版本和评测架子稳定，或者有重叠模型能当桥梁。协议对不上的，记入审计，但不画进轨迹。</p>
+      <p>一共看了 393 条合格的「模型–基准」观察，覆盖 2023 到 2026 年 9 月、十个能力域。最新模型审计里 33 条结果只有 17 条能链到已有家族。另外 16 条来自 Terminal-Bench、DeepSWE、CyberGym、ExploitBench、AutomationBench、BrowseComp，因为版本或评测设置对不上，只当参考。</p>
+      <p>这一点本身就是一个技术难点：<strong>智能体考场比知识考场更容易偷偷换规则</strong>。子集一变、pass@1 聚合法一变，分数就能跳。综述在网络安全轨迹上用虚线标出了这种断裂。</p>
+
+      <h3>第二步：同一模型同一考场，用加权共识分</h3>
+      <p>如果好几家都报了同一个模型在同一协议下的分数，先加权平均：</p>
+      <div class="formula">
+        <div class="eq">共识分 =（各来源权重 × 该来源分数）的和 ÷ 权重的和</div>
+        <div class="hint">基准官方表权重 3，独立统一架子 2.5，混合报告 2，模型作者自己报 1；第一方再乘 0.75，降低「自家报自家」的影响。</div>
+      </div>
+      <p>用超小数字手算一次。假设某模型在某考场有两个来源：官方表 60 分（权重 3），作者自己报 80 分（权重 1×0.75=0.75）。</p>
+      <figure class="code">
+        <figcaption>手算 · 加权共识分</figcaption>
+        <pre><code>分子 = 3*60 + 0.75*80 = 180 + 60 = 240
+分母 = 3 + 0.75 = 3.75
+共识分 = 240 / 3.75 = 64
+</code></pre>
+      </figure>
+      <p>作者把分数报得很高，但权重小，共识分只被稍微拉上去。这就是「敏感性调节」：不是说第一方一定在撒谎，而是分析时不要让它主导叙事。</p>
+
+      <h3>第三步：用 HCI 把共识分拉到 0–100</h3>
+      <p>公式是：</p>
+      <div class="formula">
+        <div class="eq">HCI = 100 ×（共识分 − 入场年前列分）÷（100 − 入场年前列分）</div>
+        <div class="hint">入场年前列分 F<sub>b,0</sub> = 该考场进入数据集的第一年，模型分数的第 90 百分位。HCI=0 就是当年前列，HCI=100 就是满分。</div>
+      </div>
+      <p>再手算。假设入场年前列是 40 分，现在共识分 70：</p>
+      <figure class="code">
+        <figcaption>手算 · HCI</figcaption>
+        <pre><code>分子 = 70 - 40 = 30
+分母 = 100 - 40 = 60
+HCI = 100 * 30 / 60 = 50
+</code></pre>
+      </figure>
+      <p>读作：从「刚有这个考场时的前列水平」走到满分，已经走完一半。如果另一考场入场年前列已经是 80，现在 90，HCI 也是 50。两把尺子才可以横比。</p>
+
+      <h3>第四步：把同一年、同一领域的多个考场合成一条轨迹</h3>
+      <p>每个考场先取该年 HCI 的第 90 百分位当前沿，再按「有多少个不同模型贡献了这个前沿」的平方根加权。平方根的意思是：样本多的考场说话更响，但不让最大的一张表吞掉整个领域。</p>
+
+      <h2>三条观察，决定 RSI 该往哪用力</h2>
+
+      <h3>观察 1：不同领域的涨法和涨速都不一样</h3>
+      <p>到 2026 年（综述口径）：</p>
+      <table class="plain">
+        <thead>
+          <tr><th>领域</th><th>HCI（约）</th><th>轨迹形状</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>高等数学</td><td>86.4</td><td>2025 涨 32.8，2026 再涨 53.6，加速闭合</td></tr>
+          <tr><td>研究生级科学</td><td>85.8</td><td>已经很高</td></tr>
+          <tr><td>宽泛知识</td><td>77.2</td><td>三年分别 +32.8、+26.9、+17.6，在减速</td></tr>
+          <tr><td>法律推理</td><td>64.5</td><td>从 2024 的 +48.2 降到 2026 的 +4.9</td></tr>
+          <tr><td>多模态推理</td><td>62.2</td><td>2025 猛涨 59.7，2026 只剩 2.5</td></tr>
+          <tr><td>前沿学术广度</td><td>60.4</td><td>仍有明显空档</td></tr>
+        </tbody>
+      </table>
+      <p>如果只看一个总分，你会以为「模型每年均匀变强」。拆开以后会看到：有的领域在收尾，有的在冲刺，有的已经几乎不动。</p>
+
+      <h3>观察 2：交互式能力空档更大</h3>
+      <table class="plain">
+        <thead>
+          <tr><th>领域</th><th>2026 HCI</th><th>相对研究生科学的缺口</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>软件工程</td><td>52.6</td><td>低 33.2</td></tr>
+          <tr><td>搜索与终端智能体</td><td>56.8</td><td>低 29.1</td></tr>
+          <tr><td>工具智能体</td><td>39.9</td><td>低 45.9</td></tr>
+          <tr><td>网络安全智能体</td><td>91.9</td><td>要注意后期 Cybench 子集/聚合法变了</td></tr>
+        </tbody>
+      </table>
+      <p>工具智能体 2026 年从 8.2 跳到 39.9，进步很大，但仍然是最低的一条。软件工程 2025 年涨了 40.8，2026 年只剩 11.9。</p>
+      <p>这些任务需要规划、跟踪环境状态、选工具、解释结果、再改下一步。错误会沿着轨迹传播，所以数据采集和评测必须覆盖完整互动，而不是单轮问答。用本教程的话说：</p>
+      <ul>
+        <li>有标准答案的封闭考场，主要练到 L1–L2；</li>
+        <li>环境任务开始要求 L2–L3；</li>
+        <li>长流程、有状态的工作，会暴露 L3–L4 才需要的验收、记忆和适应。</li>
+      </ul>
+
+      <h3>观察 3：剩下的空档，就是 RSI 的潜在价值</h3>
+      <p>综述画了一块 2026 年之后的示意延伸：假设以后靠「反复造经验、验收、留下、回归」能吃掉剩余空档的 78%。这不是预测，是一根示意箭头：空档越大的领域，被画得伸得越长。</p>
+      <div class="formula">
+        <div class="eq">示意终点 = 100 − 0.22 ×（100 − 2026 年 HCI）</div>
+        <div class="hint">等价于：示意增益 = 0.78 × 剩余空档。网络安全从 91.9 画到 98.2；软件工程从 52.6 画到 89.6；工具智能体从 39.9 画到 86.8。</div>
+      </div>
+      <p>后面章节出现的方法，正是冲着这些空档：根据弱点出练习（SEAgent、SIMA 2），把轨迹蒸馏成规则和工具（PANDO、Metis），把测过的 harness 改动留给以后（Self-Harness、Agentic Harness Engineering）。</p>
+
+      <div class="callout warn">
+        <p class="label">读图时别被示意箭头骗了</p>
+        <p>那块阴影不是实验结果。它只是说：如果自我改进真能把部署工作流里的失败变成下一次练习，那么现在最空的领域 theoretically 获益最大。第 15 章会回到「怎样才算证明了这一点」。</p>
+      </div>
+
+      <p>HCI 未链上的考场（Terminal-Bench、DeepSWE 等）见 <a href="papers-surveys.html">评测与综述深挖</a>。</p>
+      <p class="say">尺子有了。下一章把「改进」拆成九个零件。以后每看到一个系统，就指着零件问：谁在当改进器？谁在当验收器？留下的是权重还是一段提示？</p>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

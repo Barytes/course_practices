@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>引用工作深挖 · L4</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第五部 · 每篇工作</p>
+      <h1>L4 部署适应：记忆、技能、Harness 与上线门禁</h1>
+      <p class="lead">上线互动改长期状态；人握住目标、权限、受保护评测和发布权。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一页怎么用</p>
+        <p>主线第 8 章全部代表系统在此展开。</p>
+      </div>
+      <div class="search-box"><input data-filter type="search" placeholder="按系统名、作者、技术词过滤……"></div>
+<h2>文本与结构化记忆</h2>
+
+<div class="work" id="cheatsheet">
+  <h3>Dynamic Cheatsheet</h3>
+  <p class="meta"><span class="badge l4">L4</span> Suzgun 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>冻结模型跨相关题目维护一份演化笔记：策略、代码片段、已知坑。同一模型既答题也策展，无留出门。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>答题前读笔记。</li>
+<li>作答。</li>
+<li>把教训写入笔记，删过时条目。</li></ol>
+  <p>最小 L4：持久文本。没有独立验收，错教训也会留下。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>无真值时把偶发成功写成普遍规则。笔记变长检索变差。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>演化文本记忆。</div>
+    <div><div class="k">人还控什么</div>题目流、策展提示。</div>
+  </div>
+</div>
+
+<div class="work" id="ace">
+  <h3>ACE Agentic Context Engineering</h3>
+  <p class="meta"><span class="badge l4">L4</span> Zhang 等人 2026d</p>
+  <h4>它想解决什么</h4>
+  <p>短条目 + 有帮助/有害计数器，只打补丁不整篇重写，避免压缩丢信息。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>每条目记帮助/有害计数。</li>
+<li>任务后按计数编辑或追加小补丁。</li>
+<li>检索时偏向帮助计数高的条目。</li></ol>
+  <p>比一张大笔记更可维护。计数是代理，不是因果证明。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>计数会被任务分布偏置。有害条目若仍被检索会继续害。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>带计数的上下文条目。</div>
+    <div><div class="k">人还控什么</div>计数更新规则。</div>
+  </div>
+</div>
+
+<div class="work" id="reasoningbank">
+  <h3>ReasoningBank</h3>
+  <p class="meta"><span class="badge l4">L4</span> Ouyang 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>多步智能体把判定后的轨迹蒸馏成带标题的短策略，失败也学，下一题先检索。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>评委给轨迹贴成功/失败。</li>
+<li>抽成短策略。</li>
+<li>新任务检索标题+内容。</li></ol>
+  <p>评委质量决定记忆质量。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>评委与执行器同盲区。失败蒸馏可能学到「不要尝试」的过度保守。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>策略记忆。</div>
+    <div><div class="k">人还控什么</div>评委。</div>
+  </div>
+</div>
+
+<div class="work" id="apex-graph">
+  <h3>APEX 里程碑依赖图</h3>
+  <p class="meta"><span class="badge l4">L4</span> Li 等人 2026e</p>
+  <h4>它想解决什么</h4>
+  <p>策略地图建成里程碑+前置关系图。每回合结果沿路径回传，并加未试过的有前途分支，防止记忆变大后只走熟路。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>执行后把结局沿里程碑回传。</li>
+<li>规划时在已知好路和未试分支间选择。</li></ol>
+  <p>结构化让适用条件可检查。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>边权标错会系统性避路或反复错路。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>里程碑图。</div>
+    <div><div class="k">人还控什么</div>图更新规则。</div>
+  </div>
+</div>
+
+<div class="work" id="persona">
+  <h3>PersonaAgent</h3>
+  <p class="meta"><span class="badge l4">L4</span> Zhang 等人 2026e</p>
+  <h4>它想解决什么</h4>
+  <p>把情节和语义用户记忆译成每人一份的人设提示，跨该用户互动留下。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>积累用户事件。</li>
+<li>压缩成人设提示。</li>
+<li>之后对该用户使用。</li></ol>
+  <p>公开材料未报告单独录取测试。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>人设可能刻板印象化或泄露隐私。过时偏好要能改。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>每人设提示。</div>
+    <div><div class="k">人还控什么</div>隐私与更新政策。</div>
+  </div>
+</div>
+
+<div class="work" id="pahf">
+  <h3>PAHF</h3>
+  <p class="meta"><span class="badge l4">L4</span> Liang 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>请求含糊且没有相关偏好时，向用户澄清，再把反馈写入偏好条目并修订过时条目。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>检测含糊。</li>
+<li>问用户。</li>
+<li>写偏好记忆。</li></ol>
+  <p>人的澄清是录取信号，比纯自策展干净。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>用户会不耐烦。澄清问题本身可能带偏。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>偏好条目。</div>
+    <div><div class="k">人还控什么</div>何时触发澄清。</div>
+  </div>
+</div>
+
+<div class="work" id="memtool">
+  <h3>MemToolAgent</h3>
+  <p class="meta"><span class="badge l4">L4</span> Er 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>存储失败工具调用的批评，并调整每次检索条数。环境和用户反馈评估工具使用。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>工具调用后写批评。</li>
+<li>按反馈调检索 k。</li></ol>
+  <p>记忆带程序性角色，不只是事实。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>批评过拟合某次 API 错误。k 自适应可能震荡。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>工具批评 + 检索政策。</div>
+    <div><div class="k">人还控什么</div>工具集。</div>
+  </div>
+</div>
+<h2>技能库、可执行制品、在线规则</h2>
+
+<div class="work" id="trace2skill">
+  <h3>Trace2Skill</h3>
+  <p class="meta"><span class="badge l4">L4</span> Ni 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>冻结智能体滚轨迹；错误分析师和成功分析师分别提案，分阶段合并成可移植技能目录，后来智能体当说明书一次载入。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>离线 rollout。</li>
+<li>双分析师提案。</li>
+<li>合并成目录。</li>
+<li>其他模型/任务直接读。</li></ol>
+  <p>技能跨执行器复用是目标，也是难点。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>对 A 模型有用的技能 B 可能不听。离线批次跟不上环境变。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>便携技能文档。</div>
+    <div><div class="k">人还控什么</div>分析师提示、合并规则。</div>
+  </div>
+</div>
+
+<div class="work" id="practice">
+  <h3>PRACTICE</h3>
+  <p class="meta"><span class="badge l4">L4 具身</span> Bai 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>具身技能库：可训练技能学习器做增删改合。先从专家轨迹学生成和库维护，再用不同执行器成/败对照学失败意识，最后向更强老师蒸馏。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>阶段1 模仿专家库操作。</li>
+<li>阶段2 对比成败。</li>
+<li>阶段3 蒸馏。</li>
+<li>库保持一致而非无界生长。</li></ol>
+  <p>明确把库维护当成可学习政策。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>专家轨迹贵。不同执行器对照需要多次真机或仿真。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>技能库 + 学习器。</div>
+    <div><div class="k">人还控什么</div>阶段配方。</div>
+  </div>
+</div>
+
+<div class="work" id="pando">
+  <h3>PANDO</h3>
+  <p class="meta"><span class="badge l4">L4</span> Li 等人 2026f</p>
+  <h4>它想解决什么</h4>
+  <p>网页智能体部署中从每次 rollout 蒸馏防重复失败的规则和替代多步子目标的参数化例程；带置信度录取和降级。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>rollout。</li>
+<li>抽规则/例程。</li>
+<li>置信度门。</li>
+<li>后续动作继承。</li>
+<li>审计重复动作、步数开销、提示缓存。</li></ol>
+  <p>主线 L4 代表：在线、在一次长运行里留下。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>置信度校准差会留下错规则。网页变了规则要降级。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>规则与例程。</div>
+    <div><div class="k">人还控什么</div>置信度方案、权限。</div>
+  </div>
+</div>
+
+<div class="work" id="pilot">
+  <h3>PILOT</h3>
+  <p class="meta"><span class="badge l4">L4</span> Xiao 等人 2026c</p>
+  <h4>它想解决什么</h4>
+  <p>监督器从一次长地平线直播蒸馏程序和失败模式，使以后会话带着积累技能开始。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>直播中监督器观察。</li>
+<li>写程序和失败模式。</li>
+<li>下会话加载。</li></ol>
+  <p>针对「长任务中途学到的不能进下一会话」。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>一次运行的偏见会变成标准操作。监督器成本高。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>程序/失败模式库。</div>
+    <div><div class="k">人还控什么</div>监督器。</div>
+  </div>
+</div>
+
+<div class="work" id="metis">
+  <h3>Metis</h3>
+  <p class="meta"><span class="badge l4">L4</span> Dai 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>双记忆：文本计划+代码工具。文本计划被多次复用后重写成工具，沙箱编译跑对才录取。检索覆盖两者。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>反射器维护文本。</li>
+<li>频繁计划升级为代码。</li>
+<li>沙箱门。</li></ol>
+  <p>主线第 8 章已拆。评测还看执行和构造成本。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>频繁≠正确。编译不等于语义对。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>文本+工具库。</div>
+    <div><div class="k">人还控什么</div>复用阈值、沙箱。</div>
+  </div>
+</div>
+
+<div class="work" id="evoharness">
+  <h3>Evo-Harness</h3>
+  <p class="meta"><span class="badge l4">L4</span> Wei 等人 2026a</p>
+  <h4>它想解决什么</h4>
+  <p>把失败或负向评价任务的教训编译成跨任务模式和任务特定程序，目标是整个 harness。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>任务批次后触发反思。</li>
+<li>改 harness 技能元组。</li></ol>
+  <p>从单工具扩到架子。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>负向评价可能来自评测器噪声，会写进架子。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>harness 技能。</div>
+    <div><div class="k">人还控什么</div>触发条件。</div>
+  </div>
+</div>
+
+<div class="work" id="shaper">
+  <h3>SHAPER</h3>
+  <p class="meta"><span class="badge l4">L4 具身</span> Wang 等人 2026a</p>
+  <h4>它想解决什么</h4>
+  <p>同时进化文本规划指导和一个沙箱 Python 函数（挑选给规划器看的上下文）。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>环境 rollout。</li>
+<li>改规划文本和选上下文代码。</li>
+<li>沙箱执行+下游任务结局录取。</li></ol>
+  <p>可执行制品决定规划器看见什么，影响很大。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>选错上下文会造成系统性盲视。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>规划指导+上下文选择代码。</div>
+    <div><div class="k">人还控什么</div>沙箱、任务结局。</div>
+  </div>
+</div>
+
+<div class="work" id="evomemory">
+  <h3>Evo-Memory 基准</h3>
+  <p class="meta"><span class="badge l4">L4 评测</span> Wei 等人 2025b</p>
+  <h4>它想解决什么</h4>
+  <p>把数据集改成顺序任务流，测量长地平线上记忆积累与复用。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>序列化任务。</li>
+<li>允许记忆跨步。</li>
+<li>量后期任务是否受益。</li></ol>
+  <p>没有这种协议，L4 论文会用独立 iid 题，测不出记忆。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>序列构造可能泄漏未来信息。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>评测协议。</div>
+    <div><div class="k">人还控什么</div>序列化规则。</div>
+  </div>
+</div>
+<h2>迭代改系统、录取与上线</h2>
+
+<div class="work" id="decoevo">
+  <h3>DecoEvo</h3>
+  <p class="meta"><span class="badge l4">L4</span> Chen 等人 2026a</p>
+  <h4>它想解决什么</h4>
+  <p>文本空间共演化解题技能和量规生成技能，但目标解耦：量规生成器看不到解题总分，过结构审计和对比审计，帕累托验证。优化时不给金标准量规。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>解题技能用量规条目反馈更新。</li>
+<li>量规生成器用两个与分数无关的审计门。</li></ol>
+  <p>防止「判官变松」的循环。元规则（用什么审计）仍是人写的，故不是 L5。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>审计本身可能被博弈。无金量规时覆盖是否充分难证。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>解题技能+量规技能。</div>
+    <div><div class="k">人还控什么</div>审计定义。</div>
+  </div>
+</div>
+
+<div class="work" id="harnessdev">
+  <h3>HarnessDev</h3>
+  <p class="meta"><span class="badge l4">L4 基准</span> Wu 等人 2026a</p>
+  <h4>它想解决什么</h4>
+  <p>测模型能否从最小种子和少量开发案例创建并改进自己的 harness。候选冻结后在隐藏任务上评成功率和执行器 token 成本；创建者与执行器分离。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>创建者建 harness。</li>
+<li>迭代改。</li>
+<li>冻结。</li>
+<li>固定执行器在隐藏任务上评。</li></ol>
+  <p>测的是自我导向系统修订能力，不是新算法。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>开发案例泄漏。创建者很强但执行器很弱时分数难解释——这正是 Lin 等人后来拆开的两点。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>候选 harness。</div>
+    <div><div class="k">人还控什么</div>隐藏任务、执行器。</div>
+  </div>
+</div>
+
+<div class="work" id="aspire-wu">
+  <h3>ASPIRE（含糊目标自我改进）</h3>
+  <p class="meta"><span class="badge l4">L4</span> Wu 等人 2026b</p>
+  <h4>它想解决什么</h4>
+  <p>只给含糊目标，数据、更新方法、验证信号都交给智能体，权重和 harness 都可动；验证分不涨就回滚。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>智能体选数据与更新法。</li>
+<li>改权重或 harness。</li>
+<li>验证分数门控。</li></ol>
+  <p>看起来很自由，但分数门和验证集仍外部，故综述放 L4 不是 L5。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>验证集被反复用会过拟合。含糊目标导致优化表面合规。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>权重或 harness。</div>
+    <div><div class="k">人还控什么</div>验证分数、回滚。</div>
+  </div>
+</div>
+
+<div class="work" id="s3gym">
+  <h3>S3Gym</h3>
+  <p class="meta"><span class="badge l4">L4 基准</span> Shi 等人 2026a</p>
+  <h4>它想解决什么</h4>
+  <p>扣掉验收器结果，逼智能体自己判断轨迹；比较原始历史、压缩摘要、参数训练三条路。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>不给 verifier 结局。</li>
+<li>智能体选更新通路。</li>
+<li>比后期表现。</li></ol>
+  <p>把经验通道单独拿出来测。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>没有 verifier 时自我判断会漂。三条路预算要对齐才公平。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>历史/摘要/参数。</div>
+    <div><div class="k">人还控什么</div>通路集合。</div>
+  </div>
+</div>
+
+<div class="work" id="harness-benefit">
+  <h3>Harness Updating ≠ Harness Benefit</h3>
+  <p class="meta"><span class="badge l4">L4 分析</span> Lin 等人 2026c</p>
+  <h4>它想解决什么</h4>
+  <p>拆开「做出有用持久更新」和「解题时用得上」。更新能力与底座几乎独立；获利能力非单调。失败：没激活，或激活了不忠实执行。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>固定 solve–evolve 协议。</li>
+<li>多模型骨干、三智能体基准。</li>
+<li>分开测量更新质量和执行收益。</li></ol>
+  <p>实践含义：能力投资放解题智能体，不是进化器。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>协议固定可能低估某些演化方式。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>无（分析）。</div>
+    <div><div class="k">人还控什么</div>协议设计。</div>
+  </div>
+</div>
+
+<div class="work" id="hdso">
+  <h3>HDSO</h3>
+  <p class="meta"><span class="badge l4">L4 门禁</span> Shang and Yang 2026</p>
+  <h4>它想解决什么</h4>
+  <p>策展模型看紧凑轨迹，提出带验证计划的假说。同一任务跑两次：当前批准库 vs 加候选技能。只有差异支持假说才录取。分阶段加大样本，最后独立任务确认。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>提假说+验证计划。</li>
+<li>成对对照执行。</li>
+<li>分阶段扩大。</li>
+<li>独立确认。</li></ol>
+  <p>防噪声轨迹里的捷径和执行器不听的规则。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>成对执行贵。假说空间仍由策展模型限制。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>批准技能包。</div>
+    <div><div class="k">人还控什么</div>对照协议。</div>
+  </div>
+</div>
+
+<div class="work" id="library-drift">
+  <h3>Library Drift</h3>
+  <p class="meta"><span class="badge l4">L4 治理</span> Zhang 等人 2026f</p>
+  <h4>它想解决什么</h4>
+  <p>无界堆积在任务分下滑前就让检索变差。追加式证据日志、贡献衰减则退役、限制活跃数量、元技能指导下写新技能。退役太狠比不管更差。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>记录每技能对结局贡献。</li>
+<li>衰减则退役。</li>
+<li>有上限竞争。</li></ol>
+  <p>L4 持久状态管理的核心论文。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>贡献归因是信用分配难题。元技能写错会污染以后所有技能。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>带生命周期的技能库。</div>
+    <div><div class="k">人还控什么</div>退役阈值、上限。</div>
+  </div>
+</div>
+
+<div class="work" id="skill-evo-filter">
+  <h3>Rethinking Skill Evolution</h3>
+  <p class="meta"><span class="badge l4">L4 分析</span> Liu 等人 2026e</p>
+  <h4>它想解决什么</h4>
+  <p>仔细过滤技能编辑，比根据任务结果反复重写技能更能涨分。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>多轮记录编辑。</li>
+<li>用跨轮任务结局过滤。</li></ol>
+  <p>和库漂移一起：不是改得勤就好。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>过滤规则过严会冻住库。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>被过滤的技能编辑。</div>
+    <div><div class="k">人还控什么</div>过滤准则。</div>
+  </div>
+</div>
+
+<div class="work" id="tax-ai">
+  <h3>Tax AI 生产部署</h3>
+  <p class="meta"><span class="badge l4">L4 有界</span> OpenAI and Thrive Holdings 2026</p>
+  <h4>它想解决什么</h4>
+  <p>从业者纠正写成字段级证据，反复失败聚成评测目标。编码智能体查轨迹、评测和仓库实现修复，过针对性+回归评测。只能改抽取模式、源选择、税务引擎映射、评分器等有界部分。架构归工程师。PR 进人审，解决不了退回从业者。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>结构化纠正。</li>
+<li>聚类失败。</li>
+<li>智能体修。</li>
+<li>回归+人审。</li></ol>
+  <p>生产 L4 的治理模板。人是最终录取者，审查延迟是运行成本。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>可改表面有界，但税务错误后果大。评测目标若从同一失败分布来会过拟合。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>产品代码与 evals（有界）。</div>
+    <div><div class="k">人还控什么</div>架构、发布权。</div>
+  </div>
+</div>
+
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

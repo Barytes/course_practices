@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>引用工作深挖 · L1</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第五部 · 每篇工作</p>
+      <h1>L1 执行自治：数据到应用流水线</h1>
+      <p class="lead">人写说明书，AI 规模化执行，产物留下给下游。按开发流水线分层。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一页怎么用</p>
+        <p>主线第 5 章的完整引用清单。每张卡片含实现与难点。</p>
+      </div>
+      <div class="search-box"><input data-filter type="search" placeholder="按系统名、作者、技术词过滤……"></div>
+<h2>数据层：清洗、过滤、合成监督</h2>
+<p>人定义什么叫好，模型按定义规模化执行。产物（过滤后的语料、分类器、合成样本）进入后续训练，所以跨过 B0 的持久性门槛。</p>
+
+<div class="work" id="fineweb-edu">
+  <h3>FineWeb-Edu</h3>
+  <p class="meta"><span class="badge l1">L1</span> Penedo 等人 2024 · <a href='https://arxiv.org/abs/2406.17557'>arXiv:2406.17557</a></p>
+  <h4>它想解决什么</h4>
+  <p>从网页里筛出「有教育味」的预训练数据，因为人无法给万亿词元逐条打分。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>研究者写 0–5 教育量规，强调中小学知识，避免偏爱 arXiv。</li>
+<li>Llama-3-70B-Instruct 给约 46 万页打合成标注（逐条加分提示）。</li>
+<li>在冻结的 Snowflake-arctic-embed-m 上训线性回归头，41 万训练 / 5 万验证，20 epoch，lr 3e-4。</li>
+<li>输出四舍五入到 0–5，阈值 3 留下，验证 F1≈82%。</li>
+<li>小分类器扫全量 FineWeb（约 6 千 H100 小时），得到 1.3T token。</li></ol>
+  <p>贵模型当老师、便宜模型当工人，是 L1 数据层的标准结构。阈值 2 的版本保留 5.4T，推理分稍弱。主线第 5 章有对照。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>量规是人写的；分类器继承 Llama 3 偏见；阈值是精度–召回权衡；分类器不会自己改「教育」定义。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>过滤语料 + 分类器权重。</div>
+    <div><div class="k">人还控什么</div>教育定义、提示、阈值、是否用于下游训练。</div>
+  </div>
+</div>
+
+<div class="work" id="google-label">
+  <h3>Google 高保真标签策展</h3>
+  <p class="meta"><span class="badge l1">L1</span> Google Research 2025</p>
+  <h4>它想解决什么</h4>
+  <p>在点击诱饵等任务上，既要大规模初标，又要把专家力气用在真正难的边界样本上。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>开发者定义任务与决策标准（什么叫 clickbait）。</li>
+<li>LLM 按标准给候选打初步标签。</li>
+<li>聚类 + 边界样本选择挑出一小撮信息量大的样本。</li>
+<li>专家只标这一撮，用来校准或训练下游分类器。</li></ol>
+  <p>人定规则，模型执行初标和找边界。持久产物是校准后的标签集。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>边界选择算法若不准，专家会浪费在容易题上。LLM 初标的系统偏差可能让整簇都偏。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>高质量标签集。</div>
+    <div><div class="k">人还控什么</div>任务定义、边界选择程序、专家最终权。</div>
+  </div>
+</div>
+
+<div class="work" id="phi4-reasoning">
+  <h3>Phi-4-reasoning 训练数据选择</h3>
+  <p class="meta"><span class="badge l1">L1</span> Abdin 等人 2025 · <a href='https://arxiv.org/abs/2504.21318'>arXiv:2504.21318</a></p>
+  <h4>它想解决什么</h4>
+  <p>为推理模型选出靠近能力边界的样本：太易没信息，太难没信号。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>研究者规定难度和推理特征，以及评价程序。</li>
+<li>LLM 评价管道按这些标准打分。</li>
+<li>留下靠近当前模型能力边界的样本做训练。</li></ol>
+  <p>和 FineWeb-Edu 同类：标准外部，执行规模化。Phi-4 技术报告（Abdin 等人 2024）还描述了更广的数据政策，那些政策本身仍是研究者定的，所以综述在 L3 节强调「工业自动化 ≠ 经验自治」。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>「边界」依赖当前模型，但选择程序不会在每一轮后自动改标准——除非人重写。那正是 L3 多出来的一步。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>选中的推理训练数据。</div>
+    <div><div class="k">人还控什么</div>难度定义、评价程序。</div>
+  </div>
+</div>
+
+<div class="work" id="nemo-curator">
+  <h3>NVIDIA NeMo Curator</h3>
+  <p class="meta"><span class="badge l1">L1</span> NVIDIA 2025</p>
+  <h4>它想解决什么</h4>
+  <p>把质量过滤、分类、去重做成可配置模块，按开发者指定的规则和参数执行。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>用 YAML/API 声明过滤算子链。</li>
+<li>在多 GPU 上跑启发式、分类器和近重复去除。</li>
+<li>输出干净分片给预训练。</li></ol>
+  <p>标准化之后，同一套菜谱可以反复套到新语料上。这是执行自治，不是策略自治。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>菜谱错会规模化污染。模块默认阈值往往从别的语料来，换领域要重校准。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>过滤后语料 + 可复用菜谱。</div>
+    <div><div class="k">人还控什么</div>模块选择与参数。</div>
+  </div>
+</div>
+
+<div class="work" id="data-juicer">
+  <h3>Data-Juicer</h3>
+  <p class="meta"><span class="badge l1">L1</span> Chen 等人 2024 · SIGMOD</p>
+  <h4>它想解决什么</h4>
+  <p>把数据处理抽象成可组合算子，让预定义处理菜谱在大规模语料上执行。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>算子覆盖语言识别、质量打分、去重、毒性等。</li>
+<li>用户用配方图组合算子。</li>
+<li>分布式执行并缓存中间结果。</li></ol>
+  <p>和 NeMo Curator 同类，更强调算子组合与可复现实验。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>组合爆炸：算子顺序会改变分布。缺少对「配方本身」的自动搜索时仍是 L1；若用 AutoML 搜配方且指标固定，可升到 L2。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>处理后语料。</div>
+    <div><div class="k">人还控什么</div>算子配方。</div>
+  </div>
+</div>
+
+<div class="work" id="synthllm">
+  <h3>Microsoft SynthLLM</h3>
+  <p class="meta"><span class="badge l1">L1</span> Microsoft Research 2025</p>
+  <h4>它想解决什么</h4>
+  <p>从高质量网页出发，用多阶段程序组织参考概念，再让 LLM 生成多样提示和回答当合成训练样本。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>选参考网页/概念。</li>
+<li>按预定义多阶段展开概念图。</li>
+<li>生成 prompt–response。</li>
+<li>可选过滤后写入训练混合。</li></ol>
+  <p>人规定目标任务、期望数据特征和验证程序；模型执行可重复生成。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>合成数据会放大参考网页的偏见。多样性不足时模型在假分布上过拟合。验证若只用另一个 LLM，可能互相拍马。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>合成训练样本。</div>
+    <div><div class="k">人还控什么</div>生成程序与质量门。</div>
+  </div>
+</div>
+
+<div class="work" id="synthagent">
+  <h3>SynthAgent</h3>
+  <p class="meta"><span class="badge l1">L1</span> Wang 等人 2026c</p>
+  <h4>它想解决什么</h4>
+  <p>为网页智能体构造任务和互动轨迹监督：探索网页、生成任务、 refinement 轨迹。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>模型按工作流做网页探索。</li>
+<li>从探索中提出任务。</li>
+<li>生成并 refinement 轨迹。</li>
+<li>用预定义检查过滤后当训练数据。</li></ol>
+  <p>监督形式比单轮问答更富，但生成工作流是人写的。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>网页会变，轨迹过期。探索策略若固定，覆盖的站点模式会窄。有害操作需要沙箱。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>任务 + 轨迹数据集。</div>
+    <div><div class="k">人还控什么</div>生成工作流。</div>
+  </div>
+</div>
+
+<div class="work" id="nemotron4">
+  <h3>NVIDIA Nemotron-4 合成监督</h3>
+  <p class="meta"><span class="badge l1">L1</span> NVIDIA 2024</p>
+  <h4>它想解决什么</h4>
+  <p>指令模型生成候选回答，奖励模型按预定义质量维过滤，合成样本用于后续训练。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>指令模型多样本生成。</li>
+<li>奖励模型按帮助性、诚实、无害等打分。</li>
+<li>保留高分段做 SFT 或偏好对。</li></ol>
+  <p>质量维是人定的。这是「生成 + 过滤」L1，不是奖励模型自己改质量维（那会靠近评测器演化）。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>奖励模型盲区会被合成数据放大。质量维之间冲突时，过滤规则必须由人拍板。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>过滤后的合成监督。</div>
+    <div><div class="k">人还控什么</div>质量维、阈值、奖励模型选择。</div>
+  </div>
+</div>
+
+<div class="work" id="soldaini">
+  <h3>Dolma 等数据准备</h3>
+  <p class="meta"><span class="badge l1">L1 数据源</span> Soldaini 等人 2024</p>
+  <h4>它想解决什么</h4>
+  <p>公开记录预训练语料如何从源到可用：许可证、过滤、去重。综述用它说明工业数据管道的操作自动化。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>收集源。</li>
+<li>启发式与分类器过滤。</li>
+<li>文档级去重。</li>
+<li>输出带来源的训练分片。</li></ol>
+  <p>自动化的是操作，不是「下一课学什么」。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>来源构成一变，过滤阈值往往要人手重调。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>预训练语料。</div>
+    <div><div class="k">人还控什么</div>源列表与过滤政策。</div>
+  </div>
+</div>
+
+<div class="work" id="yi-qwen-phi">
+  <h3>Yi / Qwen / Phi-4 数据政策</h3>
+  <p class="meta"><span class="badge l1">L1 工业</span> 01.AI 2025；Yang 等人 2025；Abdin 等人 2024</p>
+  <h4>它想解决什么</h4>
+  <p>综述把它们的公开报告解读为：数据源准备、打标、选择、构造、混合编排、模型反馈诊断这六项功能上，操作可以很自动，但数据政策、混合策略、训练阶段仍是研究者定义。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>公开技术报告描述多阶段数据混合。</li>
+<li>部分阶段用模型打分。</li>
+<li>混合比例和阶段顺序由人定实验决定。</li></ol>
+  <p>这是 L3 节用来划界的材料：不要把「自动过滤」读成「经验自治」。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>报告往往不公开完整菜谱，外部无法复现决策权到底在哪。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>训练数据混合。</div>
+    <div><div class="k">人还控什么</div>政策与阶段。</div>
+  </div>
+</div>
+
+<div class="work" id="li2024-data">
+  <h3>DataComp-LM</h3>
+  <p class="meta"><span class="badge l1">L1 数据 / L3 对照</span> Li 等人 2024 · NeurIPS</p>
+  <h4>它想解决什么</h4>
+  <p>在固定的网页池上系统搜索「过滤 + 混合」配方，想找到下一代预训练集。综述在 L3 节引用它：工业界可以把数据选择做成大规模实验，但生成策略、混合配额、训练阶段仍是研究者定义的搜索空间，不是学习者根据自己弱点改课表。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>从 CommonPool 一类公共池出发。</li>
+<li>按人定的过滤算子和混合比例做消融。</li>
+<li>用下游代理指标选配方。</li>
+<li>留下更好的训练子集给后续预训练。</li></ol>
+  <p>实现是数据配方的受控搜索。AI/流水线执行过滤，人规定搜什么、用什么代理指标。不要把它读成 L3。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>代理指标不等于真实下游。过滤会放大池子里已有的偏见。换池子后配方往往要重搜。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>训练子集 + 配方记录。</div>
+    <div><div class="k">人还控什么</div>池子、算子、代理指标。</div>
+  </div>
+</div>
+<h2>训练方法层</h2>
+
+<div class="work" id="edit">
+  <h3>EDIT</h3>
+  <p class="meta"><span class="badge l1">L1</span> Wu 等人 2026c</p>
+  <h4>它想解决什么</h4>
+  <p>把「找出坏推理步、只改坏的部分」写成两段式训练，改进训练信号而不是让模型自己改训练算法。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>人规定诊断信号和修订量规。</li>
+<li>系统定位问题步骤。</li>
+<li>LLM 按清单只修订受影响部分。</li>
+<li>修订输出用于后续强化学习校准。</li></ol>
+  <p>诊断–修订被编码成明确程序。AI 执行，人仍定学习目标、反馈信号和更新规则。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>诊断错会把对的步骤改坏并写进 RL。量规覆盖不全时，一类系统性错误永远修不到。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>修订后的推理轨迹 / 校准后的政策。</div>
+    <div><div class="k">人还控什么</div>诊断标准、RL 配方。</div>
+  </div>
+</div>
+
+<div class="work" id="repo">
+  <h3>REPO</h3>
+  <p class="meta"><span class="badge l1">L1</span> Zeng 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>把多阶段 SOP 和行为约束写进多轮互动训练，用 LLM 评委按人定标准打「有没有按规定走」，再变成奖励。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>模型按 SOP 走多轮。</li>
+<li>LLM 评委按程序性合规打分。</li>
+<li>分数作为奖励做政策优化。</li></ol>
+  <p>行为程序是人写的。模型学会的是执行 SOP，不是改 SOP。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>评委和策略同盲区会奖励表面合规。SOP 过细则失去泛化，过粗则奖励稀疏。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>政策权重。</div>
+    <div><div class="k">人还控什么</div>SOP、评委标准。</div>
+  </div>
+</div>
+<h2>训练平台、评测、部署、应用</h2>
+
+<div class="work" id="cpp-opt">
+  <h3>Agent-Agnostic C/C++ 性能优化</h3>
+  <p class="meta"><span class="badge l1">L1</span> Lu and Xia 2026</p>
+  <h4>它想解决什么</h4>
+  <p>把完整性能优化控制环放进程序性记忆：分析→热点→候选修改→按工作流验收正确性与性能→失败回滚。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>运行剖析找热点。</li>
+<li>生成代码修改。</li>
+<li>正确性测试 + 性能对比。</li>
+<li>失败回滚再试下一热点。</li></ol>
+  <p>控制环是人预先存好的。智能体在具体工作负载上执行。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>剖析会误导（热点不是根因）。优化可能破坏数值稳定性。未覆盖的工作负载模式没有下一步。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>通过验收的代码改动。</div>
+    <div><div class="k">人还控什么</div>优化工作流、测试。</div>
+  </div>
+</div>
+
+<div class="work" id="nccl-debug">
+  <h3>Meta NCCL Agentic Debugging</h3>
+  <p class="meta"><span class="badge l1">L1</span> Liu 等人 2026a</p>
+  <h4>它想解决什么</h4>
+  <p>把 NCCL watchdog 超时的根因整理成决策树和 runbook，智能体在具体故障上执行：对齐各 rank 证据、追踪集合通信、连接运行时轨迹到代码路径，找最早可行动分叉。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>收集多 rank 日志。</li>
+<li>按决策树对齐时间线。</li>
+<li>定位最早分叉。</li>
+<li>提出修复或配置变更。</li></ol>
+  <p>工程经验被蒸馏成树，AI 执行树。新故障模式不在树上就不能改树。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>分布式时钟和丢日志会让对齐失败。错误分叉会留下「生产补丁」。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>诊断报告 / 修复 PR。</div>
+    <div><div class="k">人还控什么</div>runbook、评审。</div>
+  </div>
+</div>
+
+<div class="work" id="healthbench">
+  <h3>HealthBench</h3>
+  <p class="meta"><span class="badge l1">L1 评测</span> Arora 等人 2025 · <a href='https://arxiv.org/abs/2505.08775'>arXiv:2505.08775</a></p>
+  <h4>它想解决什么</h4>
+  <p>把医学专家对理想医疗对话的细量规，变成可规模化的自动打分。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>专家写必须包含/避免的条目及权重。</li>
+<li>GPT-4.1 按量规给候选回答打分。</li>
+<li>汇总成评价结果支持发布决策。</li></ol>
+  <p>人定义目标、标准和阈值；模型复制专家判断到大规模输出。也可用于稳健性和安全评价。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>量规覆盖不全；模型评委可偏严或偏松；医疗场景一变量规要人改。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>可重复分数 / 排行。</div>
+    <div><div class="k">人还控什么</div>量规与阈值。</div>
+  </div>
+</div>
+
+<div class="work" id="aipc">
+  <h3>AIPC 部署适应</h3>
+  <p class="meta"><span class="badge l1">L1</span> Su 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>把模型转到 Qualcomm AI Runtime 的转换、兼容性、量化校准、分阶段校验写成 Agent Skills。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>给定训练好的模型和目标运行时。</li>
+<li>按阶段执行转换、修不兼容、量化校准。</li>
+<li>每阶段验证。</li>
+<li>产出可运行部署制品。</li></ol>
+  <p>部署专家经验被标准化。人指定目标平台和约束。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>硬件边角 case 不在技能包里会卡死。量化校准数据选错会静默掉点。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>部署制品。</div>
+    <div><div class="k">人还控什么</div>目标平台、阶段定义。</div>
+  </div>
+</div>
+
+<div class="work" id="aws-toolkit">
+  <h3>Agent Toolkit for AWS</h3>
+  <p class="meta"><span class="badge l1">L1</span> Amazon Web Services 2026</p>
+  <h4>它想解决什么</h4>
+  <p>把生成式 AI 开发实践编码成可复用 Agent Skills。Bedrock 技能提供把模型能力接到应用的预定义程序。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>编码智能体加载 Bedrock 技能。</li>
+<li>按步骤连接模型服务与下游接口。</li>
+<li>测试后提交。</li></ol>
+  <p>组织知识变成可执行剧本。产品需求和架构仍由人定。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>云 API 变更会让技能过期。权限过宽有安全风险。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>应用集成代码。</div>
+    <div><div class="k">人还控什么</div>技能内容、架构。</div>
+  </div>
+</div>
+
+<div class="work" id="linkedin-capt">
+  <h3>LinkedIn CAPT</h3>
+  <p class="meta"><span class="badge l1">L1</span> LinkedIn Engineering 2026</p>
+  <h4>它想解决什么</h4>
+  <p>把组织知识写成逐步剧本，让编码智能体在真实代码库做建服务、扩接口、维护等。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>按任务类型选 playbook。</li>
+<li>智能体逐步改代码。</li>
+<li>走内部 CI。</li></ol>
+  <p>和 AWS 技能同类，更贴具体公司代码规范。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>playbook 与真实仓库漂移。智能体可能「按步骤做完」但语义错。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>通过 CI 的代码。</div>
+    <div><div class="k">人还控什么</div>剧本与合并规则。</div>
+  </div>
+</div>
+
+<div class="work" id="harness-eng">
+  <h3>OpenAI Harness Engineering</h3>
+  <p class="meta"><span class="badge l1">L1–L2 相邻</span> OpenAI 2026c</p>
+  <h4>它想解决什么</h4>
+  <p>工程师定义产品意图、系统架构、CI/合并/回滚规则；Codex 在约束里实现和验证，持续产出进入后续开发流的代码。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>人写意图和架构约束。</li>
+<li>Codex 实现并跑 CI。</li>
+<li>失败则在约束内修复。</li>
+<li>合并规则决定是否进入主线。</li></ol>
+  <p>长流程执行已经很强。若 Codex 开始自己决定「架构约束该怎么改」，才离开 L1。公开描述仍是约束内实现。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>约束写不全时会在合法范围内做出产品不想要的实现。回滚规则必须能覆盖数据迁移等副作用。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>产品代码制品。</div>
+    <div><div class="k">人还控什么</div>意图、架构、CI 规则。</div>
+  </div>
+</div>
+
+<div class="work" id="meta-capacity">
+  <h3>Meta Capacity Efficiency / FBDetect</h3>
+  <p class="meta"><span class="badge l1">L1</span> Meta Engineering 2026</p>
+  <h4>它想解决什么</h4>
+  <p>把排障经验写成可复用修复技能，按预定程序诊断性能回退并补救；FBDetect 每周找出数千基础设施回退，单次诊断约 10 工程师小时，技能化后压到分钟级。PR 仍走标准评审。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>检测回退。</li>
+<li>匹配修复技能。</li>
+<li>执行预定补救。</li>
+<li>开 PR 进人审。</li></ol>
+  <p>主线第 1 章用它说明上线后适应仍然贵；第 5 章用它当 L1 生产例子。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>技能匹配错会修错机器。人审是安全网也是吞吐瓶颈。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>生产修复。</div>
+    <div><div class="k">人还控什么</div>技能库、评审。</div>
+  </div>
+</div>
+<h2>规模与数据成本：动机引用（不一定是 RSI 系统）</h2>
+
+<div class="work" id="kimi-qwen">
+  <h3>Kimi K3 / Qwen3.8-Max</h3>
+  <p class="meta"><span class="badge b0">规模背景</span> Moonshot AI 2026；Alibaba Cloud 2026</p>
+  <h4>它想解决什么</h4>
+  <p>用万亿参数和百万级上下文说明基础模型训练仍然把路由、并行、多模态、长上下文和系统工程绑在一起。稀疏激活降低每词计算，不取消协调成本。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>MoE 路由只激活部分专家。</li>
+<li>长上下文优化与系统栈耦合。</li></ol>
+  <p>不是自我改进系统，是负担 1 的证据。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>公开数字难以独立核实；稀疏不自动等于训练便宜。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>模型权重（常规训练）。</div>
+    <div><div class="k">人还控什么</div>架构与训练配方。</div>
+  </div>
+</div>
+
+<div class="work" id="openai-2026a">
+  <h3>GPT-5.6 研究计算与 Sol 实验</h3>
+  <p class="meta"><span class="badge l2">L2 苗头 / 动机</span> OpenAI 2026a；Ferrari 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>内部写代码推理研究算力 100 倍、智能体 token 22 倍。GPT-5.6 Sol 设计并跑数百次投机解码草稿模型实验，在硬件故障中盯训练，生成效率 +15% 以上。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>模型提出实验。</li>
+<li>在内部集群上跑。</li>
+<li>监控不稳定性。</li>
+<li>留下有效的解码改动。</li></ol>
+  <p>实验目标仍由人框定，所以综述把它放在「模型帮人做研究」而不是完整 L5。选下一实验的部分像 L2。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>内部闭环无法外部审计。效率数字可能含系统其他改动。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>解码/训练配置。</div>
+    <div><div class="k">人还控什么</div>研究优先级。</div>
+  </div>
+</div>
+
+<div class="work" id="gdpval">
+  <h3>GDPval</h3>
+  <p class="meta"><span class="badge b0">评测成本</span> Patwardhan 等人 2026</p>
+  <h4>它想解决什么</h4>
+  <p>1320 道职业任务约 9240 专家小时，贡献者平均超过 14 年经验。说明高质量评测本身是瓶颈。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>专家设计职业任务。</li>
+<li>模型作答。</li>
+<li>专家按职业标准评分。</li></ol>
+  <p>动机引用：没有便宜可靠的评测，RSI 环的验收器会先崩。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>专家评分不可扩展；职业覆盖有偏。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>基准本身。</div>
+    <div><div class="k">人还控什么</div>任务与量规。</div>
+  </div>
+</div>
+
+<div class="work" id="hle">
+  <h3>Humanity’s Last Exam</h3>
+  <p class="meta"><span class="badge b0">评测成本</span> Phan 等人 2025</p>
+  <h4>它想解决什么</h4>
+  <p>7 万多次投稿，约 1.3 万道难倒模型的题送专家审，得到约 3000 题考场。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>社区投稿难题。</li>
+<li>模型筛选「能难倒」。</li>
+<li>专家审核。</li></ol>
+  <p>数据质量与评测建设的人力成本证据。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>被模型难倒 ≠ 好考题；专家瓶颈仍在。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>考题集。</div>
+    <div><div class="k">人还控什么</div>审核标准。</div>
+  </div>
+</div>
+
+<div class="work" id="deepseek-v32">
+  <h3>DeepSeek-V3.2 后训练预算</h3>
+  <p class="meta"><span class="badge b0">动机</span> DeepSeek-AI 等人 2025 · <a href='https://arxiv.org/abs/2512.02556'>arXiv:2512.02556</a></p>
+  <h4>它想解决什么</h4>
+  <p>后训练计算超过预训练 10%，说明「给它什么题、怎么判」变得和预训练一样贵。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>预训练后进入大规模 RL / 推理训练。</li></ol>
+  <p>负担 2 的证据。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>成本口径（含不含推理）影响解读。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>后训练权重。</div>
+    <div><div class="k">人还控什么</div>后训练配方。</div>
+  </div>
+</div>
+
+<div class="work" id="aimo2">
+  <h3>NVIDIA AIMO-2 数据管道</h3>
+  <p class="meta"><span class="badge l1">L1 数据</span> Moshkov 等人 2025</p>
+  <h4>它想解决什么</h4>
+  <p>320 万长推理解答、170 万带工具解答、另整理 54 万题。合成经验的基础设施规模。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>策题。</li>
+<li>生成长解和工具解。</li>
+<li>过滤后用于训练。</li></ol>
+  <p>执行自动化，题库和过滤标准仍外部。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>合成长解的错误会被当监督。工具轨迹绑定特定工具版本。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>合成解题数据。</div>
+    <div><div class="k">人还控什么</div>题库与过滤。</div>
+  </div>
+</div>
+
+<div class="work" id="anthropic-multi">
+  <h3>Anthropic 多智能体研究系统</h3>
+  <p class="meta"><span class="badge b0">动机 / B0–L1</span> Anthropic 2025</p>
+  <h4>它想解决什么</h4>
+  <p>智能体工作负载约 4× 普通聊天 token，多智能体约 15×，因为上下文更长、要协调、搭环境、端到端验证。</p>
+  <h4>实现怎么走</h4>
+  <ol><li>主智能体拆子任务。</li>
+<li>子智能体检索与综合。</li>
+<li>主智能体汇总。</li></ol>
+  <p>用来说明交互式工作贵。系统本身主要在任务内协调，不必然留下跨任务 harness 改动。</p>
+  
+  <div class="hard"><p class="label">技术难点</p><p>token 放大不等于能力放大；协调失败会指数浪费。</p></div>
+  <div class="keep">
+    <div><div class="k">改了 / 留下什么</div>当场研究报告。</div>
+    <div><div class="k">人还控什么</div>编排提示。</div>
+  </div>
+</div>
+
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>
