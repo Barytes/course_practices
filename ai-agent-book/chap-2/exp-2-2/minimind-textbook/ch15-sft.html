@@ -58,7 +58,7 @@
         <table class="plain">
           <tbody>
             <tr><th>文件</th><td>追加到 <code>exp-2-2/minimind3/data.py</code></td></tr>
-            <tr><th>符号</th><td>函数 <code>generate_labels(input_ids, bos_id, eos_id, max_length)</code>。完整 SFTDataset 可对照官方 <code>dataset/lm_dataset.py</code>，教学上先把掩码写对。</td></tr>
+            <tr><th>符号</th><td>类 <code>SFTDataset</code> 的方法 <code>generate_labels</code>。官方在 <code>dataset/lm_dataset.py</code>；教学上先把掩码写对。</td></tr>
             <tr><th>怎么验</th><td>用一条两轮对话打印：用户字对应 label 应是 -100；助手字应等于该位置的 input id。</td></tr>
           </tbody>
         </table>

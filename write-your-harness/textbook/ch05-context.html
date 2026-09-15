@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 5 章 · 上下文为什么会变贵 — 写自己的 Harness</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第二部 · 零件</p>
+      <h1>第 5 章 · 上下文为什么会变贵</h1>
+      <p class="lead">循环每转一圈，都要把到目前为止的全部 messages 再寄给模型一次。不压缩，长任务会在中途把窗口撑满，或者把账单撑爆。这一章用手算看清楚这件事，再写一个笨但诚实的截断器。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>上下文不是「模型的记忆芯片」，是你每次调用 API 时贴进去的那份列表。列表越长，每一轮越贵。压缩的目标：让模型仍能继续干活，同时丢掉已经过时的观察。</p>
+      </div>
+
+      <h2>先建立直觉：不是「记住了」，是「每次重读」</h2>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>你请的帮手每次开口前，都要把到目前为止的全部对话录音从头听一遍。第一轮听 1 分钟；第十轮听 10 分钟。他并没有在脑子里存档——是你每次把整盘磁带塞给他。这就是为什么第 3 轮已经很贵，第 30 轮会贵得离谱。</p>
+      </div>
+      <p>云端 API 通常按「读了多少 token + 写了多少 token」收费。token 可以先粗想成「一小截字」。中文大约每 1～2 个字一个 token，代码里的空格和符号也算。精确规则因模型而异。miniharness 更糙：直接把字符串长度加起来当预算，不真的去分词。方向对就行。</p>
+
+      <h2>手算三轮，看见平方感</h2>
+      <p>假设每一轮新产生 100 个 token 的内容（一句人话或一次工具输出），而且每次调用都把旧的全部再读一遍：</p>
+      <table class="plain">
+        <thead><tr><th>轮次</th><th>这次要读的旧东西</th><th>这次新写出的</th><th>到目前累计读过</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>100（系统+用户）</td><td>100</td><td>100</td></tr>
+          <tr><td>2</td><td>200</td><td>100</td><td>300</td></tr>
+          <tr><td>3</td><td>300</td><td>100</td><td>600</td></tr>
+          <tr><td>10</td><td>1000</td><td>100</td><td>5500</td></tr>
+        </tbody>
+      </table>
+      <p>累计阅读量大致按「轮次 × 轮次」往上走。这就是人口中的 <strong>O(n²)</strong>：n 是轮数，费用大约跟 n 的平方成正比。真实系统会用「缓存前缀」打折——如果你每次请求的开头一模一样，云端可以少算一部分。打折不等于免费：你一旦在列表中间改了一句旧观察，从改动点往后的缓存就作废了。</p>
+      <p class="say">所以压缩策略不仅是「删东西」，还是「尽量别改已经寄过的前缀」。miniharness 的截断器故意从<strong>最老的工具观察</strong>动手，并保留最近几条完整对话——这是教学版，不是最优版。</p>
+
+      <h2>不压缩会发生什么</h2>
+      <ol class="steps">
+        <li>模型窗口有上限。超了，API 直接报错，循环崩在半路。</li>
+        <li>即使没超，早期那些已经过时的 <code>read</code> 结果（文件后来被 edit 改过了）仍占着位子，模型可能根据过期快照做决定。</li>
+        <li>账单按二次方爬。演示任务看不出来，过夜跑仓库时会心疼。</li>
+      </ol>
+
+      <h2>一种笨办法：截断旧观察</h2>
+      <p>打开 <code>compact.py</code> 里的 <code>compact_tool_results</code>。规则只有三条：</p>
+      <ol class="steps">
+        <li>估算当前 messages 总字符。没超过上限就原样返回。</li>
+        <li>找出所有 <code>role=tool</code> 的消息。这些是最肥、也最容易过时的（文件内容、测试日志）。</li>
+        <li>最近 N 条工具观察整段保留。更早的那些，只留开头一小段和结尾一小段，中间写成 <code>… [省略了多少字] …</code>。</li>
+      </ol>
+      <figure class="code">
+        <figcaption>压缩前后（示意）</figcaption>
+        <pre><code>压缩前:
+  user: 修 add
+  assistant: read calc.py
+  tool: （整整 80 行源码）      ← 后来文件已经改过，这份快照过时了
+  assistant: edit ...
+  tool: ok
+  assistant: bash 测试
+  tool: （整整 200 行失败日志） ← 最近的，先留着
+
+压缩后:
+  user: 修 add                  ← 用户原话不动
+  assistant: read calc.py       ← 点名也不动，轨迹不断
+  tool: def add…  [省略 70 行]  …return a - b
+  assistant: edit ...
+  tool: ok
+  assistant: bash 测试
+  tool: （最近的失败日志还在）
+</code></pre>
+      </figure>
+      <p>模型下一轮仍知道「我曾经读过、曾经改过」，但不再把整份过期源码当事实。若它需要最新内容，应该再 read 一次——这正是我们想要的。</p>
+
+      <div class="where">
+        <p class="label">写到哪里</p>
+        <table class="plain">
+          <tr><th>文件</th><td><code>miniharness/compact.py</code></td></tr>
+          <tr><th>符号</th><td><code>compact_tool_results</code></td></tr>
+          <tr><th>怎么跑</th><td><code>python tests/test_miniharness.py CompactTests</code></td></tr>
+        </table>
+      </div>
+      <div class="bridge">
+        <p class="label">代码怎么对上原理</p>
+        <ul>
+          <li>压缩发生在 <code>complete()</code> 之前，这样寄出去的已经是瘦身版。</li>
+          <li>我们改的是内存里的 messages。真要对照「压缩前发生了什么」，第 7 章的轨迹文件应在压缩前另存一份，或记录一条 compact 事件。</li>
+          <li>字符估算很糙（把所有 content 和参数字符串加起来）。生产系统会用模型自己的分词器。教学里糙一点没关系，方向对就行。</li>
+          <li>等你写自己的 harness，可以在 <code>compact_tool_results</code> 里换成「摘要 + 保留最近观察」。现在不要在循环里再套一次模型调用，测试会立刻依赖真 API。</li>
+        </ul>
+      </div>
+
+      <h2>生产仓库怎么做（先建立地图，细节以后挖）</h2>
+      <table class="plain">
+        <thead><tr><th>仓库</th><th>他们担心什么</th><th>常见手法（会过时）</th></tr></thead>
+        <tbody>
+          <tr><td>pi</td><td>长会话还要可扩展</td><td>转换上下文的钩子：压缩作为插件，而不是写死在循环里</td></tr>
+          <tr><td>opencode</td><td>会话要能恢复、能取消</td><td>先把状态落到磁盘再继续跑；压缩也是一次可记录的状态变化</td></tr>
+          <tr><td>codex</td><td>前缀缓存别被随便打乱</td><td>尽量追加，少改中间；大改用显式 compaction 回合</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout">
+        <p class="label">先别管 · 摘要式压缩</p>
+        <p>更强的做法是再调一次模型：「把以上工具输出总结成十句话」。效果好，但贵、而且会丢细节（那次测试到底失败在第几行）。教学版只做头尾截断，避免循环里再套一个循环，也避免测试依赖真模型。</p>
+      </div>
+
+      <h2>自测</h2>
+      <ul>
+        <li>为什么压缩优先砍 tool 消息，而不是砍 user 消息？</li>
+        <li>文件已经被 edit 过，旧的 read 观察还留着，有什么害处？</li>
+        <li>如果压缩改了列表中间某一条，对「前缀缓存」意味着什么？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案</summary>
+        <ol>
+          <li>用户原话是任务本身，丢掉等于忘题。工具观察又肥又容易过时。</li>
+          <li>模型可能根据过期源码再 edit 一次，或认为 bug 还在。磁盘真相和上下文真相分叉了。</li>
+          <li>从被改的那一条往后，缓存作废，后面每一轮都可能按全价重算。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

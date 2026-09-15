@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 4 章 · 六种工具，不是六十种 — 写自己的 Harness</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第二部 · 零件</p>
+      <h1>第 4 章 · 六种工具，不是六十种</h1>
+      <p class="lead">工具是模型伸向世界的手。手太少，活干不成；手太多，说明书本身就把上下文撑满。这一章把六件套做对，并看清「只给 bash」为什么也能赢。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>编码助手的最小工具箱几乎总是：读、写、改、找文件、搜文字、跑命令。工具可以更少（只给 bash），很少需要更多。少，是为了让模型把注意力放在任务上，而不是放在「我该选哪一个专用工具」上。</p>
+      </div>
+
+      <h2>六件套是干什么的</h2>
+      <p>假设任务是「<code>add(2,3)</code> 应该等于 5」。模型通常会这样伸手：</p>
+      <ol class="steps">
+        <li><strong>glob</strong>：工作区里有哪些文件？先摸清现场。</li>
+        <li><strong>read</strong>：打开 <code>calc.py</code>，看见 <code>return a - b</code>。</li>
+        <li><strong>edit</strong>：把那一行换成 <code>return a + b</code>。</li>
+        <li><strong>bash</strong>：跑测试，确认真的过了。</li>
+      </ol>
+      <p>另外两件是备用：<strong>write</strong> 用来新建文件（测试文件、补丁稿）；<strong>grep</strong> 用来在很多文件里搜一个函数名，比逐个 read 便宜。</p>
+      <table class="plain">
+        <thead><tr><th>工具</th><th>人话</th><th>为什么不能互相替代干净</th></tr></thead>
+        <tbody>
+          <tr><td>read</td><td>看一个文件（带行号）</td><td>edit 需要精确旧字符串；行号让模型好引用</td></tr>
+          <tr><td>write</td><td>整文件覆盖 / 新建</td><td>适合从零创建；拿它改大文件容易把没动过的部分弄丢</td></tr>
+          <tr><td>edit</td><td>外科手术式替换</td><td>旧字符串必须几乎唯一，防止误伤</td></tr>
+          <tr><td>glob</td><td>按名字找文件</td><td>不知道路径时的入口</td></tr>
+          <tr><td>grep</td><td>按内容找文字</td><td>知道符号、不知道在哪个文件</td></tr>
+          <tr><td>bash</td><td>跑测试、看 git diff</td><td>文件系统工具做不到「执行一段程序」</td></tr>
+        </tbody>
+      </table>
+
+      <h2>手算 edit：为什么要求「旧字符串唯一」</h2>
+      <p>文件现在是：</p>
+      <figure class="code">
+        <figcaption>calc.py</figcaption>
+        <pre><code>def add(a, b):
+    return a - b
+
+def sub(a, b):
+    return a - b
+</code></pre>
+      </figure>
+      <p>如果允许 <code>old="return a - b"</code> 无脑替换全部，<code>sub</code> 也会变成加法。所以默认规则是：<strong>旧字符串在文件里必须只出现一次</strong>。模型应该带上更多上下文：</p>
+      <figure class="code">
+        <figcaption>更安全的 old</figcaption>
+        <pre><code>old = "def add(a, b):\n    return a - b"
+new = "def add(a, b):\n    return a + b"
+</code></pre>
+      </figure>
+      <p>nanocode 也是这个规矩，并额外提供「全部替换」开关。miniharness 的 <code>edit</code> 同样：命中 0 次或大于 1 次，都返回错误字符串，而不是猜。</p>
+      <p><code>read</code> 返回的每一行前面带行号（<code>1| def add</code>）。行号<strong>不是文件的一部分</strong>，edit 时不要把 <code>1|</code> 写进 old。这是新手最常见的事故。</p>
+
+      <h2>工作区：工具能摸到的世界边界</h2>
+      <p>打开 <code>tools.py</code> 会看到 <code>Workspace</code>。它记住一个根目录，所有路径都相对这个根。</p>
+      <figure class="code">
+        <figcaption>路径怎么被关进笼子</figcaption>
+        <pre><code>root = /tmp/labs/broken_calc
+read(path="calc.py")           → 允许，真路径在 root 里
+read(path="../secrets.env")    → 拒绝，解析后逃出了 root
+read(path="/etc/passwd")       → 拒绝，绝对路径不在 root 里
+</code></pre>
+      </figure>
+      <p>这不是操作系统沙箱。它挡的是「糊里糊涂读到仓库外面」；挡不住 <code>bash("curl http://evil")</code>。第 12 章 Codex 才在 OS 层动手。现在先把路径关好——大多数教学事故来自相对路径 <code>..</code>，不是来自黑客。</p>
+
+      <div class="where">
+        <p class="label">写到哪里</p>
+        <table class="plain">
+          <tr><th>文件</th><td><code>miniharness/tools.py</code></td></tr>
+          <tr><th>符号</th><td><code>Workspace</code>、<code>Toolbelt</code>、<code>default_tools</code></td></tr>
+          <tr><th>怎么跑</th><td><code>python tests/test_miniharness.py ToolsTests</code></td></tr>
+        </table>
+      </div>
+      <div class="bridge">
+        <p class="label">代码怎么对上原理</p>
+        <ul>
+          <li><code>Toolbelt.schemas()</code> 就是寄给模型的说明书列表。循环每次 complete 都会带上它。</li>
+          <li><code>Toolbelt.run(call)</code> 按名字分发。未知工具返回 <code>error: unknown tool</code> 字符串，不抛异常。</li>
+          <li>bash 在工作区里用 <code>subprocess.run</code>，超时会杀进程。超时也要变成观察，否则模型会以为命令还在跑。</li>
+        </ul>
+      </div>
+
+      <h2>另一极：只给 bash</h2>
+      <p>mini-swe-agent 的默认 agent 几乎只暴露一个工具：执行 shell 命令。模型要读文件？它自己写 <code>cat calc.py</code>。要改文件？自己写 <code>sed</code> 或 here-doc。要搜？<code>rg</code>。</p>
+      <p>这看起来「更原始」，在评测里却很强，原因有三条：</p>
+      <ol class="steps">
+        <li>说明书极短。上下文省给代码和错误信息，而不是六十个工具的 JSON。</li>
+        <li>SWE-bench 现场本来就是带 git 和测试命令的 Linux 环境。bash 是这个世界的母语。</li>
+        <li>独立子进程：每次命令都是一次新的 <code>subprocess.run</code>，不保留「上一次 cd 到了哪」。状态只存在磁盘和 git 里，评测可复现。</li>
+      </ol>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>六件套像给厨房配刀、锅、铲、勺。只给 bash 像只给一双手：慢一点，但不会发生「我该用哪把专用刀」的选择瘫痪。考试（评测）时，选择越少，不同模型之间越公平。</p>
+      </div>
+      <p>miniharness 走六件套，是因为教学要看见每种工具的失败模式（edit 不唯一、glob 太宽、bash 超时）。写评测脚手架时，你可以只留 bash——第 8 章会回来。</p>
+
+      <div class="callout">
+        <p class="label">先别管 · 原生调用 vs 文本里抠 JSON</p>
+        <p>我们走「原生 tool calling」：模型 API 单独返回 <code>tool_calls</code> 字段。另一种做法是让模型在正文里写出 <code>{"tool": "read", ...}</code>，再用正则去抠。后者在模型不支持原生调用时有用，也更脆（模型多写一个逗号就解析失败）。mini-swe-agent 两种都能接。你的循环应把「解析出 ToolCall 列表」关在模型适配层，不要让正则漏进 <code>run_agent</code>。</p>
+      </div>
+
+      <h2>自测</h2>
+      <ul>
+        <li>模型 read 之后把 <code>3| return a - b</code> 整行拿去 edit，会发生什么？</li>
+        <li>为什么「工具越多，agent 越强」常常是错的？</li>
+        <li>Workspace 挡得住 <code>bash("rm -rf /")</code> 吗？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案</summary>
+        <ol>
+          <li>文件里没有带 <code>3|</code> 的那一行，edit 命中 0 次，返回错误。模型需要丢掉行号再试。</li>
+          <li>每多一个工具，说明书就占上下文，模型还要多做一次选择。评测里，选择本身会变成噪声。</li>
+          <li>挡不住。Workspace 只管文件路径解析。危险命令要靠第 6 章的拒绝列表和第 12 章的 OS 沙箱。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

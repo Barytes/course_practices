@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 11 章 · opencode — 写自己的 Harness</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第四部 · 取舍</p>
+      <h1>第 11 章 · opencode：可观测性与重构</h1>
+      <p class="lead">当循环还要服务终端、IDE、桌面、多会话并行，<code>print</code> 和随手写的异步链条会先于功能一起崩。opencode 把「能看见、能取消、能恢复」当成一等公民，并且正在把旧架构迁到新架构——迁的过程本身就是教材。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>仓库 <a href="https://github.com/anomalyco/opencode">anomalyco/opencode</a>（快照 v1.18.31，2026-09-14）。看三件事：工具调用如何先记账再执行；服务如何按工作区划范围；v1/v2 并存时他们如何避免「两套真相」。不必学会他们用的那套函数式运行时。</p>
+      </div>
+
+      <h2>规模会改变循环的形状</h2>
+      <p>nanocode 可以在一个文件里写完。一个人、一个终端、一次对话，<code>print</code> 就够了。opencode 不是这个规模：多会话、可分享链接、语言服务器、多家模型、插件、桌面应用。失败模式变成：</p>
+      <ul>
+        <li>你点了取消，工具还在往磁盘写。</li>
+        <li>A 仓库的服务泄漏到 B 仓库。</li>
+        <li>进程崩溃后，界面说「改好了」，磁盘上只改了一半，日志里没有点名记录。</li>
+      </ul>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>小饭馆用口头报菜就行。百桌酒楼必须先写菜单存根，再进厨房。客人中途买单走人，存根还能告诉你锅里那道菜该不该倒掉。opencode 在补的就是存根系统。</p>
+      </div>
+
+      <h2>三件你该带走的东西（路径可能已搬家）</h2>
+      <ol class="steps">
+        <li><strong>先记账，再执行。</strong>工具调用在动手之前先落到可靠存储。授权钩子打在执行前。崩溃后你知道「已经答应做什么」，而不是磁盘上留下半截、日志里没有。</li>
+        <li><strong>会话事件可以投影回来。</strong>不要只靠内存里的数组。进程死了，应能从记录重建「模型看见过什么」。</li>
+        <li><strong>服务有范围。</strong>全局的（配置、模型目录）和工作区级的（这个 repo 的语言服务器）不要混在一张表里。混了就会串味。</li>
+      </ol>
+      <p class="say">对你自己的 harness：不必上他们那套运行时库。要上的是<strong>事件 + 取消 + 「先记后做」</strong>。miniharness 的 <code>events</code> 列表是起点；真正持久化是下一课，代码在上游，不在我们包里。</p>
+
+      <h2>「Effect」这个词先别怕</h2>
+      <p>你在 release 和博客里会反复看见 Effect。人话版：它是 TypeScript 里一套帮你处理「失败、取消、依赖、追踪」的库。Agent 运行时充满长时间运行、中断、竞赛、必须清理的资源。用库把这些写成可检查的类型，代价是学习曲线，以及迁移期旧写法与新写法并存。</p>
+      <div class="callout">
+        <p class="label">先别管</p>
+        <p>Layer、LayerNode、OpenTelemetry 的具体 API。问三个问题就够：一次工具在执行前写了什么？kill -9 之后还能否知道？两个窗口打开同一仓库，工作区级服务是共享还是隔离？</p>
+      </div>
+
+      <h2>产品层仍有 agent 模式</h2>
+      <p>文档里常见两种：build（默认可写）和 plan（只读，跑命令要问）。同一根循环，换的是工具权限集。这和 Codex 的「沙箱 × 审批」、dsh 的 agent 预设是同一类旋钮。</p>
+      <p>不要把「Plan 模式」理解成另一种魔法模型。它首先是 harness 策略：这一轮允许哪些手、要不要先问人。</p>
+
+      <div class="callout warn">
+        <p class="label">怎么读一个正在重构的巨仓</p>
+        <p>不要从根 README 线性读到第 400 个包。去 releases 搜 <code>v2</code>、<code>effect</code>、<code>session</code>。点进 PR 看他们删了哪条旧 API。并存期的仓库，任何「全书架构图」隔周就错。动态读，是唯一不自欺的方法。</p>
+      </div>
+
+      <h2>和 miniharness 的距离</h2>
+      <table class="plain">
+        <thead><tr><th>他们有</th><th>我们有</th><th>你下一步可以补</th></tr></thead>
+        <tbody>
+          <tr><td>执行前持久化</td><td>只在内存 append</td><td>每次 tool_start 先写一行 JSONL</td></tr>
+          <tr><td>可取消的运行时</td><td>没有取消</td><td>Ctrl-C 时设标志，bash 用超时</td></tr>
+          <tr><td>按工作区隔离的服务</td><td>一个 Workspace 对象</td><td>先别做服务图，把根目录传对就行</td></tr>
+        </tbody>
+      </table>
+
+      <h2>读这个仓库时问什么</h2>
+      <ul>
+        <li>一次工具调用在执行前写了什么记录？进程被强杀之后能否知道？</li>
+        <li>两个窗口打开同一 repo，工作区级服务是共享还是隔离？</li>
+        <li>插件 API 的新版和旧版谁是源，谁是适配器？</li>
+      </ul>
+
+      <h2>自测</h2>
+      <ul>
+        <li>为什么「先执行工具，成功了再写日志」在崩溃时会撒谎？</li>
+        <li>Plan 模式换的是模型，还是工具权限？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案</summary>
+        <ol>
+          <li>工具可能已经改了半个文件，日志却说「没做过」。下次恢复会按「没做过」再改一次，或按「做过」跳过——两种都可能是错的。先记账，崩溃后至少知道答应过什么。</li>
+          <li>首先是工具权限（以及要不要问人）。模型可以是同一个。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 10 章 · pi — 写自己的 Harness</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第四部 · 取舍</p>
+      <h1>第 10 章 · pi：可扩展的极简生产级</h1>
+      <p class="lead">从这里起，教材不再给你「标准实现」。pi 证明一件事：核心循环可以保持能读完，产品功能靠旁边的扩展长出来。版本会变；这个分界不太会变。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>仓库 <a href="https://github.com/earendil-works/pi">earendil-works/pi</a>（快照 v0.85.1，2026-09-05）。先看四个包：pi-ai、pi-agent-core、pi-tui、pi-coding-agent。核心小，扩展大，是设计，不是没写完。</p>
+      </div>
+
+      <div class="callout">
+        <p class="label">还没写过循环？</p>
+        <p>第四部是「带着问题去读别人的仓库」。循环还默写不出来，请先回第 3 章。下面每个概念都对照 miniharness 里已经有的那道缝。</p>
+      </div>
+
+      <h2>先讲人话：为什么要把车架拆开</h2>
+      <p>nanocode 把循环、工具、打印塞进一个文件，扫起来痛快，改起来疼：想加「危险命令先问人」，只能去改那唯一的 while True。pi 的回答是把程序拆成几块积木：</p>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>自行车的车架（循环）保持很轻。灯、货架、铃铛全部用螺丝挂上去。换灯不必焊开车架。pi 把这件事做到日常能用的程度：你真的会拿它当编码助手，而不是只拿它当标本。</p>
+      </div>
+      <p>作者 Mario Zechner 在 2025-11-30 的长文里写得很直：他讨厌核心系统提示和工具在每次发版时偷偷变；讨厌闪烁的全屏界面；讨厌上下文里被塞进界面都看不见的东西。拆包就是对这些讨厌的工程回答。</p>
+
+      <table class="plain">
+        <thead><tr><th>包</th><th>人话</th><th>miniharness 里像谁</th></tr></thead>
+        <tbody>
+          <tr><td>pi-ai</td><td>怎么跟各家模型说话</td><td><code>model.py</code></td></tr>
+          <tr><td>pi-agent-core</td><td>循环、工具、事件、中途加话</td><td><code>loop.py</code> + <code>plugins.py</code></td></tr>
+          <tr><td>pi-tui</td><td>终端里怎么画，尽量不抢系统滚动</td><td><code>cli.py</code> 的打印（婴儿版）</td></tr>
+          <tr><td>pi-coding-agent</td><td>焊成能天天用的 CLI，并开放扩展</td><td>整包</td></tr>
+        </tbody>
+      </table>
+
+      <h2>三条取舍（读源码时带着问题）</h2>
+      <h3>1. 给应用看的消息 ≠ 给模型看的消息</h3>
+      <p>界面可能需要「正在输入」「这条工具被你点了拒绝」这类通知。这些盒子不该原样塞进模型的上下文——又贵，又会教坏模型。pi 的做法是：应用侧有一份更丰富的名单；真正寄出之前，先修剪、再翻译成模型认识的形状。</p>
+      <p>miniharness 几乎把两份名单做成同一份。一旦你做界面，就需要这条缝：第 7 章的 <code>events</code> 已经是萌芽，<code>before_model</code> 钩子可以改寄出前的 messages。</p>
+
+      <h3>2. 事件是给界面的 API</h3>
+      <p>不要在循环肚子里写 <code>print</code>。<code>turn_start</code> / <code>tool_execution_*</code> / <code>turn_end</code> 这样的小纸条广播出去，界面、日志、遥测都当听众。订阅者按注册顺序等待。我们的 <code>EventLog</code> 插件是婴儿版：把小纸条收进列表，测试里能断言「工具确实跑完了」。</p>
+
+      <h3>3. 核心故意不做的功能</h3>
+      <p>早期 pi 明确不做：内置待办清单、计划模式、MCP、后台 bash、子 agent。理由是「我不需要就不做，做了就会污染默认上下文」。2026 年的仓库已经更丰富——所以你不能背那篇文章当现状。</p>
+      <p class="say">正确动作：打开最近的 release，看他们后来把哪些「故意不做」又做了，以及做成了<strong>扩展</strong>还是<strong>默认开启</strong>。默认开启就会改变所有人的上下文，这正是作者当初讨厌某些产品的点。</p>
+
+      <h2>教学缝：三只钩子</h2>
+      <div class="where">
+        <p class="label">写到哪里</p>
+        <table class="plain">
+          <tr><th>文件</th><td><code>miniharness/plugins.py</code></td></tr>
+          <tr><th>符号</th><td><code>before_model</code>、<code>after_tool</code>、<code>on_event</code></td></tr>
+          <tr><th>怎么跑</th><td><code>python tests/test_miniharness.py PluginTests</code></td></tr>
+        </table>
+      </div>
+      <figure class="code">
+        <figcaption>钩子落在循环的哪一拍</figcaption>
+        <pre><code>while True:
+    before_model(messages)     # 寄出前改名单，比如注入「现在几点」
+    reply = model.complete(...)
+    if 没有工具: return
+    for call in 工具:
+        result = tools.run(call)
+        result = after_tool(call, result)   # 例如把超长输出剪短
+        追加观察
+    # 全程 on_event({type: "tool_end", ...})
+</code></pre>
+      </figure>
+      <p>测试里有一个 <code>Clip</code> 插件：<code>after_tool</code> 把观察剪成 5 个字符加省略号。模型下一轮看见的就是剪过的版本。这就是「不改 loop.py，也能改循环行为」。</p>
+      <p>生产级的扩展还能注册命令、快捷键、主题、新工具。教学版只留三只钩子。钩子少是优点：你能说清楚每只钩子在哪一拍触发。</p>
+
+      <h2>pi-tui 的关键一票</h2>
+      <p>两种终端界面：全屏抢终端（Codex 那类），以及写在普通滚动缓冲里、只重绘脏行（pi）。后者保留系统搜索、选中、滚动；代价是超长会话要比对更多行。没有普适赢家。选的时候问：我的用户是不是还把终端当日志看？</p>
+
+      <div class="callout">
+        <p class="label">先别管</p>
+        <p>TypeScript 包名、扩展清单、会话中途换模型时「思考痕迹」怎么序列化——这些会改。你要带走的是分界：循环保持能读完；产品功能挂在钩子上；默认上下文里每多塞一件东西都要有人负责。</p>
+      </div>
+
+      <div class="callout warn">
+        <p class="label">版本会动</p>
+        <p>包名从 <code>@mariozechner/*</code> 迁到 <code>@earendil-works/*</code>，仓库从 pi-mono 迁到 earendil-works/pi。若有教程还在写旧路径，那就是「发布即过时」的现场。以 GitHub 为准。</p>
+      </div>
+
+      <h2>读这个仓库时问什么</h2>
+      <ul>
+        <li>新功能进了 core 还是 extension？</li>
+        <li>工具执行前的钩子能不能挡住一次 bash？被挡住的结果如何回到模型？</li>
+        <li>换模型时，思考痕迹怎么交给下一家？（上下文交接）</li>
+      </ul>
+
+      <h2>自测</h2>
+      <ul>
+        <li>为什么「待办清单做成默认开启」会惹作者生气？</li>
+        <li>miniharness 的 <code>after_tool</code> 改的是磁盘，还是模型下一轮看见的字符串？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案</summary>
+        <ol>
+          <li>它会占用每一轮的上下文，所有用户都付钱，包括根本不用待办的人。做成扩展，需要的人自己挂。</li>
+          <li>只改观察字符串。文件该怎么改还是怎么改。下一轮模型看见的是剪过或改过的汇报。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

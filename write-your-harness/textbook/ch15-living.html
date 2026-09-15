@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 15 章 · 发布即过时 — 写自己的 Harness</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第五部 · 往后</p>
+      <h1>第 15 章 · 发布即过时：以后怎么自学</h1>
+      <p class="lead">把这本书从收藏夹里拿掉。留下命令、留下问题清单、留下「版本号必须带日期」的强迫症。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>nanocode 和 mini-swe-agent 几乎冻结，当标本。pi / opencode / codex / dsh 当时间线：全量拉 releases，让现在的模型帮你梳理，有疑问跟到 commit 和 issue。不要用下一本电子书替换这一步。</p>
+      </div>
+
+      <h2>为什么书会死，循环不会</h2>
+      <p>第 0 章说过一次，这里用操作手册再说一次。会过时的是：类名、包名、默认是否开启某功能、某家沙箱的具体系统调用表。不太会过时的是：</p>
+      <ul>
+        <li>有工具就执行并写回，没有就停。</li>
+        <li>观察必须进上下文，磁盘真相 ≠ 模型真相。</li>
+        <li>评测要用瘦架子，分数才像模型的分数。</li>
+        <li>高风险动作需要硬约束，提示词不算约束。</li>
+        <li>上下文按轮数变贵，压缩会打乱前缀缓存。</li>
+      </ul>
+      <p>自学的目标不是「把 2026 年 9 月的 dsh 背下来」，是「下一次 release 你知道该问什么」。</p>
+
+      <h2>先把时间线拉回来</h2>
+      <figure class="code">
+        <figcaption>需要访问 GitHub</figcaption>
+        <pre><code>cd write-your-harness
+python -m miniharness watch
+python -m miniharness watch --save snapshot.json
+# 有额度时设置 GITHUB_TOKEN；本机已登录 gh 时会优先走 GitHub CLI
+</code></pre>
+      </figure>
+      <p>匿名的 GitHub HTTP 接口经常直接 403。命令会先试 <code>gh api</code>，再退回带 token 的请求。拉下来的是各仓库最近几条 release 的标题和说明，不是全文源码。</p>
+
+      <div class="where">
+        <p class="label">写到哪里</p>
+        <table class="plain">
+          <tr><th>文件</th><td><code>miniharness/watch.py</code></td></tr>
+          <tr><th>符号</th><td><code>snapshot</code>、<code>render</code></td></tr>
+          <tr><th>怎么跑</th><td><code>python -m miniharness watch</code></td></tr>
+        </table>
+      </div>
+
+      <h2>怎么读一份 Release（比通读源码便宜）</h2>
+      <ol class="steps">
+        <li><strong>先找破坏性变更。</strong>改名、删 API、默认行为反转。dsh 0.1.6-alpha.1 把某条会话事件改名、PTC 包改名——这种句子比 20 个新功能值钱。</li>
+        <li><strong>再找取舍声明。</strong>「我们删了 visual UI，因为没人用还难维护」（mini v2）。这是维护成本投的票。</li>
+        <li><strong>把句子跟到 PR / commit。</strong>看测试改了什么，比看宣传句更接近真实约束。</li>
+        <li><strong>最后才看新功能清单。</strong>功能是广告；约束才是架构。</li>
+      </ol>
+      <p>把某一段 release 扔给现在的模型时，不要问「总结一下」，问：</p>
+      <figure class="code">
+        <figcaption>更好的提问</figcaption>
+        <pre><code>1. 哪些变更会让我上周写的插件编译失败？
+2. 默认上下文里是否新塞进了东西？
+3. 沙箱 / 权限 / 事件名有没有改？
+4. 指出对应 PR。我要自己点进去。
+</code></pre>
+      </figure>
+      <p>模型会瞎编 PR 编号。第 4 条是故意的：你必须自己点开。把 AI 当索引，不当证人。</p>
+
+      <h2>没有 Release 的仓库怎么读</h2>
+      <p>nanocode 几乎没有 Release。那就看 commit 时间线：是不是真的冻住了？某天突然复活，本身就是信号。issue 里搜 <code>wontfix</code>、<code>by design</code>，能看见他们后悔什么、故意不做什么。</p>
+
+      <h2>教材快照（2026-09-15）</h2>
+      <p>写这本书时，六个仓库的大致位置。它会错。错了就证明本章成立。</p>
+      <table class="plain">
+        <thead><tr><th>仓库</th><th>当时</th><th>阅读策略</th></tr></thead>
+        <tbody>
+          <tr><td>nanocode</td><td>2026-01 后几乎无推送，无 Release</td><td>扫 250 行即可，偶尔看 commit 是否复活</td></tr>
+          <tr><td>mini-swe-agent</td><td>v2.4.6（2026-07-23）</td><td>看迁移说明与 default.py，发版不勤</td></tr>
+          <tr><td>pi</td><td>v0.85.1（2026-09-05），Release 极多</td><td>按包读，盯扩展是否爬进默认</td></tr>
+          <tr><td>opencode</td><td>v1.18.31（2026-09-14）</td><td>盯 v2、可观测性、会话持久化</td></tr>
+          <tr><td>codex</td><td>rust-v0.155.0-alpha.6（2026-09-15）</td><td>盯 sandbox、approval、AGENTS.md</td></tr>
+          <tr><td>deepseek-harness</td><td>dsh-v0.1.6-alpha.1（2026-09-15）</td><td>盯破坏性变更、PTC 运行时、事件改名</td></tr>
+        </tbody>
+      </table>
+
+      <h2>不要用书籍研究 AI 和 Agent</h2>
+      <p>书能做的，是把循环放进你的手指，把问题清单放进你的嘴边。书不能做的，是代表三个月后的 opencode，或明年的某种 PTC。去年的编排库教程、开源两个月的「全书」，都在尝试后一件事。那件事性价比甚至不如直接问现在的模型——它至少连着现在。</p>
+      <p>你若还想「收藏一本 Agent 电子书」，把 <code>miniharness watch</code> 的输出收藏进去。那是活的。这一章的 HTML 不是。</p>
+
+      <div class="callout stuck">
+        <p class="label">常见卡住</p>
+        <ul>
+          <li>watch 返回 403。——登录 <code>gh</code>，或设 <code>GITHUB_TOKEN</code>。不要为此去抄一篇「GitHub API 教程」进教材。</li>
+          <li>想等作者把书更新到最新版本。——不会有这一天。书的工作在第 3 章结束时已经完成一大半。</li>
+        </ul>
+      </div>
+
+      <div class="callout ok">
+        <p class="label">出门</p>
+        <p>打开六个链接里你最缺的那一个。带上第 10～13 章末尾的问题。不要把这本书一起打开。</p>
+      </div>
+
+      <h2>自测</h2>
+      <ul>
+        <li>一份 release 同时宣布「新主题」和「默认工具表改了」。你先读哪一句？</li>
+        <li>为什么要把版本号和日期绑在一起写？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案</summary>
+        <ol>
+          <li>默认工具表。它改的是所有人的上下文和评测可比性。主题是皮肤。</li>
+          <li>「v1.18」单独出现会假装自己永远正确。写下「v1.18.31（2026-09-14）」是在提醒读者：过了这一天，以仓库为准。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

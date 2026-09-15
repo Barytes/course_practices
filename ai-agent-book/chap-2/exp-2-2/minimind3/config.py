@@ -24,10 +24,12 @@ class MiniMindConfig:
     rope_scaling: dict | None = None
 
     def __post_init__(self):
+        # 768 必须能被 8 整除，否则每个头分到的宽度不是整数
         assert self.hidden_size % self.num_attention_heads == 0
+        # 8 必须能被 4 整除，否则「几个查询头共用一套键值」不是整数
         assert self.num_attention_heads % self.num_key_value_heads == 0
         self.head_dim = self.hidden_size // self.num_attention_heads
-        # 官方：math.ceil(hidden_size * math.pi / 64) * 64
+        # 官方：大约 3 倍隐藏维，再向上取到 64 的倍数
         self.intermediate_size = math.ceil(self.hidden_size * math.pi / 64) * 64
         self.moe_intermediate_size = self.intermediate_size
         if self.inference_rope_scaling and self.rope_scaling is None:

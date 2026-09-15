@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 2 章 · 扫一眼 nanocode — 写自己的 Harness</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第一部 · 骨架</p>
+      <h1>第 2 章 · 扫一眼 nanocode</h1>
+      <p class="lead">不要精读。250 行扫过去，你应该能说出他们做了什么、故意没做什么。做不到，说明你还在把 Agent 想成框架，而不是一段 while True。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p><a href="https://github.com/1rgs/nanocode">1rgs/nanocode</a> 是一份单文件、零依赖的编码助手缩小版。骨架只有四拍：收用户输入 → 问模型 → 若有工具就执行并写回 → 再问。没有沙箱，没有压缩，没有插件，没有评测。这不是缺陷，是标本该有的空白。</p>
+      </div>
+
+      <h2>不打开 GitHub 也能先画出来</h2>
+      <p>如果你暂时不想点进仓库，先看这张「假 20 行」。真文件更长，但节奏就是这样：</p>
+      <figure class="code">
+        <figcaption>节奏，不是要你提交的代码</figcaption>
+        <pre><code>messages = []
+while True:                          # 外层：等你打字
+    text = input("你说：")
+    messages.append({"role": "user", "content": text})
+    while True:                      # 内层：直到模型不再要工具
+        reply = 问模型(messages, 工具说明书)
+        messages.append(reply)
+        if reply 里没有工具:
+            break
+        for 每一次点名:
+            结果 = 真的执行(点名)
+            messages.append(结果)
+</code></pre>
+      </figure>
+      <p>外层循环是「聊天还在继续吗」；内层循环是「这一轮活干完了吗」。两层都是 <code>while True</code>，别混：<code>/q</code> 跳出的是外层；「没有工具了」跳出的是内层。</p>
+      <div class="callout">
+        <p class="label">扫一眼的合格线</p>
+        <p>合上这一页，你能在白纸上画出上面那两层循环。画不出来就再读 90 秒，不要开始做笔记系统，也不要急着抄 250 行。</p>
+      </div>
+
+      <h2>你要打开的文件</h2>
+      <p>仓库里几乎只有 <code>nanocode.py</code>。创建于 2026-01-11，此后几乎不再动。没有 GitHub Release——第 15 章会把「没有 Release 就改看 commit」写成方法。现在先找结构，不要复制进作业目录。</p>
+      <p>在文件里用搜索定位这几个名字：<code>def read</code>、<code>TOOLS</code>、<code>def call_api</code>、<code>keep calling API</code>、<code>input(</code>。搜到了，结构就齐了。</p>
+
+      <h2>250 行里的七块</h2>
+      <ol class="steps">
+        <li><strong>六个工具函数</strong>：<code>read</code> / <code>write</code> / <code>edit</code> / <code>glob</code> / <code>grep</code> / <code>bash</code>。编辑要求旧字符串在文件里只出现一次，除非显式说「全部替换」。第 4 章会用手算说明为什么。</li>
+        <li><strong>工具表</strong>：名字 →（描述, 参数草图, 函数）。同一张表干两件事：生成给模型看的说明书，以及真正分发调用。改工具时只改这一张表，不容易漏。</li>
+        <li><strong><code>call_api</code></strong>：用 Python 自带的 <code>urllib</code> 发网络请求，把「到目前为止的 messages」和「工具说明书」一起寄出。不依赖第三方 SDK。</li>
+        <li><strong>内层循环</strong>：源码注释就是定义——一直问 API，直到没有 tool 调用。这就是第 3 章要默写的东西。</li>
+        <li><strong>外层循环</strong>：读你在终端里打的字。<code>/c</code> 清空消息（等于失忆），<code>/q</code> 退出。</li>
+        <li><strong>系统提示</strong>：一句「Concise coding assistant. cwd: …」。没有 20 页的宪法。模型变强之后，短提示往往够用；长提示会占上下文、还会在发版时偷偷变。</li>
+        <li><strong>打印</strong>：给人类看的颜色和缩进。不是循环的一部分，是司机仪表盘。</li>
+      </ol>
+
+      <h2>「工具说明书」长什么样</h2>
+      <p>模型不会读你的 Python 函数源码。它看到的是一份填空说明，大致是：</p>
+      <figure class="code">
+        <figcaption>人话版 schema</figcaption>
+        <pre><code>工具名: edit
+干什么: 把文件里的 old 换成 new；old 必须只出现一次
+必填参数:
+  path: 字符串
+  old:  字符串
+  new:  字符串
+选填:
+  all:  真/假
+</code></pre>
+      </figure>
+      <p>这份说明会随每一次 <code>complete()</code> 寄给模型。说明书越长，每一轮越贵——所以工具不是越多越好。这是后文「六件套 vs 只给 bash」的伏笔。</p>
+
+      <div class="callout">
+        <p class="label">先别管 · 两家 API 的信封不同</p>
+        <p>nanocode 走 Anthropic 那种 Messages 接口：工具结果常常塞在 <code>role=user</code> 的一组 <code>tool_result</code> 块里。OpenAI 兼容接口更常见独立的 <code>role=tool</code>。miniharness 用后者，因为课程里的客户端多半是 OpenAI 形状。<strong>信封变了，循环没有变</strong>：有工具就执行并追加，没有就停。</p>
+      </div>
+
+      <h2>他们故意没做的事（后面每一章补一块）</h2>
+      <table class="plain">
+        <thead><tr><th>空白</th><th>人话后果</th><th>我们哪一章补</th></tr></thead>
+        <tbody>
+          <tr><td>路径不限制在工作区</td><td>模型若点名 <code>/etc/passwd</code>，文件真会被读出来</td><td>第 4、6、12 章</td></tr>
+          <tr><td>bash 无沙箱</td><td>等于把你的电脑外壳交给模型</td><td>第 12 章看 Codex</td></tr>
+          <tr><td>无步数 / 重复检测</td><td>工具一失败就可能空转到账单爆炸</td><td>第 6 章</td></tr>
+          <tr><td>无压缩</td><td>聊得越久，每一轮要把旧账再读一遍，越来越贵</td><td>第 5 章</td></tr>
+          <tr><td>无轨迹评测</td><td>它说「修好了」你只能信</td><td>第 8、9 章</td></tr>
+          <tr><td>无插件缝</td><td>想加权限只能改这一个主文件</td><td>第 10、13 章</td></tr>
+        </tbody>
+      </table>
+      <p>把这些空白补全，你并没有「超越 nanocode」。你只是在同一根循环上，按生产仓库的取舍往上加零件。nanocode 的价值是让你看清那根循环。</p>
+
+      <h2>和 miniharness 的对应</h2>
+      <table class="plain">
+        <thead><tr><th>nanocode</th><th>miniharness</th><th>差别（教学需要）</th></tr></thead>
+        <tbody>
+          <tr><td>内层 while True</td><td><code>loop.run_agent</code></td><td>我们额外挂了护栏、压缩、事件</td></tr>
+          <tr><td>TOOLS 表</td><td><code>Toolbelt.schemas</code> / <code>run</code></td><td>我们加了工作区路径检查</td></tr>
+          <tr><td>urllib 调云端</td><td><code>ScriptedModel</code> 或可选的在线模型</td><td>实验默认不联网</td></tr>
+          <tr><td>外层 input()</td><td><code>cli.py</code> 的子命令</td><td>先跑 <code>demo</code>，不必做交互 REPL</td></tr>
+        </tbody>
+      </table>
+
+      <h2>自测</h2>
+      <ul>
+        <li>外层循环和内层循环，哪一层在「用户还没说话」时空转等待？</li>
+        <li>为什么 edit 要求旧字符串唯一？</li>
+        <li>nanocode 把工具结果放进另一种信封。若你改成 <code>role=tool</code>，循环变了吗？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案</summary>
+        <ol>
+          <li>外层。内层只在「已经有用户消息、正在干活」时转。</li>
+          <li>避免一次替换打中文件里多处同名片段，把不该动的地方改坏。这是工具设计，不是模型智商问题。</li>
+          <li>消息的 JSON 形状变了，循环没有变：还是「有工具就执行并追加，没有就停」。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

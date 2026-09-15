@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 6 章 · 护栏：先能停下来 — 写自己的 Harness</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第二部 · 零件</p>
+      <h1>第 6 章 · 护栏：先能停下来</h1>
+      <p class="lead">循环默认会一直转。模型一旦卡住——同样的 grep、同样的失败测试——账单和磁盘都会遭殃。这一章先装三道便宜的刹车，再说明它们不是沙箱。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>护栏回答三个问题：还能走几步？是不是在原地转圈？这条路径还在工作区里吗？前两道在 <code>guards.py</code>，第三道在 <code>tools.py</code> 的 <code>Workspace</code>。它们都是 Python 检查，不是操作系统沙箱。挡得住糊涂，挡不住换一种写法的 bash。</p>
+      </div>
+
+      <h2>没有护栏的循环会怎样</h2>
+      <p>剧本里每一次 grep 都返回「找不到」。没有步数上限的循环会：问模型 → grep → 再问 → 再 grep……直到你手动杀进程，或信用卡报警。</p>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>帮手找不到 14 号扳手，于是一遍一遍喊「递我 14 号」。你没有「最多喊十次就停」的规矩，就会在车棚里站到天黑。护栏不是教他修车，是允许你下班。</p>
+      </div>
+
+      <h2>三道刹车</h2>
+      <h3>1. 步数预算</h3>
+      <p>一步 = 一次 <code>complete()</code>。默认比如 20。到点之后，循环不再问模型，而是追加一条助手说明「step limit reached」然后结束，<code>stop_reason</code> 记为 <code>step_limit</code>。</p>
+      <p>为什么按 complete 计，不按工具计？因为一次 complete 可能带三个工具。预算要卡的是「模型还能想几次」，那才是贵的部分。</p>
+
+      <h3>2. 重复指纹</h3>
+      <p>把「工具名 + 参数」做成一串短指纹。例如 <code>grep::{"pat": "add("}</code>。若连续 N 次指纹相同，视为卡死。</p>
+      <figure class="code">
+        <figcaption>会触发 / 不会触发</figcaption>
+        <pre><code>grep pat=foo
+grep pat=foo
+grep pat=foo     ← 连续三次同样，喊停
+
+grep pat=foo
+read path=a.py
+grep pat=foo     ← 中间插入了别的，计数清零
+</code></pre>
+      </figure>
+      <p>这很笨：模型可能在用同一条 grep 搜不同仓库——但 miniharness 的工作区只有一个根。笨是优点：规则能讲清楚，测试能写死。</p>
+
+      <h3>3. 路径关在工作区里</h3>
+      <p>这道闸写在 <code>Workspace.resolve</code>，不在 <code>guards.py</code>。read / write / edit / glob / grep 的路径一旦解析到根目录外面，工具返回 <code>error: path escapes workspace</code>。循环把它当普通观察写回去，模型可以改主意。</p>
+      <p>bash 仍然是缺口：命令在工作区里启动，但 <code>curl</code> 和 <code>rm -rf /</code> 不走路径解析。miniharness <strong>故意不假装</strong>有一份命令黑名单——那种检查用字符串包含就能绕过，写进教材当「安全」是在骗人。真要拦危险命令，看第 12 章的操作系统沙箱。</p>
+      <p>你可以自己加一道字符串拒绝列表当练习；加完请立刻试：把 <code>rm -rf /</code> 改成 <code>rm -rf "$HOME"</code>，名单还挡得住吗？挡不住，你就理解「护栏 ≠ 沙箱」了。</p>
+
+      <div class="where">
+        <p class="label">写到哪里</p>
+        <table class="plain">
+          <tr><th>文件</th><td><code>miniharness/guards.py</code></td></tr>
+          <tr><th>符号</th><td><code>Guards.before_step</code>、<code>before_tool</code>、<code>GuardError</code></td></tr>
+          <tr><th>怎么跑</th><td><code>python tests/test_miniharness.py GuardUnitTests</code></td></tr>
+        </table>
+      </div>
+      <div class="bridge">
+        <p class="label">代码怎么对上原理</p>
+        <ul>
+          <li><code>before_step</code> 在 complete 之前调用。超了就抛 <code>GuardError</code>。</li>
+          <li><code>before_tool</code> 在 <code>tools.run</code> 之前。连续相同指纹就抛 <code>GuardError</code>。</li>
+          <li><code>loop.py</code> 抓住 <code>GuardError</code>，把它变成一条 assistant 人话并设置 <code>stop_reason</code>。循环的正常形状仍然只有一个 <code>while True</code>。</li>
+        </ul>
+      </div>
+
+      <h2>护栏不是沙箱，也不是审批</h2>
+      <table class="plain">
+        <thead><tr><th></th><th>谁在检查</th><th>挡住什么</th><th>挡不住什么</th></tr></thead>
+        <tbody>
+          <tr><td>Workspace 路径</td><td>你的 Python</td><td>读到仓库外的文件路径</td><td>bash 里的 curl、rm</td></tr>
+          <tr><td>本章护栏</td><td>你的 Python</td><td>步数爆掉、同一工具连打三次</td><td>换参数继续空转；bash 里的任意命令</td></tr>
+          <tr><td>审批（第 12 章）</td><td>人点头</td><td>高风险动作先问你</td><td>你点了同意之后的一切</td></tr>
+          <tr><td>OS 沙箱（第 12 章）</td><td>操作系统</td><td>进程能碰到的文件、网络、系统调用</td><td>沙箱配置本身的漏洞</td></tr>
+        </tbody>
+      </table>
+      <p>四层可以叠。教学顺序必须是：先能停（本章）→ 再让人点头、让 OS 动手（Codex）。很多人一上来就想「做沙箱」，结果循环还在空转烧钱。</p>
+
+      <div class="callout">
+        <p class="label">先别管 · 指纹可以更聪明</p>
+        <p>生产系统会看「同一文件同一行反复 edit 失败」「测试命令输出哈希不变」等。pi 和 opencode 把这类策略做成可替换的钩子。miniharness 只做连续相同 tool+args，是为了让测试一眼能看懂。</p>
+      </div>
+
+      <h2>自测</h2>
+      <ul>
+        <li>步数到上限时，应不应该再执行已经点名但还没跑的工具？</li>
+        <li>为什么要把 GuardError 写成观察/助手说明，而不是让程序 traceback？</li>
+        <li>连续三次 <code>read path=a.py</code> 会停。连续三次 read 不同文件呢？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案</summary>
+        <ol>
+          <li>看你把检查放在哪。miniharness 的步数卡在下一次 complete 前，本轮已点名的工具仍会跑完。这是一种合理取舍：不浪费已经付费的那次思考。</li>
+          <li>traceback 是给程序员看的。模型需要看见「因为什么停了」，人类回放轨迹时也需要。评测还要把 stop_reason 记下来。</li>
+          <li>不同路径指纹不同，不会触发。若你认为「狂读也是问题」，要另加「每任务最多 read 次数」。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

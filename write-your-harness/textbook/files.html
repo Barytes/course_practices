@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>动手地图 — 写自己的 Harness</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">开始</p>
+      <h1>动手地图：文件、模块、函数</h1>
+      <p class="lead">后面每一章的代码都写进同一套文件。卡住「这段该贴哪」时，回到这一页。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">总原则</p>
+        <p>工作目录是 <code>write-your-harness/</code>。正式实现全部放进包 <code>miniharness/</code>。教材在 <code>textbook/</code>，不要改教材来「交作业」——作业就是这个包本身。</p>
+      </div>
+
+      <h2>目录长什么样</h2>
+      <figure class="code">
+        <figcaption>从 write-your-harness/ 往下看</figcaption>
+        <pre><code>write-your-harness/
+  textbook/                 你正在读的教材
+  miniharness/              正式手写包
+    types.py                第 1 章  Message / ToolCall
+    model.py                第 3 章  ScriptedModel / 可选在线模型
+    loop.py                 第 3 章  run_agent
+    tools.py                第 4 章  六件套 + 工作区
+    compact.py              第 5 章  截断旧工具结果
+    guards.py               第 6 章  步数 / 重复指纹
+    plugins.py              第 10 章 最小插件缝
+    ptc.py                  第 13 章 教学版 PTC
+    eval.py                 第 8～9 章 玩具评测
+    watch.py                第 15 章 拉 releases
+    cli.py                  第 7、9、15 章 命令行
+  labs/broken_calc/         第 9 章 有 bug 的假仓库
+  labs/scripts/fix_add.json 脚本模型的「标准答案轨迹」
+  tests/test_miniharness.py 每章对应的断言
+</code></pre>
+      </figure>
+
+      <p>测试文件里的类名和章的对应：<code>ToolsTests</code>（第 4 章）、<code>LoopTests</code>（第 3 章）、<code>CompactTests</code>（第 5 章）、<code>GuardUnitTests</code>（第 6 章）、<code>PluginTests</code>（第 10 章）、<code>PtcTests</code>（第 13 章）、<code>EvalTests</code>（第 9 章）。单独跑某一章：<code>python tests/test_miniharness.py LoopTests</code>。</p>
+
+      <p>在 <code>write-your-harness/</code> 下：</p>
+      <figure class="code">
+        <figcaption>怎么跑</figcaption>
+        <pre><code>python tests/test_miniharness.py          # 全部零件
+python -m miniharness demo                # 脚本模型修 add()
+python -m miniharness eval --script labs/scripts/fix_add.json
+python -m miniharness watch               # 需要访问 GitHub API
+</code></pre>
+      </figure>
+
+      <h2>按章：写哪个文件</h2>
+      <table class="plain">
+        <thead><tr><th>章</th><th>文件</th><th>你要留下的符号</th><th>动作</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><code>types.py</code></td><td><code>Message</code>、<code>ToolCall</code></td><td>先看形状，几乎不用改</td></tr>
+          <tr><td>2</td><td>对照 GitHub 上的 <code>nanocode.py</code></td><td>心里的一张图</td><td>不把上游拷进作业目录</td></tr>
+          <tr><td>3</td><td><code>loop.py</code>、<code>model.py</code></td><td><code>run_agent</code>、<code>ScriptedModel</code></td><td>核心。能默写最好</td></tr>
+          <tr><td>4</td><td><code>tools.py</code></td><td><code>Workspace</code>、<code>Toolbelt.run</code></td><td>edit 的「必须唯一」别漏</td></tr>
+          <tr><td>5</td><td><code>compact.py</code></td><td><code>compact_tool_results</code></td><td>旧观察截断，新的留下</td></tr>
+          <tr><td>6</td><td><code>guards.py</code></td><td><code>Guards.before_tool</code></td><td>指纹，不是「请模型自觉」</td></tr>
+          <tr><td>7</td><td><code>cli.py</code></td><td><code>cmd_run</code></td><td>把循环暴露成命令</td></tr>
+          <tr><td>8</td><td>对照 mini-swe-agent 的 <code>DefaultAgent</code></td><td>心里的评测图</td><td>读，不抄</td></tr>
+          <tr><td>9</td><td><code>eval.py</code>、<code>labs/broken_calc/</code></td><td><code>run_eval</code></td><td>隔离目录 + 跑测试当满分</td></tr>
+          <tr><td>10</td><td><code>plugins.py</code></td><td><code>before_model</code> / <code>after_tool</code> / <code>on_event</code></td><td>缝要小</td></tr>
+          <tr><td>11</td><td><code>loop.py</code> 里的 <code>events</code></td><td>事件列表</td><td>体会「能看见」；Effect 去上游看</td></tr>
+          <tr><td>12</td><td><code>tools.py</code> 的路径约束</td><td>知道这不是沙箱</td><td>真正的 Seatbelt/Landlock 在 codex</td></tr>
+          <tr><td>13</td><td><code>ptc.py</code></td><td><code>PtcToolbelt</code>、<code>run_code</code></td><td>一个工具 + 一段程序</td></tr>
+          <tr><td>14</td><td>整包</td><td>你能从空白重写 <code>loop.py</code></td><td>合上教材默写</td></tr>
+          <tr><td>15</td><td><code>watch.py</code></td><td><code>snapshot</code> / <code>render</code></td><td>把书扔掉的那一步</td></tr>
+        </tbody>
+      </table>
+
+      <h2>小白卡在「这段该看哪」</h2>
+      <table class="plain">
+        <thead><tr><th>你心里的问题</th><th>打开</th></tr></thead>
+        <tbody>
+          <tr><td>Agent 和聊天差在哪？</td><td>第 1 章那张流水线 + 7 行修 bug</td></tr>
+          <tr><td>while True 到底怎么停？</td><td>第 3 章手算消息列表</td></tr>
+          <tr><td>为什么不能随便 replace？</td><td>第 4 章 edit 唯一性</td></tr>
+          <tr><td>为什么聊久了会变贵？</td><td>第 5 章三轮手算</td></tr>
+          <tr><td>PASS 是谁说了算？</td><td>第 9 章：评分器在循环外面</td></tr>
+          <tr><td>插件是不是很玄？</td><td>第 10 章三只钩子，对照 <code>PluginTests</code></td></tr>
+          <tr><td>沙箱是不是提示词？</td><td>第 6 章对比表 + 第 12 章两个旋钮</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout warn">
+        <p class="label">不要做的事</p>
+        <p>不要把某家编排库、不要把某个「Agent 框架全书」的类图抄进这个包。这个包存在的理由就是：证明不靠那些类，你也能跑起来。</p>
+      </div>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

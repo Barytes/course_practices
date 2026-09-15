@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>术语表 — 写自己的 Harness</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">开始</p>
+      <h1>术语表：把每个词说成人话</h1>
+      <p class="lead">卡住时回到这一页。词按「几乎每天都用」到「第四部才会碰到」排序。看不懂英文缩写时，先读中文那句，再看括号里的英文。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">用法</p>
+        <p>不必一次背完。第 1～7 章只用到「几乎每天都用」那一组。后面出现陌生词，回来查，不要硬猜。</p>
+      </div>
+
+      <h2>几乎每天都用</h2>
+      <dl class="walk">
+        <dt>模型 / LLM</dt>
+        <dd>一个你通过网络调用的程序：你把文字（加上可选的工具清单）发给它，它回一段文字，有时还附带「请帮我执行某某工具」。本书里的模型通常是别人的云端 API，不是你电脑上自己训练的那个。</dd>
+        <dt>API</dt>
+        <dd>程序与程序说话的窗口。你不打开聊天网页，而是发一条 HTTP 请求。返回的是 JSON，不是漂亮的气泡。</dd>
+        <dt>JSON</dt>
+        <dd>一种用花括号写的数据格式，人和程序都能读。工具调用就是一小段 JSON：名字叫 <code>read</code>，参数是 <code>{"path": "a.txt"}</code>。</dd>
+        <dt>Token / 词元</dt>
+        <dd>模型计费和「上下文有多长」的单位。大致把中文想成「一个字到几个字算一块」，英文常是半个词一块。你暂时不必会算，只要记住：越长越贵，也越容易把模型看晕。</dd>
+        <dt>上下文 / Context</dt>
+        <dd>这一次请求里模型实际看见的全部内容：系统提示、到目前为止的对话、工具说明书、工具刚跑出来的结果。它看不见你硬盘上「发生了但没写进列表」的事。</dd>
+        <dt>系统提示 / system prompt</dt>
+        <dd>写给模型看的「你是谁、工作区在哪、有哪些规矩」。用户看不见也没关系，模型每一轮通常都能看见。</dd>
+        <dt>Harness</dt>
+        <dd>套在模型外面的工程：怎么组上下文、怎么执行工具、怎么停、怎么记轨迹。模型是发动机，harness 是车架、刹车和仪表盘。</dd>
+        <dt>Agent</dt>
+        <dd>本书里：会在「说话」和「请你帮我做一件事」之间切换，直到任务停下来的那套系统。单次问答的聊天机器人还不是 agent。</dd>
+        <dt>循环 / Agent loop</dt>
+        <dd>问模型 → 若它要调用工具就执行 → 把结果当新消息追加 → 再问。直到它不再要工具，或护栏叫停。</dd>
+        <dt>工具 / Tool</dt>
+        <dd>harness 真正会执行的一种动作，比如读文件、改文件、跑命令。模型只能「点名」，不能自己伸手进你的电脑。</dd>
+        <dt>工具调用 / Tool call</dt>
+        <dd>模型发出的结构化请求：「请执行 edit，参数是……」。Harness 负责真的去做。</dd>
+        <dt>观察 / Observation</dt>
+        <dd>工具跑完后的文本，写回对话。下一轮模型只能看见写进去的东西。</dd>
+        <dt>轨迹 / Trajectory</dt>
+        <dd>这一趟完整的消息列表。评测、复盘、以后训练模型，都从这里来。</dd>
+        <dt>工作区 / Workspace</dt>
+        <dd>这次任务允许动的那一棵文件夹。教学包里用它挡住 <code>../</code> 这种往外爬的路径；它还不是操作系统沙箱。</dd>
+      </dl>
+
+      <h2>写代码时会碰到</h2>
+      <dl class="walk">
+        <dt>Schema / 说明书</dt>
+        <dd>告诉模型每个工具要哪些参数、什么类型。像表格的表头。模型按表头填表，harness 按表头检查。</dd>
+        <dt>原生工具调用</dt>
+        <dd>模型用 API 规定好的字段返回工具名和参数，而不是在普通句子里夹一段 markdown 让你用正则去抠。更稳，但要求模型支持这个接口。</dd>
+        <dt>CLI</dt>
+        <dd>在终端里敲的命令行程序。本书的 <code>python -m miniharness demo</code> 就是 CLI。</dd>
+        <dt>TUI</dt>
+        <dd>Terminal UI：还在终端里，但会画颜色、可滚动的界面。比 CLI 好看，比网页应用简单。不是循环的一部分，是皮肤。</dd>
+        <dt>子进程 / subprocess</dt>
+        <dd>你的程序再喊操作系统去跑另一条命令，例如 <code>python -m unittest</code>。跑完就结束，默认不记住「刚才 cd 到了哪」。</dd>
+        <dt>哈希 / fingerprint</dt>
+        <dd>把「工具名 + 参数」压成一串短指纹。两次调用指纹相同，就表示它在做同一件事。用来抓空转，不是加密。</dd>
+        <dt>脚本模型 / ScriptedModel</dt>
+        <dd>不联网的假模型：预先写好它每一轮会说什么、要调什么工具。用来测 harness，不用来测智力。</dd>
+      </dl>
+
+      <h2>工程上会变，概念还在</h2>
+      <dl class="walk">
+        <dt>Scaffold / 架子</dt>
+        <dd>为了跑任务临时搭的外围代码。评测里越瘦越好，避免「分数其实是架子的分数」。</dd>
+        <dt>Benchmark / 基准测试</dt>
+        <dd>一堆标准题目 + 标准打分办法。SWE-bench 就是「给真实 GitHub issue，看 agent 能不能改对代码」。</dd>
+        <dt>Compaction / 压缩</dt>
+        <dd>上下文太长时丢掉或总结旧观察。省钱，但可能把关键状态抹掉。</dd>
+        <dt>护栏 / Guardrail</dt>
+        <dd>硬约束：步数上限、重复调用指纹、路径不得逃出工作区、高风险动作要人点头。是代码，不是「请你谨慎」。</dd>
+        <dt>沙箱 / Sandbox</dt>
+        <dd>操作系统级隔离，限制进程能读哪、写哪、能不能上网。不是提示词里写「请不要 rm -rf」。</dd>
+        <dt>审批 / Approval</dt>
+        <dd>什么时候必须问人。和沙箱是两个旋钮：一个限制能力，一个限制自主。</dd>
+        <dt>插件 / Plugin</dt>
+        <dd>不改循环源码、从旁边挂上的能力。像插座：循环提供插口，功能是插头。</dd>
+        <dt>事件 / Event</dt>
+        <dd>循环跳每一拍时广播的小纸条：「我开始问模型了」「这个工具跑完了」。UI 和日志都听这个，而不是在循环里到处 <code>print</code>。</dd>
+        <dt>PTC</dt>
+        <dd>Programmatic Tool Calls。不把每个工具暴露成一次模型函数调用，而是让模型写一段程序，在运行时组合多次宿主调用。像一次写好购物清单，而不是对店员喊五次「再拿一瓶」。</dd>
+        <dt>可观测性 / Observability</dt>
+        <dd>循环里每一跳都能被看见、被打断、被重放。日志是最低配。</dd>
+        <dt>MCP</dt>
+        <dd>一种让外部工具（浏览器、数据库）接到 agent 上的协议。本书不教你实现它；只是让你在别人的 release 里认得出这个词。</dd>
+        <dt>流式 / Streaming</dt>
+        <dd>模型边生成边往外吐字，UI 可以一个字一个字显示。循环仍然要等这条消息完整，才决定要不要跑工具。</dd>
+        <dt>前缀缓存</dt>
+        <dd>如果你每次请求的开头一模一样，云端可以少算一部分阅读费用。在列表中间改一句旧观察，从改动点往后的折扣就作废了。所以压缩不仅是删东西，还要尽量别改已经寄过的开头。</dd>
+        <dt>鸭子类型</dt>
+        <dd>不要求继承官方基类。只要对象上有该有的方法（能 <code>complete()</code> 就算模型），就能塞进循环。评测架子爱用这个，换假模型、换 Docker 才不会先打一场面向对象。</dd>
+        <dt>YOLO</dt>
+        <dd>完全放开、不问人。nanocode 实际上只有这一档。工业级产品会把这个名字弄得很吓人，提醒你这是显式选择，不是默认。</dd>
+        <dt>AGENTS.md</dt>
+        <dd>放在仓库里的说明书：测试怎么跑、哪些目录别动。启动时读进系统提示。规矩跟着代码走，不跟着某年某月的电子书走。</dd>
+        <dt>先记后做 / persist-before-execute</dt>
+        <dd>工具真正改磁盘之前，先把「我答应做什么」写到可靠的地方。崩溃后至少知道点过名，而不是磁盘改了一半、日志里空白。</dd>
+        <dt>Effect</dt>
+        <dd>opencode 用的一套 TypeScript 运行时库，用来处理失败、取消、依赖和追踪。本书不教它。看见这个词，把它翻译成「他们把取消和失败当成一等公民」即可。</dd>
+        <dt>Cordis</dt>
+        <dd>deepseek-harness 的插件树名字。名字会过时。记住结构：连循环也是插头，卸载要能撤掉效果。</dd>
+      </dl>
+
+      <h2>六个仓库的外号</h2>
+      <dl class="walk">
+        <dt>nanocode</dt>
+        <dd>约 250 行的标本。看见循环即可，不要学它的安全模型——它基本没有。</dd>
+        <dt>mini-swe-agent / mini</dt>
+        <dd>评测用的瘦架子。默认曾经是「只有 bash」；v2 起原生工具调用是默认。以仓库为准。</dd>
+        <dt>pi</dt>
+        <dd>能天天用的极简生产级 TypeScript harness。核心循环小，扩展挂在旁边。</dd>
+        <dt>opencode</dt>
+        <dd>很大的开源 coding agent：终端、IDE、桌面都有。正在用 Effect 做大规模重构。</dd>
+        <dt>codex</dt>
+        <dd>OpenAI 官方 CLI，主体用 Rust 写。看沙箱和审批，不看营销页。</dd>
+        <dt>dsh / deepseek-harness</dt>
+        <dd>DeepSeek 的「万物皆插件」预览。循环自己也是插件。API 会破，这是官方警告，不是八卦。</dd>
+      </dl>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

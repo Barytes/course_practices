@@ -43,13 +43,12 @@
     attention.py            第 5～9 章  同一个 Attention 类逐步加零件
     mlp.py                  第 10、13 章  FeedForward / MOEFeedForward
     block.py                第 11 章  MiniMindBlock
-    model.py                第 3 章练嵌入；第 12 章拼整网
-    data.py                 第 14、15 章  数据集与标签掩码
-    generate.py             第 16 章  generate
+    model.py                第 3、12、16 章  MiniMindModel / CausalLM / generate
+    data.py                 第 14、15 章  PretrainDataset / SFTDataset
   minimind-textbook/        你正在读的教材（不要改这里来交作业）
 </code></pre>
       </figure>
-      <p>包已经建好，每个文件顶部有一行注释告诉你哪一章往里写。打开就能填，不必自己新建路径。</p>
+      <p>包已经建好：类名、函数签名、成员名与官方 <code>model/model_minimind.py</code>、<code>dataset/lm_dataset.py</code> 对齐，方法体留空。打开对应文件按注释填，不要另起文件名或改成员名。</p>
       <p>在 <code>exp-2-2/</code> 下跑模块：</p>
       <figure class="code">
         <figcaption>怎么跑</figcaption>
@@ -67,20 +66,20 @@ python -m minimind3.attention   # 第 5 章起
           <tr><td>1</td><td><code>minimind3/config.py</code></td><td><code>MiniMindConfig</code>、<code>__post_init__</code></td><td>已有骨架，对照教材跑通即可</td></tr>
           <tr><td>2</td><td><code>attention.py</code>（草稿）</td><td><code>CharTokenizer.encode/decode</code></td><td>热身。正式训练仍加载官方分词器</td></tr>
           <tr><td>2.5</td><td><code>bpe/minbpe/base.py</code>、<code>basic.py</code></td><td><code>get_stats</code>、<code>merge</code>、<code>train/encode/decode</code></td><td>搜 <code># &gt;&gt;&gt; 填空</code></td></tr>
-          <tr><td>3</td><td><code>minimind3/model.py</code></td><td><code>EmbedAndHead</code></td><td>新建类。第 12 章会被整网替换</td></tr>
-          <tr><td>4</td><td><code>minimind3/norm.py</code></td><td><code>RMSNorm._norm</code>、<code>forward</code></td><td>新建类</td></tr>
-          <tr><td>5</td><td>草稿 <code>attention.py</code> → 迁到 <code>minimind3/attention.py</code></td><td><code>TinyAttention.forward</code></td><td>先草稿里写对检索，再拷进包</td></tr>
+          <tr><td>3</td><td><code>minimind3/model.py</code></td><td><code>embed_tokens</code>、<code>lm_head</code>、权重共享</td><td>先理解这两张表。正式类名是后面的 MiniMindModel / CausalLM</td></tr>
+          <tr><td>4</td><td><code>minimind3/norm.py</code></td><td><code>RMSNorm.norm</code>、<code>forward</code></td><td>填空。官方方法名是 <code>norm</code> 不是 <code>_norm</code></td></tr>
+          <tr><td>5</td><td>草稿 <code>attention.py</code> → 迁到 <code>minimind3/attention.py</code></td><td><code>Attention.forward</code></td><td>先草稿里写对检索，再拷进包里的同名类</td></tr>
           <tr><td>6</td><td><code>minimind3/attention.py</code></td><td>把 forward 升级为因果 + 缓存</td><td>改同一个类，不要另开文件</td></tr>
           <tr><td>7</td><td>同上</td><td><code>repeat_kv</code>；q/k/v 投影宽度分开</td><td>继续改同一个 forward</td></tr>
           <tr><td>8</td><td><code>minimind3/rope.py</code> + 注意力 forward</td><td><code>rotate_half</code>、<code>apply_rotary_pos_emb</code>、<code>precompute_freqs_cis</code></td><td>函数放 rope.py，注意力里调用</td></tr>
           <tr><td>9</td><td><code>minimind3/attention.py</code></td><td>类名定为 <code>Attention</code>；加 q_norm/k_norm 与 SDPA 分支</td><td>本章结束应能对上官方 Attention.forward</td></tr>
           <tr><td>10</td><td><code>minimind3/mlp.py</code></td><td><code>FeedForward.forward</code></td><td>新建类</td></tr>
           <tr><td>11</td><td><code>minimind3/block.py</code></td><td><code>MiniMindBlock.forward</code></td><td>把 norm / attn / mlp 串起来</td></tr>
-          <tr><td>12</td><td><code>minimind3/model.py</code></td><td><code>MiniMindModel</code>、<code>MiniMindForCausalLM</code></td><td>替换第 3 章的玩具类</td></tr>
+          <tr><td>12</td><td><code>minimind3/model.py</code></td><td><code>MiniMindModel</code>、<code>MiniMindForCausalLM</code></td><td>填空。不要另建 EmbedAndHead</td></tr>
           <tr><td>13</td><td><code>minimind3/mlp.py</code></td><td><code>MOEFeedForward</code></td><td>追加，不改注意力</td></tr>
-          <tr><td>14</td><td><code>minimind3/data.py</code></td><td><code>TinyPretrainDataset</code></td><td>新建数据集</td></tr>
-          <tr><td>15</td><td><code>minimind3/data.py</code></td><td><code>generate_labels</code></td><td>同一文件追加</td></tr>
-          <tr><td>16</td><td><code>minimind3/generate.py</code></td><td><code>generate</code></td><td>新建函数</td></tr>
+          <tr><td>14</td><td><code>minimind3/data.py</code></td><td><code>PretrainDataset</code></td><td>填空</td></tr>
+          <tr><td>15</td><td><code>minimind3/data.py</code></td><td><code>SFTDataset.generate_labels</code></td><td>同一文件追加</td></tr>
+          <tr><td>16</td><td><code>minimind3/model.py</code></td><td><code>MiniMindForCausalLM.generate</code></td><td>官方写在本类里，不要另开 generate.py</td></tr>
           <tr><td>17</td><td>对照官方 <code>model_lora.py</code> 等</td><td>不必再往包里加文件</td><td>读源码地图即可</td></tr>
         </tbody>
       </table>
@@ -111,7 +110,8 @@ python -m minimind3.attention   # 第 5 章起
           <tr><td><code>repeat_kv</code> / <code>Attention</code></td><td>同名函数与类</td></tr>
           <tr><td><code>precompute_freqs_cis</code> / <code>apply_rotary_pos_emb</code></td><td>同名函数</td></tr>
           <tr><td><code>FeedForward</code> / <code>MOEFeedForward</code></td><td>同名类</td></tr>
-          <tr><td><code>MiniMindBlock</code> / <code>MiniMindModel</code> / <code>MiniMindForCausalLM</code></td><td>同名类</td></tr>
+          <tr><td><code>MiniMindBlock</code> / <code>MiniMindModel</code> / <code>MiniMindForCausalLM</code></td><td>同名类；<code>generate</code> 是 CausalLM 的方法</td></tr>
+          <tr><td><code>PretrainDataset</code> / <code>SFTDataset</code></td><td><code>dataset/lm_dataset.py</code></td></tr>
         </tbody>
       </table>
     </article>

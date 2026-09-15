@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 8 章 · 评测为什么要极简 scaffold — 写自己的 Harness</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第三部 · 评测</p>
+      <h1>第 8 章 · 评测为什么要极简 scaffold</h1>
+      <p class="lead">SWE 系基准测试现在经常用 mini-swe-agent 跑分。不是因为它最强，而是因为它瘦：分数才比较像模型的分数，而不是架子的分数。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>评测 harness 的美德是无聊。控制流线性、环境可替换、限制用数字说清楚。你在做强化学习或微调时尤其不要过拟合某家产品的提示词和工具细节。</p>
+      </div>
+
+      <h2>先用人话讲「评测」是什么</h2>
+      <p>到目前为止，我们一直在问：「循环写对了吗？」第 9 章开始会问另一个问题：「这个模型（或这段剧本）到底能不能把 bug 修好？」</p>
+      <p>要公平地问第二个问题，必须满足三件事：</p>
+      <ol class="steps">
+        <li>每道题开始时，现场是干净的（不能残留上次的补丁）。</li>
+        <li>每道题用同一套工具、同一套停法。</li>
+        <li>谁来宣布「修好了」必须是测试，不能是模型自己。</li>
+      </ol>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>田径比赛不会让选手穿不同的弹簧鞋还宣称「我们在比人」。评测架子越花哨——自动规划、五十个工具、神秘的压缩——你越不知道金牌属于模型还是属于鞋。</p>
+      </div>
+      <p>mini-swe-agent 就是那双尽量普通的跑鞋。产品 harness（pi、opencode、codex）可以很胖，因为它们服务的是人。评测时把这些打开，分数会变成「产品总成」的分数。可以报，但要声明。</p>
+
+      <h2>打开哪几个文件</h2>
+      <p>仓库：<a href="https://github.com/SWE-agent/mini-swe-agent">SWE-agent/mini-swe-agent</a>。快照：v2.4.6（2026-07-23）。建议先看：</p>
+      <ul>
+        <li><code>src/minisweagent/agents/default.py</code> —— 大约一百行的 DefaultAgent。</li>
+        <li><code>src/minisweagent/environments/local.py</code> —— 环境。真正执行动作的地方。</li>
+        <li>文档 <code>docs/advanced/control_flow.md</code> 与 FAQ。</li>
+      </ul>
+      <p>官方现在建议：日常和评测都优先用 mini，原版 SWE-agent 进入维护。这本身就是一条取舍：复杂架子的边际收益，在模型变强之后会下降。</p>
+
+      <h2>鸭子类型，不要继承树</h2>
+      <p>「鸭子类型」的人话：不要求你继承某个官方基类。只要对象上有该有的方法（走起来像鸭子、叫起来像鸭子），就能塞进去。Model、Environment、Agent 都是这个规矩。</p>
+      <p>评测场上这很重要——换 Docker、换云端沙箱、换一个假模型，不应先过五关斩六将的面向对象。miniharness 学的是这个：<code>run_agent(model, tools, messages)</code> 并不关心 model 是剧本还是 HTTP。</p>
+
+      <h2>三条「瘦」的决定</h2>
+      <ol class="steps">
+        <li><strong>历史完全线性。</strong>每一步只往 messages 后面追加。没有隐藏的平行世界、没有「其实还有另一份只有模型看得见的草稿」。</li>
+        <li><strong>动作默认是独立进程。</strong>每次命令都是一次新的 <code>subprocess.run</code>，不维护一个一直活着的 shell。上一次 <code>cd src</code> 不会传到下一次。状态只存在磁盘和 git 里，评测可复现。</li>
+        <li><strong>限制是一等公民。</strong>步数、费用、墙钟时间、连续格式错误次数。超限变成轨迹里的退出原因，而不是甩给调用方一个含糊异常。</li>
+      </ol>
+      <p>v2 把默认从「在 markdown 代码块里用正则抠命令」改成原生工具调用，并删掉了不够受欢迎的 visual UI。读他们的迁移说明，比读任何 2025 年的博客更有用：那是他们用真实维护成本投的票。</p>
+
+      <h2>和 miniharness 对一下</h2>
+      <table class="plain">
+        <thead><tr><th>mini-swe-agent</th><th>miniharness</th><th>一样的不变量</th></tr></thead>
+        <tbody>
+          <tr><td><code>query()</code> 然后 <code>execute_actions()</code></td><td><code>complete()</code> 然后 <code>tools.run</code></td><td>问完再做，做完写回</td></tr>
+          <tr><td>默认几乎只有 bash</td><td>六件套</td><td>工具表面可以不同，循环相同</td></tr>
+          <tr><td>独立 subprocess</td><td>每次 bash 也是独立 subprocess</td><td>不把「当前目录」藏在内存里</td></tr>
+          <tr><td>超限变成 exit 消息</td><td><code>stop_reason</code></td><td>评测要能读出「为什么停」</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout">
+        <p class="label">先别管</p>
+        <p>SWE-bench 的完整流水线（Docker 镜像、失败测试列表、提交补丁格式）很大。第 9 章只用十行代码的 <code>add</code> 复现<strong>控制流</strong>。你会跑基准测试时，再去 clone mini-swe-agent，不要把那套基础设施抄进教学包。</p>
+      </div>
+
+      <h2>产品可以更胖，但请分开报分</h2>
+      <p>pi、opencode、codex、dsh 都比 mini 胖，那是因为它们服务的是人：要审批、要界面、要插件市场、要热更新。你可以用它们跑 SWE-bench，但要在论文或博客里写清楚：「这是产品总成的分数」。bash-only 那一列的意义，就是把声明写清楚。</p>
+
+      <h2>自测</h2>
+      <ul>
+        <li>你在做模型微调时，为什么不该把某家产品的系统提示整段冻进训练数据当唯一架子？</li>
+        <li>mini 把格式错误也记入费用上限（v2.4.6 的修复）。这说明评测关心什么？</li>
+        <li>为什么「每次动作新开进程」比「维持一个活 shell」更适合评测？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案</summary>
+        <ol>
+          <li>提示词和工具一变，你的策略就过拟合到一家产品。换 harness 分数塌掉，并不证明模型变差。</li>
+          <li>关心「真实花出去的钱」，包括解析失败那种已经计费的请求。否则模型靠胡打格式把预算用穿，数字还会看起来很便宜。</li>
+          <li>活 shell 会悄悄留下环境变量、当前目录、后台任务。两次评测之间的隐式状态，会让分数不可复现。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

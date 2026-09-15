@@ -39,7 +39,7 @@
         <p class="label">现在动手 · 写到哪里</p>
         <table class="plain">
           <tbody>
-            <tr><th>文件</th><td><code>exp-2-2/minimind3/model.py</code>。第 3 章的 <code>EmbedAndHead</code> 可以留在文件底部当自测，或删掉。</td></tr>
+            <tr><th>文件</th><td><code>exp-2-2/minimind3/model.py</code>。第 3 章讲的 <code>embed_tokens</code> / <code>lm_head</code> 就写在这两个类里，不要另建 EmbedAndHead。</td></tr>
             <tr><th>先写</th><td>类 <code>MiniMindModel</code>：<code>embed_tokens</code>、<code>layers</code>、<code>norm</code>、两张 freqs buffer、<code>forward</code></td></tr>
             <tr><th>再写</th><td>类 <code>MiniMindForCausalLM</code>：<code>self.model</code>、<code>lm_head</code>、权重共享、<code>forward</code> 里的错位交叉熵</td></tr>
             <tr><th>怎么跑</th><td><code>python -m minimind3.model</code>。参数量应约 64M；<code>logits.shape == (2, 16, 6400)</code></td></tr>

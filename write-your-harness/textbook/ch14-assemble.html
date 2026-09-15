@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 14 章 · 拼成你自己的 harness — 写自己的 Harness</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第五部 · 往后</p>
+      <h1>第 14 章 · 拼成你自己的 harness</h1>
+      <p class="lead">合上前面的章，你已经有一台能跑的机器。现在检查缺什么、故意不缺什么，然后从空白文件重写循环——写不出来，就还没毕业。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>你的 harness 不需要赢过 opencode。它需要：循环正确、工具观察诚实、有硬闸、能存轨迹、能跑一道假评测。多出来的每行代码都要能回答「这是从哪个仓库的哪条取舍学来的」。</p>
+      </div>
+
+      <h2>你现在手上有什么</h2>
+      <table class="plain">
+        <thead><tr><th>零件</th><th>文件</th><th>对标</th><th>它还不是什么</th></tr></thead>
+        <tbody>
+          <tr><td>消息</td><td>types.py</td><td>所有人</td><td>不是应用侧那份更丰富的名单</td></tr>
+          <tr><td>循环</td><td>loop.py</td><td>nanocode / mini-swe</td><td>不是可取消、可恢复的运行时</td></tr>
+          <tr><td>六件套 + 工作区</td><td>tools.py</td><td>nanocode 表面 + 礼貌围栏</td><td>不是 OS 沙箱</td></tr>
+          <tr><td>截断压缩</td><td>compact.py</td><td>长会话最低配</td><td>不是摘要式压缩</td></tr>
+          <tr><td>步数 / 指纹</td><td>guards.py</td><td>mini-swe 的 limits</td><td>不是审批</td></tr>
+          <tr><td>事件钩子</td><td>plugins.py</td><td>pi 的婴儿版</td><td>不是热插拔插件树</td></tr>
+          <tr><td>PTC</td><td>ptc.py</td><td>dsh 的婴儿版</td><td>不是隔离的代码运行时</td></tr>
+          <tr><td>评测</td><td>eval.py</td><td>mini-swe 的婴儿版</td><td>不是 SWE-bench</td></tr>
+          <tr><td>拉 releases</td><td>watch.py</td><td>本书的逃生舱</td><td>不是订阅制情报产品</td></tr>
+        </tbody>
+      </table>
+      <p>右列那些「还不是」，不是作业没做完。是刻意留白。补的时候按需，不要为了像某张架构图而补。</p>
+
+      <h2>按缺口选仓库，不要按热度</h2>
+      <table class="plain">
+        <thead><tr><th>你缺的</th><th>去哪看</th></tr></thead>
+        <tbody>
+          <tr><td>循环看不清</td><td>nanocode，回第 2、3 章</td></tr>
+          <tr><td>分数不像模型的分数</td><td>mini-swe-agent，回第 8 章</td></tr>
+          <tr><td>想天天用、又想自己挂灯</td><td>pi，回第 10 章</td></tr>
+          <tr><td>多会话、要能看见、要能取消</td><td>opencode，回第 11 章</td></tr>
+          <tr><td>真机器上不敢放手</td><td>codex，回第 12 章</td></tr>
+          <tr><td>能力要可替换、想试 PTC</td><td>dsh，回第 13 章</td></tr>
+        </tbody>
+      </table>
+
+      <h2>毕业考试（请真的做）</h2>
+      <ol class="steps">
+        <li>不看 <code>loop.py</code>，在草稿里重写 <code>run_agent</code>。跑 <code>LoopTests</code>。过不了就对着第 3 章的「不变量」那 10 行再默一次。</li>
+        <li>给 <code>Workspace</code> 或工具分发加一项：拒绝 <code>write</code> / <code>edit</code> 测试文件（文件名匹配 <code>test_*.py</code>）。再跑 demo，确认还能 PASS——因为标准剧本并不改测试。</li>
+        <li>用 <code>PtcToolbelt</code> 包一层，把修 add 的剧本改写成一次 <code>run_code</code> 完成读+改。看评测是否仍过。</li>
+        <li>从六个仓库里挑一个缺口，只补那一个：例如读 <code>AGENTS.md</code> 放进 system，或给 bash 加超时提示，或把每次 <code>tool_start</code> 追加写进 JSONL。</li>
+      </ol>
+      <p>第 4 步只补一个缺口。补完写三句话：问题是什么、哪个仓库怎么选、你怎么用十行代码模仿。写不出三句话，说明你在抄功能，不是在学取舍。</p>
+
+      <h2>不要补的东西</h2>
+      <ul>
+        <li>不要接入任意「Agent 框架」只为了在简历上出现类名。</li>
+        <li>不要把某个 2026 年 9 月的 PTC 包名写进你的公共 API。</li>
+        <li>不要在没有 OS 沙箱时，把完全放开的 bash 暴露给不可信输入。</li>
+        <li>不要把压缩做成「再调一次模型做摘要」却没有测试。教学截断已经够证明你懂二次方费用。</li>
+      </ul>
+
+      <div class="callout analogy">
+        <p class="label">如果只记一个比喻</p>
+        <p>nanocode 是自行车。mini-swe 是测功率的固定滚筒。pi 是改装空间很大的车架。opencode 是正在换引擎的列车。codex 是带气囊和安全带的量产车。dsh 是把螺丝全部改成可热插拔的实验室底盘。你要出厂的是自行车，并且知道自己什么时候该去看列车的维修日志。</p>
+      </div>
+
+      <h2>自测</h2>
+      <ul>
+        <li>有人请你「用某家编排库重写这一包，这样才像生产」。你怎么回答？</li>
+        <li>你准备加「子 agent」。先问自己哪三个问题？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案</summary>
+        <ol>
+          <li>先问生产缺的是哪一块：沙箱、持久会话、多供应商、界面、插件热更新？缺哪块就去对口仓库抄取舍，而不是先换一张编排图。循环已经有了。</li>
+          <li>它进默认上下文吗？失败如何写回父循环？步数预算是共享还是分开？答不出就先不要加。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+[
+  {
+    "content": "I'll read the issue and the implementation.",
+    "tool_calls": [
+      {"name": "read", "args": {"path": "ISSUE.md"}},
+      {"name": "read", "args": {"path": "calc.py"}}
+    ]
+  },
+  {
+    "content": "add() subtracts. Replacing with addition.",
+    "tool_calls": [
+      {
+        "name": "edit",
+        "args": {
+          "path": "calc.py",
+          "old": "return a - b  # BUG: should add",
+          "new": "return a + b"
+        }
+      }
+    ]
+  },
+  {
+    "content": "Running tests.",
+    "tool_calls": [
+      {"name": "bash", "args": {"cmd": "python3 -m unittest test_calc.py -v"}}]
+    ]
+  },
+  {"content": "Tests passed. Done."}
+]

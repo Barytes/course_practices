@@ -88,7 +88,7 @@ if self.config.tie_word_embeddings:
         <table class="plain">
           <tbody>
             <tr><th>文件</th><td><code>exp-2-2/minimind3/model.py</code>（文件顶部已有占位注释）</td></tr>
-            <tr><th>符号</th><td>类 <code>EmbedAndHead</code>；方法 <code>__init__</code>、<code>forward</code></td></tr>
+            <tr><th>符号</th><td>先理解 <code>embed_tokens</code> + <code>lm_head</code> 权重共享。作业里不要新建 <code>EmbedAndHead</code>，第 12 章写进 <code>MiniMindModel</code> / <code>MiniMindForCausalLM</code></td></tr>
             <tr><th>依赖</th><td><code>from minimind3.config import MiniMindConfig</code>（若在包内写相对导入 <code>from .config import MiniMindConfig</code>）</td></tr>
             <tr><th>怎么跑</th><td><code>python -m minimind3.model</code>，断言 logits 形状是 <code>(2, 5, 6400)</code>，参数量等于 6400×768</td></tr>
             <tr><th>对应原理</th><td>上文「查表」+「输出层打分」+「两张表共用内存」。第 12 章会用真正的 8 层网络替换这个玩具类。</td></tr>
