@@ -553,15 +553,17 @@ details.answer li { margin: 0.35rem 0; }
 .cell.off { background: #d7cbb6; color: #8a7f70; }
 
 @media (max-width: 980px) {
-  body { font-size: 17.5px; }
-  .shell { grid-template-columns: 1fr; }
+  body { font-size: 17.5px; overflow-x: hidden; }
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .paper { min-width: 0; max-width: 100%; }
+  .prose, .where, .cover, .toc-grid, figure.code, .diagram { min-width: 0; }
   .rail {
     position: fixed;
     z-index: 30;
     transform: translateX(-105%);
     transition: transform 0.2s ease;
     width: min(86vw, 20rem);
-    padding-top: max(1.4rem, env(safe-area-inset-top));
+    padding-top: calc(3.8rem + env(safe-area-inset-top));
     padding-bottom: max(2.4rem, env(safe-area-inset-bottom));
     box-shadow: 8px 0 30px rgba(0,0,0,0.12);
   }
@@ -594,10 +596,12 @@ details.answer li { margin: 0.35rem 0; }
     -webkit-overflow-scrolling: touch;
   }
   .heat .row { min-width: 16rem; }
-  .diagram svg { min-width: 22rem; }
   .cover h1 { font-size: clamp(1.85rem, 9vw, 3.4rem); }
   .chap-head h1 { font-size: clamp(1.55rem, 7vw, 2.55rem); }
   .prose pre code { font-size: 0.72rem; }
+  .prose p code, .callout code, .plain-box code, .where code {
+    overflow-wrap: anywhere;
+  }
 }
 
 @media (max-width: 640px) {
