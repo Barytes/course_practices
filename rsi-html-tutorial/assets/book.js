@@ -51,6 +51,8 @@ function renderRail() {
     html += `<a class="${cls}" href="${ch.file}">${ch.short}</a>`;
   }
   rail.innerHTML = html;
+  const cur = rail.querySelector("a.current");
+  if (cur) cur.scrollIntoView({ block: "center", inline: "nearest" });
 }
 
 function renderPager() {
@@ -106,13 +108,19 @@ function filterWorks() {
   const input = document.querySelector("[data-filter]");
   if (!input) return;
   const works = [...document.querySelectorAll(".work")];
-  input.addEventListener("input", () => {
+  const apply = () => {
     const q = input.value.trim().toLowerCase();
     works.forEach((w) => {
       const hit = !q || w.innerText.toLowerCase().includes(q);
       w.style.display = hit ? "" : "none";
     });
-  });
+  };
+  input.addEventListener("input", apply);
+  const q0 = new URLSearchParams(location.search).get("q");
+  if (q0) {
+    input.value = q0;
+    apply();
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {

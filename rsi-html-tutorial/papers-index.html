@@ -248,12 +248,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const input = document.querySelector("[data-filter-table]");
   if (!input) return;
   const trs = [...document.querySelectorAll("[data-row]")];
-  input.addEventListener("input", () => {
+  const apply = () => {
     const q = input.value.trim().toLowerCase();
     trs.forEach((tr) => {
       tr.style.display = !q || tr.innerText.toLowerCase().includes(q) ? "" : "none";
     });
-  });
+  };
+  input.addEventListener("input", apply);
+  const q0 = new URLSearchParams(location.search).get("q");
+  if (q0) {
+    input.value = q0;
+    apply();
+  }
 });
 </script>
 
