@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>页不存在 — 课程练习</title>
+<style>
+  body {
+    margin: 0;
+    background: #efe6d4;
+    color: #1b1610;
+    font-family: "Songti SC", "STSong", "Noto Serif SC", Georgia, serif;
+    padding: 2.4rem 1.3rem 4rem;
+    max-width: 36rem;
+  }
+  a { color: #1f4a45; }
+  .muted { color: #5c5348; }
+</style>
+</head>
+<body>
+<h1>这一页不存在</h1>
+<p class="muted">可能是旧版 MiniMind 教材的地址。正在尝试跳转；也可以从下面进总目录。</p>
+<p><a href="./">返回全部教材</a></p>
+<ul>
+  <li><a href="minimind/">从零实现 MiniMind-3</a></li>
+  <li><a href="harness/">写自己的 Harness</a></li>
+  <li><a href="rsi/">人类造的最后一代 AI</a></li>
+</ul>
+<script>
+(function () {
+  var files = {
+    "ch00-how-to-read.html": 1,
+    "ch01-what-we-build.html": 1,
+    "ch02-tokens.html": 1,
+    "ch02b-minbpe.html": 1,
+    "ch03-embeddings.html": 1,
+    "ch04-rms-norm.html": 1,
+    "ch05-attention.html": 1,
+    "ch06-kv-cache.html": 1,
+    "ch07-gqa.html": 1,
+    "ch08-rope.html": 1,
+    "ch09-qk-norm.html": 1,
+    "ch10-swiglu.html": 1,
+    "ch11-block.html": 1,
+    "ch12-minimind3.html": 1,
+    "ch13-moe.html": 1,
+    "ch14-pretrain.html": 1,
+    "ch15-sft.html": 1,
+    "ch16-generate.html": 1,
+    "ch17-beyond.html": 1,
+    "glossary.html": 1,
+    "files.html": 1,
+    "manifest.json": 1,
+    "minimind-3.epub": 1
+  };
+  var path = decodeURIComponent(location.pathname || "");
+  var needle = "/course_practices";
+  var i = path.indexOf(needle);
+  var root = i >= 0 ? path.slice(0, i + needle.length) : "";
+  var rest = (i >= 0 ? path.slice(i + needle.length) : path).replace(/^\//, "");
+  var segs = rest.split("/").filter(Boolean);
+  if (segs.length === 1 && files[segs[0]]) {
+    location.replace(root + "/minimind/" + segs[0] + location.search + location.hash);
+    return;
+  }
+  if (segs.length === 2 && segs[0] === "assets") {
+    location.replace(root + "/minimind/" + segs[0] + "/" + segs[1] + location.search + location.hash);
+  }
+})();
+</script>
+</body>
+</html>

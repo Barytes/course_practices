@@ -1,0 +1,51 @@
+name: Deploy textbooks to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "pages/**"
+      - "ai-agent-book/chap-2/exp-2-2/minimind-textbook/**"
+      - "write-your-harness/textbook/**"
+      - "rsi-html-tutorial/**"
+      - ".github/workflows/deploy-pages.yml"
+  workflow_dispatch:
+
+# This repo's Pages site is GitHub Actions (build_type=workflow),
+# which Jekyll-builds main and shows README unless a workflow
+# uploads an artifact with actions/deploy-pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare site
+        run: |
+          mkdir -p _site/minimind _site/harness _site/rsi
+          cp pages/index.html pages/404.html _site/
+          touch _site/.nojekyll
+          cp -a ai-agent-book/chap-2/exp-2-2/minimind-textbook/. _site/minimind/
+          cp -a write-your-harness/textbook/. _site/harness/
+          rsync -a --exclude='*.py' --exclude='*.md' --exclude='__pycache__' rsi-html-tutorial/ _site/rsi/
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

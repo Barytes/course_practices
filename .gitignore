@@ -1,4 +1,5 @@
 agent_harness/
+_site/
 .DS_Store
 .env
 .venv/

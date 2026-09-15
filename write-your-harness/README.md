@@ -13,7 +13,7 @@
 
 ## 怎么读
 
-用浏览器打开 [`textbook/index.html`](textbook/index.html)。请先读第 0 章、术语表和动手地图。第一遍跳过「先别管」；第二遍再读对照仓库的问题清单。
+用浏览器打开 [`textbook/index.html`](textbook/index.html)，或看网页版 [barytes.github.io/course_practices/harness](https://barytes.github.io/course_practices/harness/)。请先读第 0 章、术语表和动手地图。第一遍跳过「先别管」；第二遍再读对照仓库的问题清单。
 
 ## 怎么跑
 

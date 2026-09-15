@@ -559,6 +559,8 @@ details.answer li { margin: 0.35rem 0; }
   .prose, .where, .cover, .toc-grid, figure.code, .diagram { min-width: 0; }
   .rail {
     position: fixed;
+    top: 0;
+    left: 0;
     z-index: 30;
     transform: translateX(-105%);
     transition: transform 0.2s ease;

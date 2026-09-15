@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe6d4">
+<title>课程练习 · 在线教材</title>
+<style>
+  :root {
+    --paper: #f6f0e4;
+    --paper-deep: #efe6d4;
+    --ink: #1b1610;
+    --muted: #5c5348;
+    --faint: #8a7f70;
+    --rule: #d7cbb6;
+    --accent: #8b3114;
+    --teal: #1f4a45;
+    --serif: "Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  body {
+    margin: 0;
+    background: var(--paper-deep);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 18.5px;
+    line-height: 1.7;
+  }
+  main {
+    max-width: 42rem;
+    margin: 0 auto;
+    padding: calc(2.4rem + env(safe-area-inset-top)) max(1.3rem, env(safe-area-inset-right)) calc(4rem + env(safe-area-inset-bottom)) max(1.3rem, env(safe-area-inset-left));
+  }
+  .meta {
+    font-family: var(--sans);
+    font-size: 0.82rem;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    margin: 0 0 0.7rem;
+  }
+  h1 {
+    font-size: clamp(2.1rem, 8vw, 3.1rem);
+    line-height: 1.1;
+    margin: 0 0 0.75rem;
+    letter-spacing: -0.02em;
+  }
+  .deck {
+    font-size: 1.12rem;
+    color: var(--muted);
+    margin: 0 0 2.2rem;
+    max-width: 34rem;
+  }
+  .books { display: grid; gap: 0.9rem; }
+  a.book {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 1.15rem 1.2rem 1.2rem;
+  }
+  a.book:hover { border-color: var(--accent); }
+  a.book .kicker {
+    font-family: var(--sans);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 0.4rem;
+  }
+  a.book h2 {
+    font-size: 1.35rem;
+    margin: 0 0 0.4rem;
+    line-height: 1.25;
+  }
+  a.book p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.98rem;
+  }
+  a.book .go {
+    display: inline-block;
+    margin-top: 0.7rem;
+    font-family: var(--sans);
+    font-size: 0.82rem;
+    color: var(--teal);
+  }
+  footer {
+    margin-top: 2.4rem;
+    font-family: var(--sans);
+    font-size: 0.82rem;
+    color: var(--faint);
+  }
+  footer a { color: var(--teal); }
+</style>
+</head>
+<body>
+<main>
+  <p class="meta">Barytes / course_practices</p>
+  <h1>三本可以<br>直接读的教材</h1>
+  <p class="deck">浏览器打开即可。代码和练习仍在 GitHub 仓库里，网页只负责把章节摊开。</p>
+  <div class="books">
+    <a class="book" href="minimind/">
+      <p class="kicker">实验 2-2</p>
+      <h2>从零实现 MiniMind-3</h2>
+      <p>按章节写出一个会猜下一个词的小语言模型。先人话，再手算，最后写代码。</p>
+      <span class="go">打开教材 →</span>
+    </a>
+    <a class="book" href="harness/">
+      <p class="kicker">Agent 工程</p>
+      <h2>写自己的 Harness</h2>
+      <p>对照六个开源仓库，把 coding agent 的循环、工具、护栏和评测写进手指。</p>
+      <span class="go">打开教材 →</span>
+    </a>
+    <a class="book" href="rsi/">
+      <p class="kicker">综述导读</p>
+      <h2>人类造的最后一代 AI</h2>
+      <p>把递归自我改进综述拆成白话课：B0 到 L5，再把手伸进被引用工作的实现。</p>
+      <span class="go">打开教材 →</span>
+    </a>
+  </div>
+  <footer>
+    源码在 <a href="https://github.com/Barytes/course_practices">github.com/Barytes/course_practices</a>。
+    若本页 404，到仓库 <a href="https://github.com/Barytes/course_practices/settings/pages">Settings → Pages</a> 把 Source 设成 <code>gh-pages</code>。
+  </footer>
+</main>
+</body>
+</html>

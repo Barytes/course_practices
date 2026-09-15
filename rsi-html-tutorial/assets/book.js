@@ -93,15 +93,48 @@ function enhanceCode() {
   });
 }
 
+function installHead() {
+  const viewport = document.querySelector('meta[name="viewport"]');
+  if (viewport) {
+    viewport.setAttribute("content", "width=device-width, initial-scale=1, viewport-fit=cover");
+  }
+}
+
 function menu() {
   const btn = document.querySelector(".menu-btn");
+  const rail = document.querySelector(".rail");
   if (!btn) return;
+  btn.setAttribute("aria-expanded", "false");
+  btn.setAttribute("aria-controls", "book-rail");
+  if (rail && !rail.id) rail.id = "book-rail";
+
+  let backdrop = document.querySelector(".nav-backdrop");
+  if (!backdrop) {
+    backdrop = document.createElement("button");
+    backdrop.className = "nav-backdrop";
+    backdrop.type = "button";
+    backdrop.setAttribute("aria-label", "关闭目录");
+    document.body.appendChild(backdrop);
+  }
+
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    btn.textContent = open ? "关闭" : "目录";
+  };
+
   btn.addEventListener("click", () => {
-    document.body.classList.toggle("nav-open");
+    setOpen(!document.body.classList.contains("nav-open"));
   });
-  document.querySelectorAll(".rail a").forEach((a) => {
-    a.addEventListener("click", () => document.body.classList.remove("nav-open"));
+  backdrop.addEventListener("click", () => setOpen(false));
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") setOpen(false);
   });
+  if (rail) {
+    rail.addEventListener("click", (event) => {
+      if (event.target.closest("a")) setOpen(false);
+    });
+  }
 }
 
 function filterWorks() {
@@ -124,6 +157,7 @@ function filterWorks() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  installHead();
   renderRail();
   renderPager();
   enhanceCode();
