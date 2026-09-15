@@ -2,7 +2,13 @@
 <html lang="zh-Hans">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe6d4">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MiniMind教材">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <title>第 6 章 · 因果掩码与键值缓存 — MiniMind 手把手</title>
 <link rel="stylesheet" href="assets/book.css">
 </head>
@@ -51,7 +57,7 @@
         <table class="plain">
           <tbody>
             <tr><th>文件</th><td>只改 <code>exp-2-2/minimind3/attention.py</code>。不要新建 <code>attention_v2.py</code>。</td></tr>
-            <tr><th>符号</th><td>把第 5 章的 <code>TinyAttention</code> 升级为 <code>CausalAttention</code>（或继续叫 Attention，但 <code>forward</code> 签名要能接收缓存）。新增参数 <code>past_key_value</code>、<code>use_cache</code>。</td></tr>
+            <tr><th>符号</th><td>继续填同一个 <code>Attention.forward</code>。新增参数 <code>past_key_value</code>、<code>use_cache</code>。</td></tr>
             <tr><th>先写哪一段</th><td>可先单独写函数 <code>apply_causal_mask</code> 看懂右下角加法，再把它内联进 <code>forward</code>。</td></tr>
             <tr><th>怎么跑</th><td>文件底部的 <code>__main__</code>：先送 4 个词拿到缓存，再送 1 个新词。缓存序列维应变成 5。</td></tr>
             <tr><th>对应原理</th><td>「右上角涂负无穷」+「旧书脊不用重算，接到后面即可」。</td></tr>
@@ -197,7 +203,7 @@ outputs = self.forward(input_ids[:, past_len:], attention_mask,
 </code></pre>
       </figure>
       <p>第一次：<code>past_len=0</code>，整段提示词都进去，算出完整缓存。之后 <code>input_ids</code> 会把新采样的词拼在右边，但送进模型的只是 <code>input_ids[:, past_len:]</code>，也就是那一个新词。注意力内部再把新 K、V 接到缓存上。</p>
-      <p>这一行现在先读懂；真正写进 <code>minimind3/generate.py</code> 是第 16 章的事。</p>
+      <p>这一行现在先读懂；真正写进 <code>MiniMindForCausalLM.generate</code> 是第 16 章的事。</p>
 
       <h2>填充掩码是另一回事</h2>
       <p>一个批次里句子长短不同，短句右边会填 pad。这些位置不该被检索。官方把注意力掩码里 0 的位置加很大的负数。因果掩码管「未来」；padding 掩码管「空洞」。教学时先把因果和缓存做对，padding 在接 DataLoader 时再加。</p>

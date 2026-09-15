@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 13 章 · deepseek-harness — 写自己的 Harness</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第四部 · 取舍</p>
+      <h1>第 13 章 · deepseek-harness：万物皆插件</h1>
+      <p class="lead">如果 pi 是「核心很小、扩展挂旁边」，dsh 把这句话做到尽头：循环自己也是插件。热插拔、PTC、网页界面都长在这套插件树上。它还处于开发者预览，破坏性变更是特性，不是丑闻。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>仓库 <a href="https://github.com/deepseek-ai/deepseek-harness">deepseek-ai/deepseek-harness</a>（快照 dsh-v0.1.6-alpha.1，2026-09-15；仓库 2026-08-13 才创建）。先读架构文档。不要背包名——当天的 release 就会改名。带走两件事：会话日志是唯一真相；模型可以一次写一段程序来组合工具。</p>
+      </div>
+
+      <h2>没有特权核心</h2>
+      <p>pi 还保留一块「这就是循环」的核心。dsh 更绝：模型适配器、工具表、会话日志、agent 循环、界面，全是插件。你扩展产品的方式是<strong>在旁边再挂一个插件</strong>，而不是给「核心」打补丁。卸载时，它注册过的效果要能撤掉。</p>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>pi 是改装空间很大的车架，螺丝孔是厂家打好的。dsh 是实验室底盘：连车架本身也是用快拆螺丝拼起来的。换悬挂很爽；说明书上的螺丝编号每周都会改一版。</p>
+      </div>
+      <p>启动是一棵树：先叠一组官方组合，再叠用户的补丁文件。同一套代码可以长出网页、无头、SDK。这解释了为什么界面和研究用的最小模式能共享循环——换的是叠了哪些插件。</p>
+      <p>他们把这套插件系统叫做 Cordis。名字会过时，结构不会：共享上下文、类型化事件、可逆效果。</p>
+
+      <h2>模型看见的东西必须能重建</h2>
+      <p>会话日志是上下文的源。凡是进模型请求的东西，必须能从日志投影出来。界面上一个字一个字往外蹦的增量走另一条「活事件」；落盘的是结算后的完整消息。</p>
+      <p>进程在结算前死掉，就不该假装有过那次成功回复。对比 miniharness：我们的 messages 数组既是真相也是请求。教学够用；一要崩溃恢复、分叉会话、多端同步，你就需要「事件在前、投影在后」。</p>
+      <p>这和第 11 章「先记账再执行」是亲戚。opencode 从产品稳定性走进来；dsh 从「模型可见必须可重建」走进来。两条路碰到同一块石头。</p>
+
+      <h2>PTC：一个工具，一段程序</h2>
+      <p>到目前为止，模型每一轮点名几次工具，harness 就跑几次，再问下一轮。想读两个文件，通常是：</p>
+      <figure class="code">
+        <figcaption>原生工具调用 · 两轮</figcaption>
+        <pre><code>complete → read a.txt → complete → read b.txt → complete → 人话
+</code></pre>
+      </figure>
+      <p>PTC（Programmatic Tool Calls，早期也叫 Code Mode）把模型看得见的表面收成一个 <code>run_code</code>，再把一份 SDK 说明书塞进系统提示。模型写一段小程序，在一次运行里组合多次宿主调用：</p>
+      <figure class="code">
+        <figcaption>一次程序里读两个文件</figcaption>
+        <pre><code>print(tools.read(path='a.txt'))
+print(tools.read(path='b.txt'))
+# 模型只调用了一次 run_code；每一次 tools.read 仍走原来的路径检查
+</code></pre>
+      </figure>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>原生调用像对店员喊五次「再拿一瓶」。PTC 像一次写好购物清单，店员按清单拿。清单里可以有「如果没有可乐就拿汽水」这种分支——这是编程语言自带的，不必再问模型一轮。</p>
+      </div>
+      <p>换来的是：少轮次（省钱、省延迟）、能用语言自带的循环和分支。代价是：要有代码运行时；权限仍须套在每一次底层工具上，不能因为「这是一段程序」就放行；提示词里的 SDK 必须和真正注册的工具一致。</p>
+
+      <div class="where">
+        <p class="label">写到哪里（教学版 PTC）</p>
+        <table class="plain">
+          <tr><th>文件</th><td><code>miniharness/ptc.py</code></td></tr>
+          <tr><th>符号</th><td><code>PtcToolbelt</code>、<code>run_code</code>、<code>sdk_stub</code></td></tr>
+          <tr><th>怎么跑</th><td><code>python tests/test_miniharness.py PtcTests</code></td></tr>
+        </table>
+      </div>
+      <div class="bridge">
+        <p class="label">代码怎么对上原理</p>
+        <ul>
+          <li><code>PtcToolbelt.schemas()</code> 只暴露 <code>run_code</code>。循环以为世界上只有这一个工具。</li>
+          <li><code>run_code</code> 用 Python 的 <code>exec</code> 跑模型写的脚本，并把 <code>tools.read</code> 等函数指回原来的 <code>Toolbelt</code>。路径笼子仍然有效。</li>
+          <li><code>sdk_stub()</code> 生成那份「你能调用哪些函数」的说明书。真系统会把它放进 system 提示。</li>
+          <li><code>exec</code> 不是沙箱。教学版只为了让你摸到「表面是一个工具」。真隔离看 dsh 的代码运行时和 Codex 的 OS 沙箱。</li>
+        </ul>
+      </div>
+
+      <div class="callout">
+        <p class="label">先别管</p>
+        <p>2026-09-15 的 release 还在改 PTC：包名、是否独立进程、环境变量清不清理、内存上限。预览期的日常就是这样。你若把上周的配置抄进书当标准，书已经在撒谎。盯「独立进程 + 权限仍走底层工具」这个方向即可。</p>
+      </div>
+
+      <h2>热插拔的诚实代价</h2>
+      <p>同一份 0.1.6-alpha.1 说明：配置热更新不再做事务回滚；解析失败保留旧配置，插件激活失败可能部分生效。这比假装「永远原子」诚实。网页侧则在同一次发版里加终端多标签、归档会话、PTC 轨迹查看——界面和研究架构被放在同一个发布火车上，因为它们本来就是同一棵插件树的不同层。</p>
+
+      <h2>读这个仓库时问什么</h2>
+      <ul>
+        <li>我想加的能力，应该挂在哪条缝上（工具、模型、文件系统、界面）？</li>
+        <li>预设是原生工具、PTC，还是两者都给？两者都给会不会把模型搞糊涂？</li>
+        <li>最近一次破坏性变更改了哪条事件名？</li>
+      </ul>
+
+      <h2>自测</h2>
+      <ul>
+        <li>PTC 少了哪些轮次？没少什么约束？</li>
+        <li>为什么 SDK 说明书必须和真正注册的工具一致？</li>
+        <li>miniharness 的 <code>exec</code> 能代替 Codex 沙箱吗？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案</summary>
+        <ol>
+          <li>少的是「每调一次宿主工具就问一轮模型」。不少的是每一次底层 read/edit/bash 仍要过路径和护栏。</li>
+          <li>模型按说明书调用不存在的函数，程序会报错；说明书少写了已有工具，模型会绕远路或放弃。两边必须是同一张表生成出来的。</li>
+          <li>不能。<code>exec</code> 跑在同一进程、同一用户权限里。它只是教学用的组合器。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

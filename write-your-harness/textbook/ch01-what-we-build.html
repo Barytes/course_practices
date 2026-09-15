@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 1 章 · 我们要造什么 — 写自己的 Harness</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第一部 · 骨架</p>
+      <h1>第 1 章 · 我们要造什么</h1>
+      <p class="lead">先把整张图摊开。后面每一章只负责图上的一个方框。读完你应当能指着图说：模型从哪进、工具从哪出、上下文在哪变长。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>Agent = 模型 + 上下文 + 工具 + 循环。少任何一块都不是我们要造的东西：没有工具只是聊天；没有循环只是一次函数调用；没有上下文，模型会失忆；没有模型，你只是在写普通脚本。</p>
+      </div>
+
+      <h2>先看一次完整的「修 bug」</h2>
+      <p>用户说：「<code>add(2, 3)</code> 应该等于 5。」工作区里有一个文件 <code>calc.py</code>，现在写的是 <code>return a - b</code>。一次成功的 agent 跑起来，消息列表会这样长：</p>
+      <figure class="code">
+        <figcaption>请大声念出来</figcaption>
+        <pre><code>1. system     你是编码助手。工作区是 /tmp/repo
+2. user       add(2,3) 应该等于 5，请只改 calc.py
+3. assistant  我先读文件          + 工具：read(path=calc.py)
+4. tool       1| def add(a, b):
+              2|     return a - b
+5. assistant  减法写成了加法      + 工具：edit(old="return a - b", new="return a + b")
+6. tool       ok
+7. assistant  改完了。            （没有工具 → 循环停）
+</code></pre>
+      </figure>
+      <p>第 3、5 行是模型在<b>点名</b>；第 4、6 行是 harness 在<b>干活并汇报</b>。磁盘上的 <code>calc.py</code> 变了，是因为第 5 行的工具真的执行了，不是因为模型「心里想改」。</p>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>还是修自行车。第 3 行是「把车翻过来我看看」；第 4 行是你把看到的告诉他；第 5 行是「把这颗螺丝换成那颗」；第 6 行是「换好了」；第 7 行是「可以骑了」。如果你换好了螺丝却不说话，他下一秒还会再要同一颗螺丝。</p>
+      </div>
+
+      <h2>四块零件，少一块会怎样</h2>
+      <table class="plain">
+        <thead><tr><th>零件</th><th>它负责</th><th>拿掉之后</th></tr></thead>
+        <tbody>
+          <tr><td>模型</td><td>看上下文，决定下一句人话或下一个工具</td><td>你只能手写 if/else，那是普通程序</td></tr>
+          <tr><td>上下文</td><td>把已经发生的事摆在模型眼前</td><td>它每次都像第一次见面，会重复劳动或乱改</td></tr>
+          <tr><td>工具</td><td>真的读、写、跑命令</td><td>它只能空谈「应该改哪一行」</td></tr>
+          <tr><td>循环</td><td>反复「问 → 做 → 记」直到停止</td><td>它只能动一次手，修不完多步骤的 bug</td></tr>
+        </tbody>
+      </table>
+
+      <h2>一张流水线</h2>
+      <div class="diagram">
+        <svg viewBox="0 0 720 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="harness 循环">
+          <rect x="16" y="70" width="110" height="70" fill="#fbf6ea" stroke="#1b1610"/>
+          <text x="71" y="100" text-anchor="middle" font-size="13" font-family="IBM Plex Sans, sans-serif">上下文</text>
+          <text x="71" y="118" text-anchor="middle" font-size="11" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">messages[]</text>
+          <rect x="160" y="70" width="110" height="70" fill="#efe4c8" stroke="#8b3114"/>
+          <text x="215" y="100" text-anchor="middle" font-size="13" font-family="IBM Plex Sans, sans-serif" fill="#8b3114">模型</text>
+          <text x="215" y="118" text-anchor="middle" font-size="11" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">complete()</text>
+          <rect x="310" y="20" width="130" height="70" fill="#fbf6ea" stroke="#1b1610"/>
+          <text x="375" y="50" text-anchor="middle" font-size="13" font-family="IBM Plex Sans, sans-serif">人话</text>
+          <text x="375" y="68" text-anchor="middle" font-size="11" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">结束本轮</text>
+          <rect x="310" y="120" width="130" height="70" fill="#1b1610"/>
+          <text x="375" y="150" text-anchor="middle" font-size="13" fill="#f6f0e4" font-family="IBM Plex Sans, sans-serif">工具调用</text>
+          <text x="375" y="168" text-anchor="middle" font-size="11" fill="#f0d3b8" font-family="IBM Plex Sans, sans-serif">name + args</text>
+          <rect x="480" y="120" width="110" height="70" fill="#fbf6ea" stroke="#1b1610"/>
+          <text x="535" y="150" text-anchor="middle" font-size="13" font-family="IBM Plex Sans, sans-serif">执行器</text>
+          <text x="535" y="168" text-anchor="middle" font-size="11" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">read/edit/bash</text>
+          <rect x="620" y="120" width="84" height="70" fill="#efe4c8" stroke="#8b3114"/>
+          <text x="662" y="150" text-anchor="middle" font-size="12" font-family="IBM Plex Sans, sans-serif" fill="#8b3114">观察</text>
+          <text x="662" y="168" text-anchor="middle" font-size="11" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">写回</text>
+          <path d="M126 105 H160 M270 105 H310 M375 90 V120" stroke="#1b1610" fill="none"/>
+          <path d="M440 155 H480 M590 155 H620" stroke="#1b1610" fill="none"/>
+          <path d="M662 120 V24 H71 V70" stroke="#8b3114" fill="none" stroke-dasharray="4 3"/>
+        </svg>
+        <p class="cap">虚线是闭环：工具结果必须写回 messages，模型下一轮才能看见。没写回去，等于没发生。</p>
+      </div>
+      <p>图上的 <code>complete()</code> 就是「把当前整份上下文交给模型，拿回一条助手消息」。教学里我们用假模型（预先写好它会说什么）；接上真 API 时，这个函数变成一次网络请求。循环的形状不变。</p>
+
+      <h2>一条消息里有哪些格子</h2>
+      <p>整台机器的状态就是一个 Python 列表。每一项是一个 <code>Message</code> 盒子。打开 <code>miniharness/types.py</code>，字段只有这些：</p>
+      <table class="plain">
+        <thead><tr><th>字段</th><th>人话</th><th>例子</th></tr></thead>
+        <tbody>
+          <tr><td><code>role</code></td><td>这句是谁说的</td><td><code>system</code> / <code>user</code> / <code>assistant</code> / <code>tool</code></td></tr>
+          <tr><td><code>content</code></td><td>这句话的正文</td><td><code>"改完了。"</code> 或工具输出的文本</td></tr>
+          <tr><td><code>tool_calls</code></td><td>助手还想让你干什么（可空）</td><td><code>[read calc.py]</code></td></tr>
+          <tr><td><code>tool_call_id</code></td><td>这条观察对应哪一次点名</td><td><code>call_1</code>。只有 <code>role=tool</code> 才用</td></tr>
+          <tr><td><code>name</code></td><td>观察来自哪个工具</td><td><code>read</code></td></tr>
+        </tbody>
+      </table>
+      <p><code>ToolCall</code> 更小，只有三格：<code>id</code>（这次点名的编号）、<code>name</code>（工具名）、<code>args</code>（参数字典）。</p>
+      <p class="say">所以 <code>Message.role</code> 只有四种你需要关心的。上游仓库可能再拆出通知、失败尝试、会话事件。那是它们的扩展，不是循环的必要条件。</p>
+
+      <h2>不变的，和会过时的</h2>
+      <table class="plain">
+        <thead><tr><th>印在书里还算负责</th><th>印在书里就是在骗你</th></tr></thead>
+        <tbody>
+          <tr><td>循环的形状</td><td>某框架今天的类名</td></tr>
+          <tr><td>工具结果必须回传</td><td>「必须用某某编排库」</td></tr>
+          <tr><td>评测要用瘦架子</td><td>某年某榜第一名的提示词</td></tr>
+          <tr><td>高风险动作需要硬约束</td><td>某家沙箱的具体系统调用表</td></tr>
+          <tr><td>上下文会按轮数变贵</td><td>某模型「刚好 200K 就够」</td></tr>
+          <tr><td>扩展点应该挂在循环旁边</td><td>某插件 API 今天的字段名</td></tr>
+        </tbody>
+      </table>
+
+      <div class="where">
+        <p class="label">写到哪里</p>
+        <table class="plain">
+          <tr><th>文件</th><td><code>miniharness/types.py</code></td></tr>
+          <tr><th>符号</th><td><code>Message</code>、<code>ToolCall</code>、<code>user()</code>、<code>system()</code>、<code>tool_result()</code></td></tr>
+          <tr><th>怎么跑</th><td>打开文件，把四个 <code>role</code> 和上面那张表对一遍。本章没有新测试。</td></tr>
+        </table>
+      </div>
+      <div class="bridge">
+        <p class="label">代码怎么对上原理</p>
+        <ul>
+          <li><code>user("hello")</code> 就是造一条 <code>role=user</code> 的盒子，省得每次手写字段。</li>
+          <li><code>tool_result(call, "ok")</code> 会自动带上 <code>tool_call_id</code>，这样模型知道「ok」是对哪一次 edit 的回复。</li>
+          <li><code>to_dict()</code> 把盒子变成普通字典，方便存 JSON。第 7 章存轨迹会用到。</li>
+        </ul>
+      </div>
+
+      <div class="callout">
+        <p class="label">先别管</p>
+        <p>「模型即 Agent」这种口号的意思是：模型越来越会自己决定调什么工具，编排层显得没那么重要。它和「Harness 更重要」并不打架——模型越自主，出错的影响面越大，越需要约束、记录、压缩、权限。保障层的价值在涨，类名编排的价值在跌。第 6、12 章会回到这里。</p>
+      </div>
+
+      <h2>自测</h2>
+      <ul>
+        <li>如果工具成功改了文件，但忘了把 <code>ok</code> 写进 messages，下一轮模型会怎样？</li>
+        <li>上面那份 7 行轨迹里，循环一共问了模型几次？</li>
+        <li>为什么 <code>tool</code> 消息需要 <code>tool_call_id</code>，而 <code>user</code> 消息通常不需要？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案</summary>
+        <ol>
+          <li>模型看不见改动，可能再改一次，或认为失败。磁盘状态 ≠ 模型状态。</li>
+          <li>三次：第 3、5、7 行都是 assistant，各来自一次 <code>complete()</code>。第 4、6 行是工具，不问模型。</li>
+          <li>一轮里可能同时点名好几个工具，回来的观察必须对得上是哪一次。用户说话没有「对应哪次点名」这个问题。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

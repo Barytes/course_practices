@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 7 章 · 接上 CLI 与轨迹 — 写自己的 Harness</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第二部 · 零件</p>
+      <h1>第 7 章 · 接上 CLI 与轨迹</h1>
+      <p class="lead">循环若不能从终端喊出来，它就还是库。轨迹若不能存成 JSON，评测和复盘都无从谈起。这一章把「能跑」和「能回放」补上。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>CLI 只做三件事：选工作区、选模型（脚本或在线）、把 messages / events 打出来或存下来。漂亮的终端界面是皮肤，不是循环的入场券。</p>
+      </div>
+
+      <h2>先跑一次，看见整台机器</h2>
+      <figure class="code">
+        <figcaption>不需要 API key</figcaption>
+        <pre><code>cd write-your-harness
+python -m miniharness demo
+</code></pre>
+      </figure>
+      <p><code>demo</code> 做的事情可以念出来：</p>
+      <ol class="steps">
+        <li>把 <code>labs/broken_calc</code> 整棵复制到临时目录（源树里的 bug 原封不动）。</li>
+        <li>用剧本模型按「读 issue → 读源码 → 改那一行 → 跑测试 → 停」走完循环。</li>
+        <li>循环外面再跑一遍单元测试当裁判。</li>
+        <li>在终端打印对话摘要，最后一行是 <code>PASS</code> 或 <code>FAIL</code>。</li>
+      </ol>
+      <p>你应该看到 <code>PASS</code>。这就是最小的「能跑的 agent 产品」：输入任务，输出轨迹和是否做完。</p>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>前六章是发动机和刹车。本章是钥匙和行车记录仪。没有钥匙，发动机只能在实验室转；没有记录仪，出了事故说不清刚才发生了什么。</p>
+      </div>
+
+      <div class="where">
+        <p class="label">写到哪里</p>
+        <table class="plain">
+          <tr><th>文件</th><td><code>miniharness/cli.py</code></td></tr>
+          <tr><th>符号</th><td><code>cmd_demo</code>、<code>cmd_run</code>、<code>cmd_eval</code></td></tr>
+          <tr><th>怎么跑</th><td><code>python -m miniharness demo</code></td></tr>
+        </table>
+      </div>
+
+      <h2>四条命令各自干什么</h2>
+      <table class="plain">
+        <thead><tr><th>命令</th><th>人话</th><th>要不要联网</th></tr></thead>
+        <tbody>
+          <tr><td><code>demo</code></td><td>用自带剧本修 add()，证明整机连通</td><td>不要</td></tr>
+          <tr><td><code>eval</code></td><td>换夹具或换剧本，专跑评测</td><td>不要（除非你自己塞在线模型）</td></tr>
+          <tr><td><code>run "…"</code></td><td>对某个工作区跑一次任务</td><td>给 <code>--script</code> 就不要；否则要 API key</td></tr>
+          <tr><td><code>watch</code></td><td>拉六个仓库的 GitHub releases</td><td>要。第 15 章再用</td></tr>
+        </tbody>
+      </table>
+      <figure class="code">
+        <figcaption>用剧本对夹具再跑一遍</figcaption>
+        <pre><code>python -m miniharness run "列出文件" --workspace labs/broken_calc --script labs/scripts/fix_add.json
+python -m miniharness run "修 add()" --workspace /tmp/copy --save out.json
+</code></pre>
+      </figure>
+      <p>第二条没有 <code>--script</code> 时，会走 <code>OpenAICompatModel</code>：还是那个 <code>complete()</code> 插座，只是里面变成一次 HTTP 请求。循环文件一个字都不用改。</p>
+
+      <h2>轨迹比聊天记录值钱</h2>
+      <p><code>run --save out.json</code> 会写出两个数组：</p>
+      <figure class="code">
+        <figcaption>out.json 的形状</figcaption>
+        <pre><code>{
+  "messages": [                    // 给模型看过的全部盒子
+    {"role": "user", "content": "…"},
+    {"role": "assistant", "tool_calls": […]},
+    {"role": "tool", "content": "…", "tool_call_id": "call_1"}
+  ],
+  "events": [                      // 给开发者看的节拍
+    {"type": "agent_start"},
+    {"type": "turn_start", "step": 1},
+    {"type": "tool_end", "name": "read"},
+    {"type": "agent_end", "reason": "no_tools"}
+  ]
+}
+</code></pre>
+      </figure>
+      <p>两份名单不要混：</p>
+      <ul>
+        <li><strong>messages</strong> 是模型的世界。少写一条，它就当这件事没发生。</li>
+        <li><strong>events</strong> 是工程师的世界。记录「这一拍开始了 / 工具跑完了」，不必寄给模型。第 11 章的可观测性从这里长出来。</li>
+      </ul>
+      <p>mini-swe-agent 把轨迹叫 trajectory，并在每一步的收尾处保存——崩溃也不丢。deepseek-harness 把 session log 当成唯一事实来源。pi 更进一步：应用侧的消息和寄给模型的消息不是同一份名单。miniharness 现在把两份几乎做成同一份，是教学简化。</p>
+      <p class="say">不要等有了数据库再开始存。一份 JSON 已经够用来重放、做第 9 章的评测、喂给另一个模型问「它刚才在干什么」。</p>
+
+      <div class="bridge">
+        <p class="label">代码怎么对上原理</p>
+        <ul>
+          <li><code>cmd_demo</code> 内部调用 <code>run_eval</code>，所以它测的是「循环 + 工具 + 评分器」，不是只测打印。</li>
+          <li><code>_print_messages</code> 跳过 system 提示，只把人话和工具预览打到终端。这是皮肤：删掉它，循环照样正确。</li>
+          <li><code>OpenAICompatModel.complete</code> 把 <code>Message</code> 翻译成 OpenAI 的 JSON 信封。翻译层属于模型适配器，不属于 <code>loop.py</code>。</li>
+        </ul>
+      </div>
+
+      <h2>TUI 可以很晚再做</h2>
+      <p>nanocode 用颜色在普通终端打印。pi-tui 走「写在普通滚动缓冲里、只重绘脏行」，系统自带的搜索和选中还在。Codex 的 TUI 是全屏画布。opencode 还有桌面和 IDE。这些都是<strong>同一根循环上的皮肤</strong>。</p>
+      <div class="callout">
+        <p class="label">先别管</p>
+        <p>差分渲染、全屏抢终端、浏览器多标签——选哪一种，问的是「用户还把终端当日志看吗」，不是「哪种更先进」。先把 CLI 和 JSON 打出来。</p>
+      </div>
+
+      <div class="callout ok">
+        <p class="label">可选：换成真模型</p>
+        <p>设置 <code>OPENAI_API_KEY</code>（以及可选的 <code>OPENAI_BASE_URL</code>、<code>MODEL</code>），然后：</p>
+        <pre><code>python -m miniharness run "修 add()" --workspace /tmp/copy-of-broken-calc</code></pre>
+        <p>真模型会胡来。先在副本上跑，并记住：我们的 bash 没有操作系统沙箱。</p>
+      </div>
+
+      <div class="callout stuck">
+        <p class="label">常见卡住</p>
+        <ul>
+          <li>系统里没有叫 <code>python</code> 的命令。——用课程的 venv，或写 <code>python3</code>。评分器内部已经用 <code>sys.executable</code>，不依赖 PATH 上的名字。</li>
+          <li>demo 把教材自带的 <code>labs/broken_calc/calc.py</code> 改好了。——不该发生：它先复制到临时目录。若你手动改了源树，测试会失去失败用例。</li>
+          <li>想做交互式多轮聊天。——<code>run</code> 现在是一次性。外层再套一个 <code>input()</code> 循环即可，那是 nanocode 的外层，不是内层循环。</li>
+        </ul>
+      </div>
+
+      <h2>自测</h2>
+      <ul>
+        <li>为什么 demo 要复制到临时目录再改文件？</li>
+        <li>events 和 messages 各给谁看？</li>
+        <li>把打印函数全部删掉，循环还正确吗？轨迹还在吗？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案</summary>
+        <ol>
+          <li>避免把教材自带的 bug 仓库改「好」之后，下一轮学生或测试没有失败用例了。</li>
+          <li>messages 主要给模型（和人类复盘对话）；events 给开发者看循环有没有按预期跳转。</li>
+          <li>循环正确。只要 <code>--save</code> 还在写 JSON，轨迹就在。打印只是皮肤。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

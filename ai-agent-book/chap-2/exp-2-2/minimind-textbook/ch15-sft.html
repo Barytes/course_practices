@@ -2,7 +2,13 @@
 <html lang="zh-Hans">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe6d4">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MiniMind教材">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <title>第 15 章 · 对话模板与监督微调 — MiniMind 手把手</title>
 <link rel="stylesheet" href="assets/book.css">
 </head>
@@ -52,7 +58,7 @@
         <table class="plain">
           <tbody>
             <tr><th>文件</th><td>追加到 <code>exp-2-2/minimind3/data.py</code></td></tr>
-            <tr><th>符号</th><td>函数 <code>generate_labels(input_ids, bos_id, eos_id, max_length)</code>。完整 SFTDataset 可对照官方 <code>dataset/lm_dataset.py</code>，教学上先把掩码写对。</td></tr>
+            <tr><th>符号</th><td>类 <code>SFTDataset</code> 的方法 <code>generate_labels</code>。官方在 <code>dataset/lm_dataset.py</code>；教学上先把掩码写对。</td></tr>
             <tr><th>怎么验</th><td>用一条两轮对话打印：用户字对应 label 应是 -100；助手字应等于该位置的 input id。</td></tr>
           </tbody>
         </table>

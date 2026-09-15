@@ -2,7 +2,13 @@
 <html lang="zh-Hans">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe6d4">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MiniMind教材">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <title>第 5 章 · 注意力：查询、键、值 — MiniMind 手把手</title>
 <link rel="stylesheet" href="assets/book.css">
 </head>
@@ -86,16 +92,16 @@ V = [[10.0, 0.0],
         <p class="label">现在动手 · 写到哪里</p>
         <table class="plain">
           <tbody>
-            <tr><th>先写草稿</th><td><code>exp-2-2/attention.py</code>。你已经有 <code>CharTokenizer</code> 和一份 <code>Attention</code> 草稿。本章把检索收敛成下面的 <code>TinyAttention</code>，用 <code>main()</code> 打印 <code>weights[0]</code>。</td></tr>
-            <tr><th>再迁进包</th><td>把同样的 Q/K/V 逻辑拷进 <code>exp-2-2/minimind3/attention.py</code>，类名可暂时叫 <code>TinyAttention</code>。第 6 章起只改包里这份，不要再在草稿里分叉。</td></tr>
-            <tr><th>符号</th><td>类 <code>TinyAttention</code>；四个线性层 <code>q_proj / k_proj / v_proj / o_proj</code>；计算发生在 <code>forward</code></td></tr>
+            <tr><th>先写草稿</th><td><code>exp-2-2/attention.py</code>。你已经有 <code>CharTokenizer</code> 和一份 <code>Attention</code> 草稿。本章先把检索写成最小版，迁进包时类名必须是官方的 <code>Attention</code>。</td></tr>
+            <tr><th>再迁进包</th><td>把同样的 Q/K/V 逻辑拷进 <code>exp-2-2/minimind3/attention.py</code> 的 <code>Attention</code>。第 6 章起只改包里这份，不要再在草稿里分叉。</td></tr>
+            <tr><th>符号</th><td>类 <code>Attention</code>；四个线性层 <code>q_proj / k_proj / v_proj / o_proj</code>；计算发生在 <code>forward</code></td></tr>
             <tr><th>怎么跑</th><td>草稿：<code>python attention.py</code>。包：<code>python -m minimind3.attention</code>。形状必须是 <code>[B, T, D]</code>。</td></tr>
             <tr><th>对应原理</th><td>图书馆三件套 + 公式 softmax(QKᵀ/√d)V。下面「代码怎么对上原理」逐行翻译。</td></tr>
           </tbody>
         </table>
       </div>
       <figure class="code">
-        <figcaption>minimind3/attention.py · class TinyAttention.forward</figcaption>
+        <figcaption>minimind3/attention.py · class Attention.forward</figcaption>
         <pre><code>import math
 import torch
 from torch import nn

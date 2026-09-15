@@ -2,7 +2,13 @@
 <html lang="zh-Hans">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe6d4">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MiniMind教材">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <title>第 4 章 · 均方根归一化 — MiniMind 手把手</title>
 <link rel="stylesheet" href="assets/book.css">
 </head>
@@ -85,7 +91,7 @@
         <table class="plain">
           <tbody>
             <tr><th>文件</th><td><code>exp-2-2/minimind3/norm.py</code></td></tr>
-            <tr><th>符号</th><td>类 <code>RMSNorm</code>；真正算均方根的是 <code>_norm</code>，对外入口是 <code>forward</code></td></tr>
+            <tr><th>符号</th><td>类 <code>RMSNorm</code>；真正算均方根的是 <code>norm</code>，对外入口是 <code>forward</code></td></tr>
             <tr><th>怎么跑</th><td><code>python -m minimind3.norm</code>，形状应仍是 <code>[2, 4, 768]</code>，均方根接近 1</td></tr>
             <tr><th>对应原理</th><td>上文「人话版三步」：平方求平均再开方 → 相除 → 乘 γ。ε 防止除以 0。</td></tr>
           </tbody>
@@ -102,12 +108,12 @@ class RMSNorm(nn.Module):
         self.eps = eps
         self.weight = nn.Parameter(torch.ones(dim))  # 这就是 γ，初始全 1
 
-    def _norm(self, x: torch.Tensor) -&gt; torch.Tensor:
+    def norm(self, x: torch.Tensor) -&gt; torch.Tensor:
         # x: [..., dim]，在最后一维上求均方根
         return x * torch.rsqrt(x.pow(2).mean(dim=-1, keepdim=True) + self.eps)
 
     def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
-        output = self._norm(x.float()).type_as(x)
+        output = self.norm(x.float()).type_as(x)
         return self.weight * output
 
 

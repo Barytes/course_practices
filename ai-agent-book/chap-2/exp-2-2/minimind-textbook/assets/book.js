@@ -85,18 +85,72 @@ function enhanceCode() {
   });
 }
 
+function installHead() {
+  const ensureMeta = (name, content) => {
+    if (document.querySelector(`meta[name="${name}"]`)) return;
+    const meta = document.createElement("meta");
+    meta.name = name;
+    meta.content = content;
+    document.head.appendChild(meta);
+  };
+  ensureMeta("theme-color", "#efe6d4");
+  ensureMeta("format-detection", "telephone=no");
+  ensureMeta("apple-mobile-web-app-capable", "yes");
+  ensureMeta("apple-mobile-web-app-title", "MiniMind教材");
+  ensureMeta("mobile-web-app-capable", "yes");
+  if (!document.querySelector('link[rel="manifest"]')) {
+    const link = document.createElement("link");
+    link.rel = "manifest";
+    link.href = "manifest.json";
+    document.head.appendChild(link);
+  }
+  if (!document.querySelector('link[rel="apple-touch-icon"]')) {
+    const icon = document.createElement("link");
+    icon.rel = "apple-touch-icon";
+    icon.href = "assets/apple-touch-icon.png";
+    document.head.appendChild(icon);
+  }
+}
+
 function menu() {
   const btn = document.querySelector(".menu-btn");
+  const rail = document.querySelector(".rail");
   if (!btn) return;
+  btn.setAttribute("aria-expanded", "false");
+  btn.setAttribute("aria-controls", "book-rail");
+  if (rail && !rail.id) rail.id = "book-rail";
+
+  let backdrop = document.querySelector(".nav-backdrop");
+  if (!backdrop) {
+    backdrop = document.createElement("button");
+    backdrop.className = "nav-backdrop";
+    backdrop.type = "button";
+    backdrop.setAttribute("aria-label", "关闭目录");
+    document.body.appendChild(backdrop);
+  }
+
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    btn.textContent = open ? "关闭" : "目录";
+  };
+
   btn.addEventListener("click", () => {
-    document.body.classList.toggle("nav-open");
+    setOpen(!document.body.classList.contains("nav-open"));
   });
-  document.querySelectorAll(".rail a").forEach((a) => {
-    a.addEventListener("click", () => document.body.classList.remove("nav-open"));
+  backdrop.addEventListener("click", () => setOpen(false));
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") setOpen(false);
   });
+  if (rail) {
+    rail.addEventListener("click", (event) => {
+      if (event.target.closest("a")) setOpen(false);
+    });
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  installHead();
   renderRail();
   renderPager();
   enhanceCode();

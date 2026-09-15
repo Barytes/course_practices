@@ -1,0 +1,16 @@
+{
+  "name": "从零实现 MiniMind-3",
+  "short_name": "MiniMind教材",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#efe6d4",
+  "theme_color": "#efe6d4",
+  "lang": "zh-Hans",
+  "icons": [
+    {
+      "src": "assets/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

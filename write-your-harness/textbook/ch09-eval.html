@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 9 章 · 玩具评测 — 写自己的 Harness</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第三部 · 评测</p>
+      <h1>第 9 章 · 玩具评测：假仓库、假 issue</h1>
+      <p class="lead">SWE-bench 太大。我们用十行代码的 <code>add</code> 函数复现它的控制流：隔离副本、一条 issue、一段轨迹、一个确定性评分器。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>评测 = 把任务放进干净工作区 + 跑 agent + 用测试当满分标准。Agent 自己说「我修好了」不算分。</p>
+      </div>
+
+      <h2>夹具长什么样</h2>
+      <p>「夹具」就是一套固定的假现场，每次评测都从它复制出来。打开 <code>labs/broken_calc/</code>：</p>
+      <figure class="code">
+        <figcaption>三件套</figcaption>
+        <pre><code>ISSUE.md      人话：add(2,3) 应返回 5，请只改 calc.py
+calc.py       def add(a, b): return a - b  # BUG
+test_calc.py  assert add(2, 3) == 5
+</code></pre>
+      </figure>
+      <p>评分器只跑测试。改测试来骗分，在真基准测试里通常会被禁止；我们的系统提示也写了「不要改测试」。硬约束是否拦截 <code>write test_calc.py</code>，是你可以加的下一道护栏——第 14 章的毕业题里就有这一条。</p>
+
+      <div class="where">
+        <p class="label">写到哪里</p>
+        <table class="plain">
+          <tr><th>文件</th><td><code>miniharness/eval.py</code>、<code>labs/broken_calc/</code></td></tr>
+          <tr><th>符号</th><td><code>run_eval</code>、<code>default_scripted_model</code></td></tr>
+          <tr><th>怎么跑</th><td><code>python -m miniharness demo</code> 或 <code>python tests/test_miniharness.py EvalTests</code></td></tr>
+        </table>
+      </div>
+
+      <h2>手算一遍控制流</h2>
+      <p>剧本在 <code>default_scripted_model()</code>（和 <code>labs/scripts/fix_add.json</code> 几乎一样）。四拍：</p>
+      <figure class="code">
+        <figcaption>请跟着 messages 数格子</figcaption>
+        <pre><code>复制夹具 → /tmp/miniharness-eval-xxxx/repo
+
+[0] system  你是编码助手。不要改测试。
+[1] user    ISSUE.md 的正文
+
+第 1 次 complete：同时点名 read ISSUE.md 和 read calc.py
+[2] assistant  + 两个 tool_calls
+[3] tool       ISSUE 正文
+[4] tool       带行号的 calc.py（能看见 return a - b）
+
+第 2 次 complete：edit，old 必须是文件里那一整行（含注释）
+[5] assistant  + edit
+[6] tool       ok          ← 这时磁盘上的 add 已经变成加法
+
+第 3 次 complete：bash 跑 unittest
+[7] assistant  + bash
+[8] tool       测试输出    ← 这是模型看见的，还不是评分
+
+第 4 次 complete：只有人话「Tests passed. Done.」
+[9] assistant  （无工具 → 循环停，stop_reason=completed）
+
+循环外面：harness 自己再跑一遍同样的 unittest
+返回码 0 → PASS，否则 FAIL。写成 trajectory.json。
+</code></pre>
+      </figure>
+      <p>注意两套测试输出：第 8 行是模型自己喊 bash 看到的；循环外面那一次才是分数。模型可以谎报、可以只跑子集、可以改测试文件让 bash 变绿——评分器不听它的，只听返回码。</p>
+
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>学生说「我做完了」不算分。老师拿同一张卷子在旁边再做一遍。隔离副本则是：每位学生发一份新卷，不能在别人写过的卷子上改。</p>
+      </div>
+
+      <h2>为什么必须 copytree</h2>
+      <ol class="steps">
+        <li>源树保持有 bug，下一轮学生、下一轮 CI 还有失败用例。</li>
+        <li>两次评测互不污染。上次修好的 <code>calc.py</code> 不会让这次「没干活也 PASS」。</li>
+        <li>真 SWE-bench 对每个实例也是一个干净容器 / 干净工作副本。我们用临时目录模拟这件事。</li>
+      </ol>
+
+      <div class="bridge">
+        <p class="label">代码怎么对上原理</p>
+        <ul>
+          <li><code>run_eval</code> 里评分命令用 <code>sys.executable -m unittest …</code>，避免 macOS 上没有名为 <code>python</code> 的命令。</li>
+          <li>剧本里的 bash 命令同样要用当前解释器。否则循环里的「测试通过了」和循环外的评分器可能一个绿一个红。</li>
+          <li><code>EvalResult.trajectory</code> 是 messages 的字典版，方便 <code>demo</code> 重新打印。</li>
+        </ul>
+      </div>
+
+      <h2>把剧本换成真模型，评分器不用改</h2>
+      <p>这就是第 3 章「模型只是插座」的回报。<code>run_eval(fixture, model)</code> 的第二个参数可以是 <code>ScriptedModel</code>，也可以是 <code>OpenAICompatModel</code>。评分器根本不看模型是谁。</p>
+      <p>脚本模型证明的是 harness：循环、工具、隔离、评分这条管子是通的。真模型证明的才是智力。管子不通时先修管子，不要先骂模型。</p>
+
+      <div class="callout">
+        <p class="label">先别管</p>
+        <p>真 SWE-bench 还有 Docker 镜像、失败测试列表、补丁提交格式。那是评测基础设施，不是循环。你会跑基准测试时去 clone mini-swe-agent，不要把那套抄进教学包。</p>
+      </div>
+
+      <div class="callout">
+        <p class="label">你可以立刻加的三道题</p>
+        <ul>
+          <li>再做一个夹具：测试本身是错的，看 agent 会不会「修测试」骗分。</li>
+          <li>把 bash 关掉（<code>allow_bash=False</code>），只留 edit。脚本在循环里不能跑测试，但评分器在循环外——仍然可以 PASS。</li>
+          <li>故意让脚本重复 read 四次，确认 <code>stop_reason</code> 变成 <code>repeat_loop</code>，并且这次算 FAIL 还是「没修完」。</li>
+        </ul>
+      </div>
+
+      <div class="callout stuck">
+        <p class="label">常见卡住</p>
+        <ul>
+          <li>edit 的 old 少写了注释 <code># BUG: should add</code>。——文件里是整行，少一个字符就命中 0 次。</li>
+          <li>在源树而不是副本上手工改好了 calc.py。——<code>EvalTests</code> 会变成「没干活也绿」，这是夹具被污染，不是 harness 变强。</li>
+        </ul>
+      </div>
+
+      <h2>自测</h2>
+      <ul>
+        <li>为什么评分器在循环外面跑，而不是相信模型调用 bash 的输出？</li>
+        <li>隔离副本和 mini-swe「每次动作独立子进程」解决的是同一类问题吗？</li>
+        <li>模型改了 <code>test_calc.py</code> 让断言永远为真。循环外的评分器会怎样？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案</summary>
+        <ol>
+          <li>模型可以谎报测试通过，或只跑了子集。评分器由 harness 以已知命令执行。</li>
+          <li>一类：都在消灭隐式状态。副本消灭「上次评测留下的修复」；独立子进程消灭「shell 里悄悄 export 的变量」。</li>
+          <li>现在会 PASS——这是玩具评测的漏洞。真基准测试会保护测试文件，或在干净环境用官方测试重跑。第 14 章请你补上「拒绝写 test_*.py」。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

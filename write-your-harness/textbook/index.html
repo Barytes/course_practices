@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>写自己的 Harness — 对照开源仓库的 Agent 工程教材</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <section class="cover">
+      <p class="cover-meta">对照六个开源仓库 · 快照日期 2026-09-15 · 过时是设计，不是事故</p>
+      <h1>写自己的<br>Harness</h1>
+      <p class="deck">一本把循环写进手指、把读仓库写成习惯的 Agent 工程教材。每章先讲人话，再拿手算例子，最后才对代码。深度放在「先别管」里，第一遍跳过也不影响动手。</p>
+    </section>
+
+    <article class="prose" style="margin-top:2.4rem;">
+      <div class="plain-box">
+        <p class="label">这本书在干什么</p>
+        <p>读完你应当能自己写出一个 coding agent 的 harness，并且知道：哪些部分十年内大概不会变，哪些部分三个月后就会被一次 release 改掉。后者请去 GitHub，不要来翻这本已经印死的目录。</p>
+      </div>
+
+      <div class="callout warn">
+        <p class="label">先承认一件事</p>
+        <p>用书籍研究 AI 和 Agent，发布即过时。去年扎堆的 LangChain 教程基本死光了；任何「开源两个月的大而全电子书」也一样。这本书不跟它们比页数。它只做两件书还做得来的事：把<strong>循环</strong>写进你的手指，把<strong>读仓库的方法</strong>写进你的习惯。</p>
+      </div>
+
+      <h2>六个对照仓库</h2>
+      <p>真要学 Agent 开发，直接看这些。nanocode 和 mini-swe-agent 几乎冻结，适合当骨架；其余四个更新很快，适合当时间线。</p>
+      <table class="plain">
+        <thead>
+          <tr><th>仓库</th><th>你至少要看见什么</th><th>快照</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><a href="https://github.com/1rgs/nanocode">1rgs/nanocode</a></td><td>约 250 行 Python CLI。扫一眼就该知道循环、工具、消息列表在哪。</td><td>2026-01 后几乎不动</td></tr>
+          <tr><td><a href="https://github.com/SWE-agent/mini-swe-agent">swe-agent/mini-swe-agent</a></td><td>SWE 系 benchmark 的默认极简 scaffold。评测必知。</td><td>v2.4.6（2026-07-23）</td></tr>
+          <tr><td><a href="https://github.com/earendil-works/pi">earendil-works/pi</a></td><td>生产级可用的极简可扩展 harness。循环、插件、pi-tui。</td><td>v0.85.1（2026-09-05）</td></tr>
+          <tr><td><a href="https://github.com/anomalyco/opencode">anomalyco/opencode</a></td><td>开源 coding agent 顶梁柱。Effect 做可观测性，v2 在大规模重构。</td><td>v1.18.31（2026-09-14）</td></tr>
+          <tr><td><a href="https://github.com/openai/codex">openai/codex</a></td><td>OpenAI 官方 Rust CLI。工业级沙箱、审批、会话。</td><td>rust-v0.155.0-alpha.6（2026-09-15）</td></tr>
+          <tr><td><a href="https://github.com/deepseek-ai/deepseek-harness">deepseek-ai/deepseek-harness</a></td><td>万物皆插件。热插拔、PTC、Web UX。预览期，破坏性变更是日常。</td><td>dsh-v0.1.6-alpha.1（2026-09-15）</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout ok">
+        <p class="label">怎么开始</p>
+        <p>浏览器打开本页即可阅读。代码在上一级目录的 <code>miniharness/</code>。先读第 0 章、术语表和动手地图，然后按章往包里对照。不需要 API key：<code>python -m miniharness demo</code> 用脚本模型就能修一个假 bug。</p>
+      </div>
+
+      <h2>两遍读法</h2>
+      <table class="plain">
+        <thead><tr><th></th><th>第一遍（把机器跑起来）</th><th>第二遍（把取舍看懂）</th></tr></thead>
+        <tbody>
+          <tr><td>看什么</td><td>每章开头黑底框、超小例子、「写到哪里」</td><td>「先别管」、对照仓库的问题清单、自测</td></tr>
+          <tr><td>做什么</td><td>跑 <code>python tests/test_miniharness.py</code> 和 <code>python -m miniharness demo</code></td><td>默写 <code>run_agent</code>，按第 14 章补一个缺口</td></tr>
+          <tr><td>跳过什么</td><td>Effect、Cordis、Seatbelt 配置、PTC 包名</td><td>不要跳过「观察必须写回」和「评分器在循环外」</td></tr>
+        </tbody>
+      </table>
+      <p>第四部出现陌生词，打开<a href="glossary.html">术语表</a>。不要在第 11 章停下来学一门新的 TypeScript 库——那会把「读取舍」变成「背框架」。</p>
+    </article>
+
+    <div class="toc-grid">
+      <h2>开始 · 先把读法搞清楚</h2>
+      <a href="ch00-how-to-read.html"><span class="n">00</span><span>这本书为什么不是一本书</span><span class="t">方法</span></a>
+      <a href="glossary.html"><span class="n">词</span><span>术语表：把每个词说成人话</span><span class="t">词典</span></a>
+      <a href="files.html"><span class="n">图</span><span>动手地图：文件、模块、函数</span><span class="t">贴哪</span></a>
+
+      <h2>第一部 · 先把骨架看清</h2>
+      <a href="ch01-what-we-build.html"><span class="n">01</span><span>我们要造什么</span><span class="t">地图</span></a>
+      <a href="ch02-nanocode.html"><span class="n">02</span><span>扫一眼 nanocode</span><span class="t">250 行</span></a>
+      <a href="ch03-loop.html"><span class="n">03</span><span>亲手写循环</span><span class="t">不变量</span></a>
+
+      <h2>第二部 · 一块一块写</h2>
+      <a href="ch04-tools.html"><span class="n">04</span><span>工具面：六件套还是只给 bash</span><span class="t">动作</span></a>
+      <a href="ch05-context.html"><span class="n">05</span><span>上下文怎么长、怎么瘦</span><span class="t">记忆</span></a>
+      <a href="ch06-guards.html"><span class="n">06</span><span>护栏：权限、循环、预算</span><span class="t">约束</span></a>
+      <a href="ch07-cli.html"><span class="n">07</span><span>接上 CLI 与轨迹</span><span class="t">能跑</span></a>
+
+      <h2>第三部 · 评测</h2>
+      <a href="ch08-mini-swe.html"><span class="n">08</span><span>评测为什么要极简 scaffold</span><span class="t">公平</span></a>
+      <a href="ch09-eval.html"><span class="n">09</span><span>玩具评测：假仓库、假 issue</span><span class="t">跑分</span></a>
+
+      <h2>第四部 · 读还在长的仓库</h2>
+      <a href="ch10-pi.html"><span class="n">10</span><span>pi：可扩展的极简生产级</span><span class="t">插件 / TUI</span></a>
+      <a href="ch11-opencode.html"><span class="n">11</span><span>opencode：可观测性与重构</span><span class="t">Effect / v2</span></a>
+      <a href="ch12-codex.html"><span class="n">12</span><span>codex：工业级约束</span><span class="t">沙箱</span></a>
+      <a href="ch13-dsh.html"><span class="n">13</span><span>deepseek-harness：万物皆插件</span><span class="t">PTC</span></a>
+
+      <h2>第五部 · 把书合上</h2>
+      <a href="ch14-assemble.html"><span class="n">14</span><span>拼成你自己的 harness</span><span class="t">出门</span></a>
+      <a href="ch15-living.html"><span class="n">15</span><span>发布即过时：以后怎么自学</span><span class="t">releases</span></a>
+    </div>
+
+    <article class="prose">
+      <h2>和那些仓库的关系</h2>
+      <p>教材里的文字是重新写过的教学文本，<code>miniharness/</code> 是一份独立的教学实现，不是任何上游的拷贝。上游各自有许可证（多数 MIT / Apache-2.0），阅读源码时请看仓库里的 LICENSE。</p>
+      <p>第四部给出的版本号会过时。过时之后不要改教材凑新数字——运行 <code>python -m miniharness watch</code> 把 releases 拉回来，让 AI 帮你梳理时间线，有疑问再点进具体 commit 和 issue。那才是正餐。</p>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

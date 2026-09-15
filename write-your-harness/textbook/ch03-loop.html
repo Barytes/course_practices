@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 3 章 · 亲手写循环 — 写自己的 Harness</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第一部 · 骨架</p>
+      <h1>第 3 章 · 亲手写循环</h1>
+      <p class="lead">这一章是全书唯一必须能默写的文件。会写 <code>run_agent</code>，你就有 harness；不会写，读再多架构图也只是观光。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>循环只有一个正常出口：模型这一轮没有发出 tool_calls。护栏把你踢出去是另一个出口。打印、压缩、插件都是可插拔的旁路——第一遍默写可以假装它们不存在。</p>
+      </div>
+
+      <h2>模型在循环里只是一个插座</h2>
+      <p>循环不关心模型是真人、是云端 API，还是一段预先写好的剧本。它只要求对象有一个方法：</p>
+      <figure class="code">
+        <figcaption>插座的形状</figcaption>
+        <pre><code>reply = model.complete(messages, tools说明书)
+# reply 是一条 assistant 消息
+# 可能带 tool_calls，也可能只有人话
+</code></pre>
+      </figure>
+      <p>实验里我们用 <code>ScriptedModel</code>：一部录音机。你预先写好每一轮它会说什么、要调什么工具，它按顺序播放，不联网。这样测试 harness 时，失败一定是循环或工具写错了，而不是「模型今天心情不好」。</p>
+      <figure class="code">
+        <figcaption>一段两拍的剧本</figcaption>
+        <pre><code>[
+  {"content": "我先看看有哪些文件",
+   "tool_calls": [{"name": "glob", "args": {"pat": "*"}}]},
+  {"content": "只有这几个。"}     # 没有 tool_calls，循环停
+]
+</code></pre>
+      </figure>
+
+      <h2>手算：消息列表怎么长出来</h2>
+      <p>工作区里有一个文件 <code>a.txt</code>，内容是 <code>hello</code>。用户问：「文件里写了什么？」剧本是：先 <code>read</code>，再用人话回答。</p>
+      <p><strong>开始之前</strong></p>
+      <figure class="code">
+        <figcaption>step 0</figcaption>
+        <pre><code>[0] user: 文件里写了什么？
+</code></pre>
+      </figure>
+      <p><strong>第一次 complete</strong>：剧本第 1 拍，点名 read。循环必须先把这条 assistant 追加进去，再执行工具——否则轨迹里会丢「它当时到底要了什么」。</p>
+      <figure class="code">
+        <figcaption>step 1 · 问完、干完</figcaption>
+        <pre><code>[0] user:      文件里写了什么？
+[1] assistant: （点名）read path=a.txt
+[2] tool:      1| hello          ← harness 写回的观察
+</code></pre>
+      </figure>
+      <p><strong>第二次 complete</strong>：模型已经看见第 2 行，剧本第 2 拍只有人话。</p>
+      <figure class="code">
+        <figcaption>step 2 · 结束</figcaption>
+        <pre><code>[0] user:      文件里写了什么？
+[1] assistant: read a.txt
+[2] tool:      1| hello
+[3] assistant: 写了 hello。     ← tool_calls 为空，return
+</code></pre>
+      </figure>
+      <p>一共两次模型调用、一次工具。若第 2 次模型又 read 同一路径——循环仍然会照做。笨不笨不是循环的事；第 6 章的指纹才会喊停。</p>
+
+      <div class="where">
+        <p class="label">写到哪里</p>
+        <table class="plain">
+          <tr><th>文件</th><td><code>miniharness/loop.py</code>、<code>model.py</code></td></tr>
+          <tr><th>符号</th><td><code>run_agent</code>、<code>ScriptedModel.complete</code></td></tr>
+          <tr><th>怎么跑</th><td><code>python tests/test_miniharness.py LoopTests</code></td></tr>
+        </table>
+      </div>
+
+      <h2>现在动手写：先默写不变量</h2>
+      <p>打开 <code>loop.py</code>，先把压缩和插件行用眼睛遮住。剩下的就是：</p>
+      <figure class="code">
+        <figcaption>miniharness/loop.py · 不变量</figcaption>
+        <pre><code>while True:
+    guards.before_step()
+    reply = model.complete(messages, tools.schemas())
+    messages.append(reply)
+    if not reply.tool_calls:
+        return  # 正常结束
+    for call in reply.tool_calls:
+        guards.before_tool(call)
+        result = tools.run(call)
+        messages.append(tool_result(call, result))
+</code></pre>
+      </figure>
+      <div class="bridge">
+        <p class="label">代码怎么对上原理</p>
+        <ul>
+          <li><code>append(reply)</code> 在执行工具之前：即使工具稍后失败，轨迹也留下点名。</li>
+          <li>一次 assistant 可以带多个 tool_calls。我们按列表顺序执行。有的生产系统会并行——那是取舍，不是正确性。</li>
+          <li><code>tools.run</code> 应当返回字符串，包括 <code>"error: …"</code>。不要把异常甩出循环。模型需要看见错误才能改主意。</li>
+          <li><code>tool_result(call, result)</code> 会带上 <code>call.id</code>，对应第 1 章的 <code>tool_call_id</code>。</li>
+        </ul>
+      </div>
+
+      <h2>文件里多出来的那些行是旁路</h2>
+      <p>真实的 <code>run_agent</code> 在每次问模型之前，可能先压缩旧观察、先让插件改一改 messages；每跑完一个工具，也可能让插件改一改观察；全程往 <code>events</code> 里塞小纸条。第一遍请把它们当成「收音机里的广告」：</p>
+      <ul>
+        <li>压缩 → 第 5 章</li>
+        <li>护栏 → 第 6 章</li>
+        <li>插件和事件 → 第 10、11 章</li>
+      </ul>
+      <p>合上文件默写时，能写出上面那个 <code>while True</code> 就算过关。</p>
+
+      <h2>和 mini-swe-agent 的同构</h2>
+      <p>打开 <a href="https://github.com/SWE-agent/mini-swe-agent/blob/main/src/minisweagent/agents/default.py">default.py</a>，你会看到另一种拼写：</p>
+      <figure class="code">
+        <figcaption>他们的拼写（概念，不是要你抄）</figcaption>
+        <pre><code>def step(self):
+    return self.execute_actions(self.query())
+
+# run(): 反复 step，直到出现 role == "exit"
+</code></pre>
+      </figure>
+      <p><code>query</code> 就是 complete；<code>execute_actions</code> 就是跑工具并追加观察。结束条件写成 <code>exit</code> 消息，是因为评测需要「提交 / 超时 / 格式错误」这些显式出口。我们用 <code>stop_reason</code> 字符串做同一件事：<code>completed</code> 或 <code>repeat_loop</code> 或 <code>step_limit</code>。</p>
+
+      <div class="callout stuck">
+        <p class="label">常见卡住</p>
+        <ul>
+          <li>把「流式输出」（一个字一个字蹦出来）当成循环的一部分。——那只影响界面好不好看。循环关心的是完整的一条 assistant 消息。</li>
+          <li>在循环里直接 <code>print</code> 当日志。——可以，但最好像我们一样 append 到 <code>events</code>。产品级要把「能看见」做成一等公民，见第 11 章。</li>
+          <li>剧本用完了 ScriptedModel 还在被问。——它会返回「(script ended)」。测试里请把剧本写够，或靠步数上限停。</li>
+        </ul>
+      </div>
+
+      <h2>自测</h2>
+      <ul>
+        <li>模型一轮里调用了 read 和 grep。这一轮 complete 几次？整个任务至少还要再 complete 几次？</li>
+        <li>为什么 ScriptedModel 对实验比真 API 更重要？</li>
+        <li>工具抛了异常，循环应不应该让 Python 直接崩溃？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案</summary>
+        <ol>
+          <li>这一轮 complete 一次，顺序执行两个工具，然后再 complete 至少一次（看它还要不要工具）。</li>
+          <li>循环和工具的测试必须确定。真模型会改主意，你会分不清是 harness 坏了还是模型今天心情不好。</li>
+          <li>不应该。要变成观察字符串写回去。崩溃等于模型失聪。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

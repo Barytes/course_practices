@@ -2,7 +2,13 @@
 <html lang="zh-Hans">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe6d4">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MiniMind教材">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <title>第 16 章 · 生成：采样与加速推理 — MiniMind 手把手</title>
 <link rel="stylesheet" href="assets/book.css">
 </head>
@@ -40,15 +46,15 @@
         <p class="label">现在动手 · 写到哪里</p>
         <table class="plain">
           <tbody>
-            <tr><th>文件</th><td><code>exp-2-2/minimind3/generate.py</code></td></tr>
-            <tr><th>符号</th><td>函数 <code>generate(model, input_ids, ...)</code>，装饰器 <code>@torch.inference_mode()</code></td></tr>
+            <tr><th>文件</th><td><code>exp-2-2/minimind3/model.py</code> 里的 <code>MiniMindForCausalLM.generate</code></td></tr>
+            <tr><th>符号</th><td>方法 <code>generate(self, inputs=None, ...)</code>，装饰器 <code>@torch.inference_mode()</code>。官方写在本类，不要另开 generate.py</td></tr>
             <tr><th>依赖</th><td>第 12 章 <code>forward</code> 返回 <code>(loss, aux, logits, past)</code>。若你的元组顺序不同，按自己的解包。</td></tr>
             <tr><th>怎么验</th><td>同一随机种子下，<code>use_cache=True/False</code> 的采样结果应几乎一致。差很多说明缓存或位置切片错了。</td></tr>
           </tbody>
         </table>
       </div>
       <figure class="code">
-        <figcaption>minimind3/generate.py · def generate</figcaption>
+        <figcaption>MiniMindForCausalLM.generate · 循环示意（填进 model.py 的方法体）</figcaption>
         <pre><code>@torch.inference_mode()
 def generate(model, input_ids, max_new_tokens=64, temperature=0.85,
              top_k=50, top_p=0.85, eos_token_id=2, use_cache=True):

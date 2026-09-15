@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 0 章 · 这本书为什么不是一本书 — 写自己的 Harness</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">开始</p>
+      <h1>第 0 章 · 这本书为什么不是一本书</h1>
+      <p class="lead">先约定三件事：我们在造什么、哪些知识印在纸上还有用、你每章要动手做什么。后面每一章都按这个分界写。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>模型会说话，也会「请你帮我做一件事」。你的程序真的去做，把结果告诉它，再问下一步——这件事叫循环。框架名字、插件协议、某家 SDK 的类名，三个月后就会换。用书籍练习循环仍然划算；用书籍背类名，性价比不如直接问现在的模型。</p>
+      </div>
+
+      <h2>三个词先钉死</h2>
+      <p>打开这本书之前，不要求你写过 Agent，也不要求你训练过模型。要求你会一点 Python：函数、<code>dict</code>、for 循环。下面三个词全书都会用，现在用人话钉死。</p>
+      <div class="num-grid">
+        <div class="box"><b>模型</b>你把字发给它<br>它把字发回来</div>
+        <div class="box"><b>工具</b>读文件、改文件、<br>跑命令——真干活</div>
+        <div class="box"><b>循环</b>它说「请干活」<br>你干完再问它</div>
+      </div>
+      <p><strong>模型</strong>在本书里几乎总是别人的云端接口：你发一段文字和一份「我能帮你做哪些事」的清单，它回一段文字，有时附带「请执行 read，路径是 calc.py」。它不会自己打开你的硬盘。</p>
+      <p><strong>工具</strong>是你的 Python 函数。模型只能点名，不能越权。点了 <code>read</code>，是你的函数去 <code>open()</code> 文件。</p>
+      <p><strong>循环</strong>把这两边接起来。没有循环，你只是在聊天；有循环，它才能连续读文件、改一行、跑测试。</p>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>请一个帮手修自行车。他看不见车棚里的工具，只能开口：「把 14 号扳手递我。」你递扳手，告诉他结果，他再决定下一步。Harness（本书要写的那层程序）就是递扳手、记账、到点喊停的人。模型是那个会修车但没有手的人。</p>
+      </div>
+      <p class="say">这套「会说话的人 + 替他伸手的人 + 反复问」合在一起，就是本书说的 <strong>Agent</strong>。单次问答的聊天窗口还不是。</p>
+
+      <h2>为什么「Agent 电子书」会集体死亡</h2>
+      <p>2024 到 2025 年，市面上堆满某一家编排库的教程。它们教你记一串当时流行的类名。模型变了，工具协议变了，那些类名先死，书还躺在网盘里。这不是那家库「坏」，是<strong>把会过时的实现细节当成了学科内容</strong>。</p>
+      <p>2026 年又一批「工程实践全书」开源。开源两个月，在模型和 harness 都按周发版的速度下，目录本身就是一份过期地图。它也许能喂饱电子书收藏爱好者；真想做 Agent 应用或写 harness，那种组织方式甚至不如打开一个还在提交的仓库，或者直接问现在的模型。</p>
+      <div class="callout analogy">
+        <p class="label">再打一个比方</p>
+        <p>像拿 2019 年的「共享单车创业宝典」学出行。车还在，公司已经换了三茬。你要学的是「两个轮子 + 锁 + 计费」，不是某家 App 的活动页怎么配。</p>
+      </div>
+
+      <h2>这本书故意只做两件事</h2>
+      <ol class="steps">
+        <li><strong>把不变量写进手指。</strong>你对照一份不到一千行的 <code>miniharness</code>：循环、六种常用工具、上下文截断、循环检测、玩具评测。做完就能复现一个模块，也能从空白文件写出自己的 harness。</li>
+        <li><strong>把「会过时的部分」改成阅读方法。</strong>pi / opencode / codex / deepseek-harness 更新很快。我们不把它们的 API 抄进教材当标准答案，而是告诉你：releases 里找破坏性变更，commit 里找取舍，issue 里找他们后悔什么。</li>
+      </ol>
+      <p>nanocode 和 mini-swe-agent 几乎冻结，所以第二、第八章会带你把源码当标本看。其余四个，教材只写<strong>取舍</strong>，版本号全部打上快照日期。第四部出现看不懂的词，先打开<a href="glossary.html">术语表</a>，再往下读。</p>
+
+      <h2>六个仓库各解决什么问题</h2>
+      <p>现在不需要打开它们。只要知道：卡住时该去谁家。</p>
+      <table class="plain">
+        <thead><tr><th>你卡住的问题</th><th>先看谁</th><th>人话</th><th>不要指望它给你什么</th></tr></thead>
+        <tbody>
+          <tr><td>循环到底长什么样？</td><td>nanocode</td><td>250 行把骨架摊开</td><td>沙箱、压缩、插件、评测</td></tr>
+          <tr><td>怎样公平地比较模型？</td><td>mini-swe-agent</td><td>考试要用同一张卷子</td><td>漂亮的 IDE、插件市场</td></tr>
+          <tr><td>最小但能每天用？</td><td>pi</td><td>车架小，配件自己挂</td><td>把所有功能都做进核心</td></tr>
+          <tr><td>大规模产品怎么不崩？</td><td>opencode</td><td>很多人同时用，要能看见、能取消</td><td>一份「读完就不会再改」的架构图</td></tr>
+          <tr><td>怎么在真机器上敢放手？</td><td>codex</td><td>操作系统来拦危险命令</td><td>一份跨平台都完美的沙箱神话</td></tr>
+          <tr><td>怎么让能力可替换？</td><td>deepseek-harness</td><td>连循环都是插头</td><td>稳定的公开 API（它自己写了会破）</td></tr>
+        </tbody>
+      </table>
+
+      <h2>每一章你要做什么</h2>
+      <ol class="steps">
+        <li>读懂这一步在整张图上的哪一格。每章开头黑底框是「只要记住」；看懂它再往下。</li>
+        <li>看一个超小例子：三轮对话、两个工具调用、两三个文件这种规模。能用纸笔复述，再看代码。</li>
+        <li>打开 <code>miniharness/</code> 对应文件，对照「现在动手」和「代码怎么对上原理」。第一到第九章以写代码为主；第十到第十五章以读仓库为主。</li>
+        <li>跑测试：<code>python tests/test_miniharness.py</code>。不需要 GPU，不需要 API key。测试挂了，先看断言在说哪一个形状错了。</li>
+        <li>做自测。先自己说人话，再展开答案。</li>
+      </ol>
+      <div class="callout">
+        <p class="label">看到「先别管」怎么办</p>
+        <p>那是给以后挖仓库准备的深度，跳过不影响写 miniharness。第一遍以黑底框和超小例子为准。</p>
+      </div>
+
+      <div class="callout">
+        <p class="label">代码写到哪</p>
+        <p>全部在 <code>write-your-harness/miniharness/</code>。不要每章新建互不相通的脚本。完整对照表见 <a href="files.html">动手地图</a>。</p>
+      </div>
+
+      <h2>你需要准备什么</h2>
+      <ul>
+        <li>Python 3.11+。核心只使用标准库，不用安装 PyTorch、LangChain 或任何 Agent 框架。</li>
+        <li>会写函数、<code>list</code> / <code>dict</code>。看到 <code>@dataclass</code> 就把它想成「带字段名的盒子」：<code>Message.role</code> 是这个盒子上贴的标签。</li>
+        <li>能打开 GitHub。第四部会给你具体文件路径，那些路径也可能搬家——搬家本身就是你要观察的信号。</li>
+        <li>可选：<code>OPENAI_API_KEY</code> 和兼容端点，用来把脚本模型换成真模型。实验<strong>不依赖</strong>它。请先把 <code>python -m miniharness demo</code> 跑到出现 <code>PASS</code>。</li>
+      </ul>
+
+      <div class="callout stuck">
+        <p class="label">常见卡住</p>
+        <ul>
+          <li>「那我还读这本干什么？」——读循环，读取舍表，读第 15 章的 releases 方法。别背类名。</li>
+          <li>「我想要生产级。」——先写完 miniharness，再 clone 一个对口的仓库，按第 10～13 章的问题清单往下挖。</li>
+          <li>「我想要最新最佳实践。」——运行 <code>python -m miniharness watch</code>，不要等下一版电子书。</li>
+          <li>「JSON、API、token 这些词好晕。」——打开<a href="glossary.html">术语表</a>。第 1 章会用超小对话再讲一遍。</li>
+        </ul>
+      </div>
+
+      <h2>自测</h2>
+      <p>合上这一章前，确认你能用自己的话回答：</p>
+      <ul>
+        <li>聊天机器人和 Agent 差在哪一步？</li>
+        <li>为什么去年某家编排库的教程会过时，而「调用模型直到它不再要工具」不太会过时？</li>
+        <li>六个仓库里，哪两个适合当标本，哪四个适合当时间线？</li>
+        <li>读完这本书，你应该能交什么？一份能跑的 harness，还是一份框架笔记？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案（先自己想）</summary>
+        <ol>
+          <li>聊天是一问一答就结束。Agent 会在中间多次「请你干活」，把结果看完再继续，直到它不再要工具或被护栏按住。</li>
+          <li>类名和编排层绑定的是某一年的 SDK；循环绑定的是「模型会发出工具调用」这件事本身。只要工具调用还在，循环就在。</li>
+          <li>标本：nanocode、mini-swe-agent。时间线：pi、opencode、codex、deepseek-harness。</li>
+          <li>一份能跑的 harness，外加以后自己拉 releases 的习惯。不是框架笔记。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

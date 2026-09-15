@@ -1,7 +1,38 @@
-"""注意力。按第 5 → 6 → 7 → 8 → 9 章的顺序往同一个 Attention 类里加零件。"""
+"""注意力。对齐官方 repeat_kv 与 Attention。实现见教材第 5–9 章。"""
 
-# 第 5 章：TinyAttention（可先写在上级目录 attention.py 草稿里，再迁过来）
-# 第 6 章：改成 CausalAttention，加上因果掩码和键值缓存
-# 第 7 章：改成分组查询（q/k/v 宽度不同 + repeat_kv）
-# 第 8 章：在拼接缓存之前旋转 Q、K
-# 第 9 章：QK-Norm + SDPA 分支，类名定为 Attention，与官方对齐
+from __future__ import annotations
+
+import torch
+from torch import nn
+
+from .config import MiniMindConfig
+
+
+def repeat_kv(x: torch.Tensor, n_rep: int) -> torch.Tensor:
+    """x: [batch, seq, num_key_value_heads, head_dim] -> 头维重复 n_rep 次。"""
+    ...
+
+
+class Attention(nn.Module):
+    def __init__(self, config: MiniMindConfig):
+        super().__init__()
+        # self.num_key_value_heads
+        # self.n_local_heads
+        # self.n_local_kv_heads
+        # self.n_rep
+        # self.head_dim
+        # self.is_causal
+        # self.q_proj / k_proj / v_proj / o_proj   # 均无 bias
+        # self.q_norm / k_norm                     # RMSNorm(head_dim)
+        # self.attn_dropout / resid_dropout / dropout
+        # self.flash
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        position_embeddings: tuple[torch.Tensor, torch.Tensor],
+        past_key_value: tuple[torch.Tensor, torch.Tensor] | None = None,
+        use_cache: bool = False,
+        attention_mask: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor] | None]:
+        ...

