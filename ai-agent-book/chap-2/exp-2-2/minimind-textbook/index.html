@@ -44,6 +44,7 @@
       <a href="ch00-how-to-read.html"><span class="n">00</span><span>如何读这本书</span><span class="t">方法</span></a>
       <a href="ch01-what-we-build.html"><span class="n">01</span><span>我们要造什么</span><span class="t">地图</span></a>
       <a href="ch02-tokens.html"><span class="n">02</span><span>词、编号与分词器</span><span class="t">输入</span></a>
+      <a href="ch02b-minbpe.html"><span class="n">2.5</span><span>亲手写 BPE：minbpe</span><span class="t">算法</span></a>
       <a href="ch03-embeddings.html"><span class="n">03</span><span>词嵌入与权重共享</span><span class="t">查表</span></a>
 
       <h2>第二部 · 一块一块写</h2>
@@ -70,7 +71,7 @@
     <article class="prose">
       <h2>和官方仓库的关系</h2>
       <p>本教材依据 <a href="https://github.com/jingyaogong/minimind">jingyaogong/minimind</a> 的 <code>model/model_minimind.py</code>、<code>trainer/</code> 与 <code>dataset/lm_dataset.py</code> 编写。官方项目使用 Apache 2.0 协议。教材中的讲解是重新组织过的教学文本；关键实现与官方行为对齐，包括键值缓存的拼接维度、分组查询的重复方式、混合专家的负载均衡损失，以及生成循环里「只把新词送进模型」这一步。</p>
-      <p>真正训练时，把 MiniMind-3 主线数据下载到 <code>exp-2-2/minimind_dataset/</code>（该目录不进 Git）；<code>attention.py</code> 可以当作第 5 章的草稿本。</p>
+      <p>真正训练时，把 MiniMind-3 主线数据下载到 <code>exp-2-2/minimind_dataset/</code>（该目录不进 Git）。第 2.5 章的填空在 <code>exp-2-2/bpe/</code>；<code>attention.py</code> 留给第 5 章注意力。</p>
     </article>
     <nav class="pager" data-pager></nav>
   </main>

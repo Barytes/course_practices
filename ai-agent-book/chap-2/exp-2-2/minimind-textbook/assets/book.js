@@ -3,6 +3,7 @@ const CHAPTERS = [
   { file: "ch00-how-to-read.html", title: "如何读这本书", short: "阅读方法", part: "开始" },
   { file: "ch01-what-we-build.html", title: "我们要造什么", short: "全貌", part: "第一部 · 全貌" },
   { file: "ch02-tokens.html", title: "词、编号与分词器", short: "分词", part: "第一部 · 全貌" },
+  { file: "ch02b-minbpe.html", title: "亲手写 BPE：minbpe", short: "minbpe", part: "第一部 · 全貌" },
   { file: "ch03-embeddings.html", title: "词嵌入与权重共享", short: "嵌入", part: "第一部 · 全貌" },
   { file: "ch04-rms-norm.html", title: "均方根归一化", short: "归一化", part: "第二部 · 积木" },
   { file: "ch05-attention.html", title: "注意力：查询、键、值", short: "注意力", part: "第二部 · 积木" },

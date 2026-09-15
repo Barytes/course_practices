@@ -30,7 +30,7 @@
 
       <h2>「从零实现」指什么，不指什么</h2>
       <p><strong>从零</strong>的意思是：模型结构、注意力、键值缓存、混合专家路由、损失函数、生成循环，都用 PyTorch 自己写，不调用 <code>transformers.LlamaModel</code> 这类已经封装好的大模型类。</p>
-      <p><strong>不是从零</strong>的部分：矩阵乘法、反向传播、AdamW 优化器，仍然用 PyTorch 提供的。重新发明自动求导对理解 MiniMind 没有帮助。分词器官方已经训练好了，本书解释它的原理，但<strong>不建议你重新训练词表</strong>——词表一变，权重、数据、社区模型全都对不上。</p>
+      <p><strong>不是从零</strong>的部分：矩阵乘法、反向传播、AdamW 优化器，仍然用 PyTorch 提供的。重新发明自动求导对理解 MiniMind 没有帮助。分词器官方已经训练好了。第 2.5 章会用 minbpe 把 BPE 亲手写一遍，但<strong>不要用自己的词表去训练 MiniMind-3</strong>——词表一变，权重、数据、社区模型全都对不上。</p>
 
       <h2>每一章你要做什么</h2>
       <ol class="steps">

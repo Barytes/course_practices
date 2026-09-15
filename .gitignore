@@ -13,3 +13,6 @@ wandb/
 
 ai-agent-book/chap-2/exp-2-2/minimind_dataset/*
 !ai-agent-book/chap-2/exp-2-2/minimind_dataset/.gitkeep
+
+# minbpe train.py 产出
+ai-agent-book/chap-2/exp-2-2/bpe/models/

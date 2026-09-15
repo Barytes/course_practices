@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 2.5 章 · 亲手写 BPE：minbpe — MiniMind 手把手</title>
+<link rel="stylesheet" href="assets/book.css">
+<style>
+  .bpe-lab {
+    margin: 1.2rem 0 1.5rem;
+    background: #fbf6ea;
+    border: 1px solid var(--rule);
+    padding: 0.9rem 1rem 1.05rem;
+  }
+  .bpe-lab .bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem 0.7rem;
+    align-items: center;
+    font-family: var(--sans);
+    font-size: 0.82rem;
+    margin-bottom: 0.75rem;
+  }
+  .bpe-lab label { color: var(--muted); display: flex; gap: 0.35rem; align-items: center; white-space: nowrap; }
+  .bpe-lab input[type="text"] {
+    width: min(22rem, 100%);
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    border: 1px solid var(--code-edge);
+    background: var(--paper);
+    padding: 0.28rem 0.45rem;
+  }
+  .bpe-lab input[type="number"] {
+    width: 3.6rem;
+    font-family: var(--mono);
+    border: 1px solid var(--code-edge);
+    background: var(--paper);
+    padding: 0.28rem 0.35rem;
+  }
+  .bpe-lab button {
+    font-family: var(--sans);
+    font-size: 0.78rem;
+    border: 1px solid var(--accent);
+    background: var(--paper);
+    color: var(--accent);
+    padding: 0.28rem 0.55rem;
+    cursor: pointer;
+  }
+  .bpe-lab button:hover { background: rgba(139, 49, 20, 0.08); }
+  .bpe-lab .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.28rem;
+    min-height: 2.2rem;
+    margin: 0.35rem 0 0.7rem;
+  }
+  .bpe-lab .chip {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    border: 1px solid var(--code-edge);
+    background: #f3ead9;
+    padding: 0.22rem 0.38rem;
+    line-height: 1.25;
+  }
+  .bpe-lab .chip.m { background: #f0d3b8; border-color: #c96a3c; }
+  .bpe-lab .chip.m2 { background: #e3a57a; color: #1b1610; }
+  .bpe-lab .chip.m3 { background: #8b3114; color: #f6f0e4; border-color: #8b3114; }
+  .bpe-lab .chip .id { display: block; color: var(--faint); font-size: 0.62rem; }
+  .bpe-lab .chip.m3 .id { color: #f0d3b8; }
+  .bpe-lab table.plain { font-size: 0.82rem; margin: 0.2rem 0 0.6rem; }
+  .bpe-lab table.plain tr.win td { background: #f0d3b8; }
+  .bpe-lab .status {
+    font-family: var(--sans);
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin: 0 0 0.45rem;
+  }
+  .bpe-lab ol {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    margin: 0;
+    padding-left: 1.2rem;
+    color: var(--ink);
+  }
+  .bpe-lab .cap {
+    font-family: var(--sans);
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin: 0.55rem 0 0;
+  }
+  h2.lecture-start {
+    margin-top: 3.2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--rule);
+  }
+</style>
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第一部 · 全貌</p>
+      <h1>第 2.5 章 · 亲手写 BPE：minbpe</h1>
+      <p class="lead">第 2 章把分词器当成黑盒来用。这一章把它拆开：从 UTF-8 字节出发，反复合并最常见的相邻对，直到词表够用。算法来自 Andrej Karpathy 的 <a href="https://github.com/karpathy/minbpe">minbpe</a>。章末是 <a href="https://www.youtube.com/watch?v=zduSFxRajkE">Let’s build the GPT Tokenizer</a> 的完整中文文字稿。</p>
+    </header>
+    <article class="prose">
+      <h2>没有它，第 2 章只剩口号</h2>
+      <p>第 2 章说：BPE 从字节出发，把高频片段焊成新词元。这句话如果不能用手算、不能用代码复现，就还是口号。Karpathy 写 <a href="https://github.com/karpathy/minbpe">minbpe</a> 的动机正是这个：tiktoken 很快，但看不清；把训练、编码、解码写成能读完的 Python，词表是怎么长出来的才会变成肌肉记忆。</p>
+      <p>这一章<strong>不</strong>替代 MiniMind 官方的 <code>tokenizer.json</code>。作业模型仍然加载那份 6400 词表。你在这里练的是同一类算法的显微镜版：打开 <code>exp-2-2/bpe/</code>，搜 <code># &gt;&gt;&gt; 填空</code>，把 minbpe 的核心循环自己写完。进度见同目录的 <code>exercise.md</code>。</p>
+
+      <div class="callout">
+        <p class="label">和官方仓库怎么对应</p>
+        <p><code>BasicTokenizer</code> 在 <code>minbpe/basic.py</code>，两个工具函数在 <code>minbpe/base.py</code>。下面的代码按它的语义重写，变量名故意写得更直白。原仓库还有 <code>RegexTokenizer</code>（GPT-2/4 那种按类别先切开再合并）和 <code>GPT4Tokenizer</code>（对齐 tiktoken 的 <code>cl100k_base</code>）。先把 Basic 写对，再谈那两层皮。</p>
+      </div>
+
+      <h2>为什么从字节开始，而不是从汉字开始</h2>
+      <p>第 2 章的字符级草稿按 Unicode 码点切：「天」永远是一个编号。BPE 先把字符串编成 UTF-8 字节，每个字节是 0–255 的整数。英文 <code>A</code> 是一个字节 65；汉字「天」是三个字节 <code>e5 a4 a9</code>。词表的前 256 项永远预留给这 256 个字节，后面的编号才是合并出来的。</p>
+      <div class="formula">
+        <div class="eq">词表大小 = 256 + 合并次数（特殊标记再接到后面）</div>
+        <div class="hint">minbpe 的 train(text, vocab_size) 里，合并次数就是 vocab_size − 256。MiniMind 的 6400 还要再扣掉一批特殊标记，数量级仍是「几百字节 + 几千次合并」。</div>
+      </div>
+      <p>这件事有一个立刻能感到的好处：<strong>不会出现「这个字不在词表里」</strong>。再罕见的符号也能退回成字节。代价是：训练刚开始时，一个汉字往往占 3 个词元；合并足够多次之后，「天」「天空」才可能各自变成一个编号。这就是第 2 章说的压缩率从哪来。</p>
+
+      <h2>两个会反复用的函数</h2>
+      <p>整套算法只靠两块积木。第一块统计「相邻两个编号」出现了几次；第二块按从左到右、互不重叠的方式，把某一对换成新编号。</p>
+      <figure class="code">
+        <figcaption>现在动手写 · 统计与合并（先写这两个，再写类）</figcaption>
+        <pre><code>def get_stats(ids: list[int]) -&gt; dict[tuple[int, int], int]:
+    """[1, 2, 3, 1, 2] -&gt; {(1, 2): 2, (2, 3): 1, (3, 1): 1}"""
+    counts: dict[tuple[int, int], int] = {}
+    for pair in zip(ids, ids[1:]):
+        counts[pair] = counts.get(pair, 0) + 1
+    return counts
+
+
+def merge(ids: list[int], pair: tuple[int, int], idx: int) -&gt; list[int]:
+    """把 ids 里每一处相邻的 pair 换成新编号 idx。"""
+    new_ids = []
+    i = 0
+    while i &lt; len(ids):
+        if i &lt; len(ids) - 1 and ids[i] == pair[0] and ids[i + 1] == pair[1]:
+            new_ids.append(idx)
+            i += 2
+        else:
+            new_ids.append(ids[i])
+            i += 1
+    return new_ids
+</code></pre>
+      </figure>
+      <p>重叠要小心：<code>aaa</code> 里有两处 <code>aa</code>，但一次扫描只能焊左边那对，得到 <code>[aa] a</code>，不是 <code>a [aa]</code>。BPE 的约定就是从左到右、互不重叠。不要写成「全局字符串 replace」，那会和编号列表的语义拧在一起。</p>
+
+      <h2>Wikipedia 那道必算的例题</h2>
+      <p><a href="https://en.wikipedia.org/wiki/Byte_pair_encoding">BPE 词条</a>用字符串 <code>aaabdaaabac</code> 做演示。minbpe 的 README 也从这里开始。先把字母换成 ASCII：<code>a=97, b=98, c=99, d=100</code>，然后做 3 次合并。请你先手算，再和下面的表对答案。</p>
+      <table class="plain">
+        <thead><tr><th>步</th><th>当前序列</th><th>最常见对</th><th>新编号</th><th>新词元</th></tr></thead>
+        <tbody>
+          <tr><td>0</td><td><code>a a a b d a a a b a c</code></td><td><code>(a, a)</code> 出现 4 次</td><td>256</td><td><code>aa</code></td></tr>
+          <tr><td>1</td><td><code>[aa] a b d [aa] a b a c</code></td><td><code>([aa], a)</code> 与 <code>(a, b)</code> 都是 2 次</td><td>257</td><td><code>aaa</code></td></tr>
+          <tr><td>2</td><td><code>[aaa] b d [aaa] b a c</code></td><td><code>([aaa], b)</code> 出现 2 次</td><td>258</td><td><code>aaab</code></td></tr>
+          <tr><td>3</td><td><code>[aaab] d [aaab] a c</code></td><td>—</td><td>—</td><td>编码结果 <code>[258, 100, 258, 97, 99]</code></td></tr>
+        </tbody>
+      </table>
+      <div class="diagram">
+        <svg viewBox="0 0 720 168" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="三次合并把 aaabdaaabac 压成五个词元">
+          <text x="12" y="28" font-size="12" font-family="IBM Plex Sans, sans-serif" fill="#5c5348">字节</text>
+          <text x="88" y="28" font-size="14" font-family="IBM Plex Mono, monospace">a a a b d a a a b a c</text>
+          <text x="12" y="68" font-size="12" font-family="IBM Plex Sans, sans-serif" fill="#5c5348">+256</text>
+          <text x="88" y="68" font-size="14" font-family="IBM Plex Mono, monospace">aa  a b d aa  a b a c</text>
+          <text x="12" y="108" font-size="12" font-family="IBM Plex Sans, sans-serif" fill="#5c5348">+257</text>
+          <text x="88" y="108" font-size="14" font-family="IBM Plex Mono, monospace">aaa b d aaa b a c</text>
+          <text x="12" y="148" font-size="12" font-family="IBM Plex Sans, sans-serif" fill="#8b3114">+258</text>
+          <text x="88" y="148" font-size="14" font-family="IBM Plex Mono, monospace" fill="#8b3114">aaab  d  aaab  a  c</text>
+        </svg>
+        <p class="cap">三次合并之后，11 个字节变成 5 个词元。258 覆盖的是整段 <code>aaab</code>，不是单个字母。</p>
+      </div>
+      <div class="callout warn">
+        <p class="label">平票时，代码说了算</p>
+        <p>百科叙述常把三次合并讲成 <code>aa → Z</code>，<code>ab → Y</code>，<code>ZY → X</code>。minbpe 在第 2 步遇到平票：<code>(256, 97)</code> 和 <code>(97, 98)</code> 都出现 2 次。Python 的 <code>max(stats, key=stats.get)</code> 取<strong>先写进字典的那一对</strong>，于是焊的是 <code>aa+a → aaa</code>，而不是 <code>ab</code>。最终编码仍是 <code>[258, 100, 258, 97, 99]</code>，因为 258 照样盖住了 <code>aaab</code>。读 README 时对一下源码：叙事可以换一种树，编号列表碰巧长得一样。</p>
+      </div>
+
+      <h2>自己点一步，看合并怎么发生</h2>
+      <p>下面这个小实验跑的就是上面两个函数。默认语料是那道例题。改成中文再训几次，你会看见一个汉字先占 3 个字节，随后才被焊起来。</p>
+      <div class="bpe-lab" id="bpe-lab">
+        <div class="bar">
+          <label>语料 <input id="bpe-text" type="text" value="aaabdaaabac" spellcheck="false"></label>
+          <label>最多合并 <input id="bpe-n" type="number" min="0" max="32" value="3"></label>
+          <button type="button" id="bpe-step">合并一步</button>
+          <button type="button" id="bpe-all">一次训完</button>
+          <button type="button" id="bpe-reset">重置</button>
+        </div>
+        <p class="status" id="bpe-status"></p>
+        <div class="chips" id="bpe-chips" aria-live="polite"></div>
+        <table class="plain" id="bpe-stats">
+          <thead><tr><th>相邻对</th><th>次数</th><th>若合并得到</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <ol id="bpe-log"></ol>
+        <p class="cap">「合并一步」每次只焊当前次数最高的一对。编码规则还没上场——那是下一节。</p>
+      </div>
+
+      <h2>训练：反复焊最常见的一对</h2>
+      <p><code>train</code> 就是一个 for 循环。每一轮：统计、取最大、发一个新编号、全表替换、记下「哪一对变成了几」。循环结束时，你得到两张表：</p>
+      <ul>
+        <li><code>merges</code>：<code>(id_a, id_b) → 新 id</code>，编码时用。</li>
+        <li><code>vocab</code>：<code>id → bytes</code>，解码时用。新词元的字节等于两个孩子的字节直接拼接。</li>
+      </ul>
+      <figure class="code">
+        <figcaption>现在动手写 · train</figcaption>
+        <pre><code>class BPETokenizer:
+    def __init__(self):
+        self.merges: dict[tuple[int, int], int] = {}
+        self.vocab: dict[int, bytes] = {i: bytes([i]) for i in range(256)}
+
+    def train(self, text: str, vocab_size: int, verbose: bool = False) -&gt; None:
+        assert vocab_size &gt;= 256
+        ids = list(text.encode("utf-8"))
+        for i in range(vocab_size - 256):
+            stats = get_stats(ids)
+            if not stats:
+                break
+            pair = max(stats, key=stats.get)
+            idx = 256 + i
+            ids = merge(ids, pair, idx)
+            self.merges[pair] = idx
+            self.vocab[idx] = self.vocab[pair[0]] + self.vocab[pair[1]]
+            if verbose:
+                print(i + 1, pair, "-&gt;", idx, self.vocab[idx], "x", stats[pair])
+</code></pre>
+      </figure>
+      <p>注意 <code>train</code> 结束时的 <code>ids</code> 只是这份训练语料被压短之后的样子，<strong>不要</strong>拿它当编码器。编码器必须能处理训练时没见过的字符串，规则在 <code>merges</code> 里。</p>
+
+      <h2>编码：按合并出生顺序，不是按当前频率</h2>
+      <p>这是整章最容易写错的一行。编码时如果再「焊当前最常见的一对」，同一套 <code>merges</code> 在不同句子上会走出不同的树，模型看见的编号就不稳定。正确规则是：</p>
+      <div class="formula">
+        <div class="eq">在当前序列里，选 merges 中<strong>编号最小</strong>的那一对来焊；一对都焊不了就停</div>
+        <div class="hint">编号小 = 训练时更早出现。后出生的词元是由先出生的词元拼出来的，必须先还原祖先，再还原后代。</div>
+      </div>
+      <figure class="code">
+        <figcaption>现在动手写 · encode / decode</figcaption>
+        <pre><code>    def encode(self, text: str) -&gt; list[int]:
+        ids = list(text.encode("utf-8"))
+        while len(ids) &gt;= 2:
+            stats = get_stats(ids)
+            pair = min(stats, key=lambda p: self.merges.get(p, float("inf")))
+            if pair not in self.merges:
+                break
+            ids = merge(ids, pair, self.merges[pair])
+        return ids
+
+    def decode(self, ids: list[int]) -&gt; str:
+        data = b"".join(self.vocab[i] for i in ids)
+        return data.decode("utf-8", errors="replace")
+</code></pre>
+      </figure>
+      <p><code>min(..., key=merges.get 缺省为 inf)</code> 的意思是：不在 <code>merges</code> 里的对，优先级是无穷大，永远不会赢。若所有对都是无穷大，<code>min</code> 会随便返回字典里的第一对——所以必须再写 <code>if pair not in self.merges: break</code>。这不是雕虫，是 Karpathy 在源码注释里专门标出的终止条件。</p>
+      <p>解码反而简单：每个编号查成字节，拼起来，按 UTF-8 解。某个词元可能只是半个汉字（三个字节里的前两个），所以 <code>errors="replace"</code>：单独解码会看到 �，但相邻词元拼回去就合法了。这不是 bug。</p>
+
+      <h2>跑通那道例题</h2>
+      <p>把 <code>get_stats</code> / <code>merge</code> / <code>BasicTokenizer</code> 填完之后，在 <code>exp-2-2/bpe/</code> 里跑维基那道例题，检查编号是不是 258 / 100 / 258 / 97 / 99：</p>
+      <figure class="code">
+        <figcaption>现在动手写 · 对照 minbpe README</figcaption>
+        <pre><code>from minbpe import BasicTokenizer
+tok = BasicTokenizer()
+text = "aaabdaaabac"
+tok.train(text, vocab_size=256 + 3, verbose=True)
+print(tok.encode(text))          # [258, 100, 258, 97, 99]
+print(tok.decode([258, 100, 258, 97, 99]))  # aaabdaaabac
+</code></pre>
+      </figure>
+      <p>再试一句训练时没见过的：<code>encode("aaab")</code> 应当得到 <code>[258]</code>，因为三次合并的树恰好能覆盖它；<code>encode("cab")</code> 则应退回三个字节编号。编码器没有「未知词」分支，只有「还能不能按菜谱继续焊」。</p>
+
+      <h2>RegexTokenizer：先按类别切开，再在块内合并</h2>
+      <p>Basic 版会把 <code>dog.</code> 焊成一个词元，也会把数字和字母焊在一起。GPT-2 起加了一道预分词：用正则把文本切成「字母块 / 数字块 / 标点块 / 空白块」，<strong>合并绝不跨越块边界</strong>。minbpe 的 <code>RegexTokenizer</code> 默认用 GPT-4 那条模式；统计次数时把所有块的 <code>get_stats</code> 加总，真正 <code>merge</code> 时却只在各自的块里替换。</p>
+      <table class="plain">
+        <thead><tr><th>块的种类（直觉）</th><th>它在防止什么</th></tr></thead>
+        <tbody>
+          <tr><td>字母词，可带前置空格</td><td>空格常常焊进单词，变成 <code>" dog"</code> 这样一个词元。</td></tr>
+          <tr><td>数字每次最多 3 位</td><td>这是 GPT-4 词表算术别扭的根源之一：<code>677</code> 不一定是一个词元。</td></tr>
+          <tr><td>标点、换行</td><td>句号不会和单词焊死，代码缩进也更稳定。</td></tr>
+        </tbody>
+      </table>
+      <p>Python 标准库 <code>re</code> 不够用，源码依赖 <code>regex</code> 包，因为模式里有 <code>\p{L}</code> 这种 Unicode 属性。作业不要求你复现 GPT-4 词表；知道「MiniMind 用的 Hugging Face <code>tokenizers</code> 也是 ByteLevel + BPE，同样不会跨类别乱焊」就够了。</p>
+
+      <h2>特殊标记是另一路编号，不是焊出来的</h2>
+      <p>合并用完 0 … vocab_size−1 之后，才能登记 <code>&lt;|endoftext|&gt;</code> 这类标记。minbpe 的接口是 <code>register_special_tokens({"&lt;|endoftext|&gt;": 32768})</code>。编码时必须显式允许它们，否则用户输入里一旦出现这段字符串，就会被当成普通文本切开——或者像 tiktoken 默认那样直接报错。这是安全问题，不是风格问题：提示词里不该能偷偷注入「对话结束」。</p>
+      <p>MiniMind-3 的 <code>&lt;|im_start|&gt;</code> / <code>&lt;|im_end|&gt;</code> / <code>&lt;think&gt;</code> 走的是同一逻辑，只是登记在官方 <code>tokenizer.json</code> 里。第 15 章会真正用到它们。</p>
+
+      <h2>这一章和 MiniMind-3 怎么接线</h2>
+      <p>对照关系可以记成一张表：</p>
+      <table class="plain">
+        <thead><tr><th>minbpe</th><th>MiniMind 作业里对应什么</th></tr></thead>
+        <tbody>
+          <tr><td><code>BasicTokenizer.train</code></td><td>理解算法。不要用你训出来的词表去加载社区权重。</td></tr>
+          <tr><td><code>RegexTokenizer</code></td><td>官方 <code>trainer/train_tokenizer.py</code> 里的 ByteLevel 预分词 + BPE。</td></tr>
+          <tr><td>词表 256 + 合并</td><td>官方已经训好的 6400。嵌入层宽度按这个数来。</td></tr>
+          <tr><td><code>encode</code> / <code>decode</code></td><td>第 3 章起你只调用 <code>AutoTokenizer</code>，不再自己焊。</td></tr>
+        </tbody>
+      </table>
+      <p>Karpathy 在讲座里列过一串「看起来像模型不行、其实是分词在作怪」的现象：不会拼写、不会做个位数加法、非英语更碎、看见 <code>&lt;|endoftext|&gt;</code> 就停。读完 Basic 版，这些现象都有同一句解释：模型看见的不是字符，是某次合并树切出来的整数。</p>
+
+      <div class="callout ok">
+        <p class="label">建议的阅读节奏</p>
+        <p>先把 <code>exp-2-2/bpe/minbpe/basic.py</code> 里的填空写完，用维基那道例题自测。有余力再写 <code>regex.py</code> 和 <code>gpt4.py</code>，进度见同目录 <code>exercise.md</code>。视频文字稿在本章附录。然后回到第 3 章，那些整数就要去查 768 维的表了。</p>
+      </div>
+
+      <h2>自测</h2>
+      <ul>
+        <li>为什么 <code>encode</code> 必须按 merge 编号从小到大焊，而不能再统计「当前这句话里哪一对最多」？</li>
+        <li><code>aaa</code> 做一次 <code>(a, a)</code> 合并，结果是 <code>[aa] a</code> 还是 <code>a [aa]</code>？这和 <code>merge</code> 的扫描方向有什么关系？</li>
+        <li>把「天」送进尚未合并过的 BPE，会得到几个编号？这和字符级草稿有什么不同？</li>
+        <li>若你用自己的语料训一个 4096 的词表，能不能拿它去加载 MiniMind-3 的预训练权重？为什么？</li>
+        <li>为什么 GPT-2 写 Python 费劲，并不全是「模型不会编程」？</li>
+        <li>分词器训练集和语言模型训练集不一致，会留下什么样的词元？</li>
+      </ul>
+
+      <h2 class="lecture-start" id="lecture">附录 · Let’s build the GPT Tokenizer 文字稿</h2>
+      <p>整理自 Andrej Karpathy 的讲座 <a href="https://www.youtube.com/watch?v=zduSFxRajkE">Let’s build the GPT Tokenizer</a>（2024 年 2 月）。配套代码在 <a href="https://github.com/karpathy/minbpe">karpathy/minbpe</a>。按讲座顺序写成中文，口误、重复和现场跑代码的碎念已理顺，论点按原讲写全。</p>
+
+      <h3>开场：分词是最不讨喜、又躲不开的一层</h3>
+      <p>大家好。这一讲要谈大语言模型里的分词。你看我一脸苦相，因为这是我做大模型时最不喜欢的部分。它又脏又绕，脚下全是暗坑。你在模型上看到的许多古怪现象，追到根上往往不是网络结构的问题，而是分词。</p>
+      <p>上一讲 <a href="https://www.youtube.com/watch?v=kCc8FmEb1nY">Let’s build GPT from scratch</a> 其实已经做过分词，只是最天真的那种：字符级。Colab 里训练数据是莎士比亚，一开始它只是 Python 里的一长串字符串。怎么把字符串塞进语言模型？我们先扫一遍训练集，把出现过的字符收成词表，一共 65 个：空格、标点、数字、大小写字母。然后做两张查找表，字符换整数、整数换回字符。<code>encode("hii there")</code> 得到一串编号；取前 1000 个字符编码，就得到 1000 个词元，因为一个字符就是一个词元。</p>
+      <p>这些整数怎么进模型？靠嵌入表。词表 65，嵌入表就 65 行。每个词元的整数当作行号，抽出那一行可训练向量，再送进 Transformer。Transformer 看见的从来不是字母，是这些向量。</p>
+      <p>字符级在玩具设定里够用。真正的前沿模型不在字符上切，而在「字符块」上切。构造这些块的算法，就是字节对编码，也就是 BPE。我们这一讲会把它从头写出来。</p>
+      <p>把字节级 BPE 带进大模型分词的，大概是 2019 年 OpenAI 的 GPT-2 论文 <em>Language Models are Unsupervised Multitask Learners</em>。翻到第 2.2 节 Input Representation，他们讨论分词该有哪些性质，最后给出词表 50257、上下文 1024。注意力里每个词元最多看前面 1024 个词元。词元是大模型的原子：训练、推理、计费，全按词元算。分词就是在原始字符串和词元序列之间做翻译。Llama 2 论文里搜 token，能命中六十多次，他们写自己训了两万亿词元——可见这个抽象有多无处不在。</p>
+      <p>好消息是 BPE 本身并不玄。我们可以从零写。进代码之前，先尝一口它有多「脏」，免得你觉得这层可以敷衍过去。</p>
+      <p>语言模型的许多怪癖，看起来像模型不行，其实是分词：</p>
+      <ul>
+        <li>为什么不会拼写？分词。</li>
+        <li>为什么连反转字符串这种小事都做不好？分词。</li>
+        <li>为什么非英语（比如日语、韩语）明显更差？分词。</li>
+        <li>为什么简单算术也别扭？分词。</li>
+        <li>为什么 GPT-2 写 Python 特别费劲？分词。</li>
+        <li>为什么看见字符串 <code>&lt;|endoftext|&gt;</code> 会突然停？分词。</li>
+        <li>那个 trailing whitespace 警告是什么？分词。</li>
+        <li>问它 SolidGoldMagikarp 为什么会发疯？分词。</li>
+        <li>为什么有人劝你用 YAML 而不是 JSON？分词。</li>
+        <li>为什么语言模型其实不是端到端的语言建模？分词。</li>
+        <li>痛苦的真正根源是什么？分词。</li>
+      </ul>
+      <p>这些条目我们讲到最后会一条一条拆开。现在先换个能看得见的界面。</p>
+
+      <h3>在浏览器里看分词：tiktokenizer</h3>
+      <p>打开 <a href="https://tiktokenizer.vercel.app">tiktokenizer</a>。分词在浏览器里实时跑，左边贴字符串，右边立刻着色。当前用的是 gpt2 词表。我贴进去的那段示例大约 300 个词元。</p>
+      <p>单词 Tokenization 被切成两个词元，编号大约是 30642 和 1634。带前置空格的 <code> is</code> 是 318。<code> at</code> 是 379，<code> the</code> 是 262。底部可以开关空白显示。空格和换行都在字符串里，必须被编码；可视化常常把它们藏起来，容易让人忘了「空格也是词元的一部分」。</p>
+      <p>算术更刺眼。127 可能是一个三字符词元；677 却是 <code> 6</code> 加 <code>77</code> 两个词元。模型必须在参数里自学：这两个编号拼起来才是六百七十七。若答案是 804，它还可能要分两步吐出：先 <code> 8</code>，再 <code>04</code>。四位数同样任意：1275 也许是 12+75，6773 也许是 6+773，8041 也许是 8+041。切法完全由合并历史决定，看起来毫无道理。</p>
+      <p>再看 egg。句首的 Egg 是两个词元；<code>I have an egg</code> 里带空格的 egg 变成一个词元。全小写 egg 又是另一个编号，颜色都不同。全大写再换一套。同一概念，句首句中、大小写一变，编号全变。模型只能从海量文本里自己聚类：它们差不多是一回事，但并不完全一样。</p>
+      <p>韩语也贴一段 ChatGPT 的自我介绍。非英语差，不全是因为模型训练数据偏英语——分词器的训练数据同样偏英语。英语常见片段会被焊成又长又密的词元；译成韩语、日语，同样一句话往往碎成更多词元。序列被拉长，注意力的有限窗口更快用完。从 Transformer 的视角看，非英语文本是被「拉稀」过的。</p>
+      <p>最后是一段 FizzBuzz 风格的 Python。GPT-2 里每一级缩进空格常常是单独的词元 220：220、220、220、220，然后才是 <code> if</code>。模型生成这段代码时，要把这些空格一个一个过完整套注意力。这极度浪费上下文。GPT-2 写 Python 差，不全是「它不会编程」，很大一块是缩进把序列撑爆了。</p>
+      <p>同一段字符串，把词表换成 GPT-4 的 cl100k_base，词元数从大约 300 掉到大约 185，几乎腰斩。GPT-4 词表大约十万，GPT-2 大约五万，所以同样文本更密，注意力窗口里能装进大约两倍的原文。词表也不能无限加：嵌入表变大，最后一层 Softmax 也变大。中间有一个「够密又不太贵」的甜点区，后面再谈。</p>
+      <p>GPT-4 对 Python 空白的处理明显好了：四个空格、三个空格、七个空格，常常被收成一个词元。这是设计时故意的。从 GPT-2 到 GPT-4 的代码能力提升，不全是架构和优化，分词器怎么把空格焊起来也占了一大截。</p>
+
+      <h3>字符串在 Python 里是什么：Unicode 码点</h3>
+      <p>我们要做的事很朴素：把字符串变成某个固定词表上的整数，再用整数去查向量，送进 Transformer。麻烦在于：不能只支持英文字母，还要韩语「안녕」、emoji、互联网上随便什么符号。</p>
+      <p>Python 文档写得很清楚：字符串是 Unicode 码点的不可变序列。码点由 Unicode 联盟定义，当时大约十五万个字符、一百六十一种文字。标准还在长，讲座时最新是 15.1（2023 年 9 月）。</p>
+      <p><code>ord("h")</code> 是 104。那个 emoji 的码点大约在 128000 附近。韩语某字大约五万。<code>ord</code> 一次只吃一个字符，不能丢整串进去。对整句做 <code>[ord(x) for x in s]</code>，已经得到一串整数了。为什么不直接拿码点当词元？</p>
+      <p>两个理由。词表会变成十五万这么长；更麻烦的是 Unicode 还在变，不是稳定表示。我们需要更好的一层。</p>
+
+      <h3>UTF-8、UTF-16、UTF-32</h3>
+      <p>Unicode 定义了三种常见编码：UTF-8、UTF-16、UTF-32，把码点变成字节流。UTF-8 最普遍：每个码点变成 1 到 4 个字节，变长。UTF-32 定长，但浪费。三种编码的完整利弊超出这一讲，有一篇我很喜欢的博文，文末还指向 <em>UTF-8 Everywhere</em> 宣言。UTF-8 一个关键优点是向后兼容 ASCII。</p>
+      <p>对同一字符串调用 <code>.encode("utf-8")</code> 得到 bytes 对象。UTF-16、UTF-32 对简单英文字母会插进大量零，看起来就很浪费。所以我们钉死 UTF-8。</p>
+      <p>可如果直接拿 UTF-8 字节当词元，词表只有 256。嵌入表和最后一层会极小，序列却极长。注意力窗口按词元算，窗口装不下足够原文，下一词预测就近视。我们既想留在 UTF-8 上，又想把词表做成可调的超参数。答案就是 BPE：按可变程度压缩字节序列。</p>
+
+      <h3>能不能取消分词？</h3>
+      <p>我最想做的，其实是把原始字节流直接喂给语言模型。前一年夏天有一篇论文讨论这件事（MEGABYTE 那一类工作）：序列太长，注意力会贵到炸，所以他们给 Transformer 做了层次结构。论文结尾说，这些结果说明「无分词的自回归序列建模在规模上是可行的」。若真能取消分词，会非常美好。但当时还没有足够多的团队在足够规模上把它坐实。眼前我们还是得用 BPE 先压一遍。</p>
+
+      <h3>BPE：维基百科那道例题</h3>
+      <p>BPE 并不复杂，维基百科写得很清楚。假设词表只有 a、b、c、d 四个符号，序列是 <code>aaabdaaabac</code>，一共 11 个位置，太长，要压缩。</p>
+      <p>反复做同一件事：找出现次数最多的相邻对，铸造一个新词元，整表替换。最常见的是 aa，铸 Z 替换，11 个位置变成 9 个，词表变成 5。再找，这次是 ab，铸 Y，序列变成 7，词表变成 6。再找，ZY 最常见，铸 X，最后剩下 5 个词元，词表变成 7。</p>
+      <p>字节上完全一样：从 256 个字节出发，反复铸造新编号、替换、记进词表。压缩程度由你决定做几次合并。维基那套叙事把树讲成 aa→Z、ab→Y、ZY→X；你自己写代码时平票怎么破，以 <code>max(stats, key=stats.get)</code> 为准。</p>
+
+      <h3>开始实现：字节、数对、合并</h3>
+      <p>先拿一段短文本，<code>text.encode("utf-8")</code> 得到 bytes，再 <code>list(...)</code> 变成 0–255 的整数列表，比直接操作 bytes 对象顺手。</p>
+      <p>第一个函数：统计相邻对。<code>zip(ids, ids[1:])</code> 扫一遍，字典里累加次数。按次数排序，讲座示例里最常见的一对是 (101, 32)，也就是字母 e 和空格，出现 20 次——很多英文词以 e 结尾。</p>
+      <p>取最大键：<code>max(stats, key=stats.get)</code>。然后铸造新编号 256（0–255 已被字节占住），从左到右、互不重叠，把每一处 101,32 换成 256。这就是 <code>merge</code>。重叠要小心：<code>aaa</code> 里有两处 aa，一次扫描只能焊左边，得到 <code>[aa] a</code>。</p>
+      <p>建议你先自己写这两个函数，再往下看。整套算法之后都在它们上面打转。</p>
+
+      <h3>训练：while 换成 for，看压缩率</h3>
+      <p>短段落统计不稳定。讲座里换成整篇博文拉成一行，字节更长，对的频率才有代表性。编码成 UTF-8，再变成整数列表。</p>
+      <p>词表大小是超参数。若已有 256 个字节、想做恰好 20 次合并，就设 <code>vocab_size = 276</code>。复制一份 ids，免得改坏原文。再准备 <code>merges</code>：<code>(子, 子) → 新编号</code>。这不是单根树，而是从 256 片叶子往上焊的森林。</p>
+      <p>循环二十次：找最常见对，发新编号（从 256 起），整表替换，记进 merges。第一次仍是 101,32 → 256。101 和 32 单独出现时还在，只有相邻才被焊。新铸的 256 下一轮也可以再被焊：第 20 次合并可能是 256 和 259 变成 275。所以这是森林，不是一棵树。</p>
+      <p>压缩率：讲座示例从大约 24000 字节压到大约 19000 词元，约 1.27 倍。合并越多，通常压得越狠。这些 merges 就是分词器的「参数」。</p>
+
+      <h3>分词器跟语言模型是两个阶段</h3>
+      <p>请记住一张图：分词器是完全独立的对象。这一讲几乎不碰 LLM 本身。它有自己的训练集，和语言模型的训练集可以不同；用 BPE 训一次，得到词表和 merges。之后它是翻译层：Unicode 字符串 ⇄ 词元序列，编码、解码两支箭头。</p>
+      <p>典型流程是：把语言模型的全部训练数据先过一遍分词器，变成海量词元存盘，原文可以扔掉。模型训练时读的是词元文件。</p>
+      <p>两套语料为什么要分开调？因为分词训练集里某种语言、某种代码占多少，会决定那种数据焊出多少词元，从而决定它在词元空间里有多密。日语加得多，日语序列就短，有限上下文里能装更多日语。这是密度分配，不是小事。</p>
+
+      <h3>解码：编号变回字符串</h3>
+      <p>给定整数列表，返回 Python 字符串。先造 <code>vocab</code>：0–255 映射到单字节；再按 merges 的插入顺序，新词元的字节等于两个孩子的字节拼接。从 Python 3.7 起字典保序，才能按插入顺序重建。</p>
+      <p>对每个 id 查字节，拼成一大块 bytes，再 <code>decode("utf-8")</code>。默认 <code>errors="strict"</code> 会炸。解码 97 得到 <code>a</code> 没问题；单独解码 128 会报 invalid start byte。UTF-8 对多字节有固定包络，128 的二进制是 1 后面全 0，对不上任何合法开头。</p>
+      <p>不是任意字节序列都是合法 UTF-8。模型若吐出一串倒霉编号，就解不回来。标准做法是 <code>errors="replace"</code>，非法处换成 �。OpenAI 发布的代码也这么干。看见 �，说明输出不是合法 UTF-8 词元序列。编码再解码通常是恒等；解码再编码不是，因为有些编号序列根本解不成合法文本。</p>
+      <p>空串或单字节没有能焊的对，编码时要先判断 <code>len(ids) &lt; 2</code>，否则 <code>min</code> 会在空统计上翻车。解码函数本身不走合并，只查表、拼接、按 UTF-8 解开。</p>
+
+      <h3>编码：按合并出生顺序焊，不是按当前频率</h3>
+      <p>给定字符串，返回整数列表。先 UTF-8 成字节列表。训练时 merges 从上到下插入：后面的合并依赖前面铸出的编号，所以编码必须先做早出生的合并，再做晚出生的。</p>
+      <p>循环里仍用 <code>get_stats</code>，但次数已经不重要，只要当前序列里出现过哪些对。在这些对里，选 merges 中编号最小的那一对。<code>min(stats, key=lambda p: merges.get(p, float("inf")))</code>：不在 merges 里的对优先级是无穷大，赢不了。若所有对都是无穷大，<code>min</code> 会随便返回字典第一对——所以必须再写 <code>if pair not in merges: break</code>。这是终止条件，不是雕虫。</p>
+      <p>找到就 <code>merge</code>，直到焊不动。再强调一次：编码时如果再「焊当前最常见的一对」，同一套 merges 在不同句子上会走出不同的树，模型看见的编号就不稳定。</p>
+      <p>训练语料 encode 再 decode 应还原；再从网上另抓一段没见过的验证文本，也应还原。注意恒等只保证这一方向：不是所有编号序列都能解成合法 UTF-8，所以 decode 再 encode 不必是恒等。这就是最简 BPE。接下来，前沿模型会把这张图迅速复杂化。</p>
+
+      <h3>正则预切分：不许跨类别乱焊</h3>
+      <p>GPT-2 论文 Input Representation 前面都和我们做的一样，从某一段开始分道。他们举 dog 为例：dog 经常跟句号、感叹号、问号挨着。朴素 BPE 可能把 <code>dog.</code>、<code>dog!</code> 各焊成一个词元，标点和词缠死，实验上也不好。所以他们用正则，自上而下强制：某些类别之间永远不许合并。</p>
+      <p>OpenAI 仓库 <code>src/encoder.py</code> 这个名字不好——分词器既能编码也能解码，叫 encoder 很别扭。真正起强制作用的是那条很长的正则。注意他们 <code>import regex as re</code>，不是标准库 <code>re</code>，因为要 <code>\p{L}</code> 这种 Unicode 属性。</p>
+      <p><code>re.findall(pattern, text)</code> 从左到右切出一块块。每一块独立做 BPE，结果再拼接。于是 e 和后面的空格若被切进不同块，就永远不会焊成「e+空格」。</p>
+      <p>模式是一串或。直觉上：</p>
+      <ul>
+        <li>常见英文缩写 <code>'s</code> <code>'ve</code> <code>'re</code> 等，单独切出来。</li>
+        <li>可选空格加上一串字母 <code>\p{L}+</code>：hello 一块，<code> world</code> 一块。</li>
+        <li>可选空格加上数字 <code>\p{N}</code>：字母和数字分开。<code>Hello world 123</code> 里 123 单独一块。</li>
+        <li>再不行就匹配「可选空格 + 非字母非数字非空白」，也就是标点。</li>
+        <li>空白用负向先行断言：吞掉「除最后一个空格以外的空白」，好让最后一个空格去跟后面的词组成 <code> you</code> 这种常见词元。GPT-2 很喜欢「空格打头的词」。</li>
+        <li>最后兜底：剩下的空白。</li>
+      </ul>
+      <p>缩写规则很脏。它写死了 ASCII 撇号；Unicode 弯撇号对不上，会切成另一套。源码注释自己承认：本该加 <code>re.IGNORECASE</code>，好让大写缩写也能合并。没加的后果是 <code>don't</code> 和 <code>DON'T</code> 行为不一致。这些规则还很英语中心，别的语言用不用撇号，会被不一致地切开。</p>
+      <p>Python 代码用这条正则切完，每一块内部才允许合并。你可能以为 OpenAI 训练时就是「切块 + 块内 BPE」。并不完全是。同一段空格贴进 tiktokenizer，GPT-2 仍然每个空格都是 220，说明他们另外禁止了空格合并。GPT-2 分词器的训练代码从未公开，放出的只是推理：给定已有 merges，对新文本编码。真实训练比「切完再 BPE」多一些未写明的规则。</p>
+
+      <h3>tiktoken，以及 GPT-4 改了什么</h3>
+      <p><a href="https://github.com/openai/tiktoken">tiktoken</a> 是 OpenAI 官方推理库，<code>pip install tiktoken</code>，没有训练。几行就能拿到 GPT-2 或 GPT-4 的编号。GPT-2 的空格不焊；GPT-4 焊。</p>
+      <p>各词表的定义在库里的 OpenAI 公开文件。GPT-2 那条正则和论文/encoder.py 等价，只是写得更快一点。cl100k_base 是 GPT-4 词表，正则改了，特殊标记也多了。词表从约 5 万到约 10 万。</p>
+      <p>GPT-4 正则的几处硬变化：</p>
+      <ul>
+        <li><code>(?i:...)</code> 忽略大小写，修掉了 GPT-2 缩写的大小写坑。</li>
+        <li>空白处理更细，讲座里不逐字符抠。</li>
+        <li>数字只匹配 1 到 3 位 <code>\p{N}{1,3}</code>，超长数字不会焊成一个巨型词元。这是 GPT-4 算术仍然别扭的根源之一：677 不必是一个词元。</li>
+      </ul>
+      <p>这些选择几乎没有文档。我们只拿到模式本身。</p>
+
+      <h3>GPT-2 的 encoder.py</h3>
+      <p>文件不长。底部加载 <code>encoder.json</code> 和 <code>vocab.bpe</code>，再构造 Encoder。前者等价于我们的 vocab（编号 → 字节），后者等价于我们的 merges。有这两张表，就能编码和解码。</p>
+      <p>另外还有 byte encoder / byte decoder。那是一层串在真正 BPE 外面的实现细节，不深刻，讲座跳过。核心是他们叫 <code>bpe</code> 的函数：循环找下一对该焊的 bigram，整段替换，直到没有能焊的对。算法上就是我们写过的东西，代码比较乱。</p>
+
+      <h3>特殊标记：另一路编号，不是焊出来的</h3>
+      <p>除了字节和合并，还可以插入用来切分数据、给序列加结构的特殊标记。GPT-2 的 encoder 长度是 50257：256 个字节 + 50000 次合并 = 50256，多出来的第 50257 个是 <code>&lt;|endoftext|&gt;</code>。训练时文档与文档之间插入它，当作「上文可以忘掉」的信号。模型得从数据里学会这一点。</p>
+      <p>在 tiktokenizer 里，字符串还没写完时，这些字符按普通 BPE 切；一旦完整匹配，突然变成 50256。这不是合并出来的，是编码路径上的特判。encoder.py 里几乎看不见这套逻辑；Rust 版 tiktoken 里有完整的登记与替换。</p>
+      <p>基础语言模型用它切文档；微调、ChatGPT 用它切对话。<code>&lt;|im_start|&gt;</code> / <code>&lt;|im_end|&gt;</code> 这类标记圈出 user / assistant。tiktoken 允许你 fork cl100k_base，再登记自己的特殊标记。</p>
+      <p>GPT-4 除了 endoftext，还有 FIM（fill in the middle）的 prefix / middle / suffix，来自填中论文，这一讲不展开。</p>
+      <p>加特殊标记要做模型手术：嵌入表加一行（通常小随机初始化），最后的分类投影也加一维。从基座模型做成聊天模型时，这是常规操作。</p>
+      <p>编码时必须显式允许它们。tiktoken 默认会拒绝字符串里突然冒出来的特殊标记，这是对的：用户提示是攻击者可控输入，不该能偷偷注入「对话结束」。</p>
+
+      <h3>作业：自己写到能对齐 GPT-4</h3>
+      <p>到这里你已经有材料去写一个 GPT-4 分词器。我为此开了 minbpe，并写了 <a href="https://github.com/karpathy/minbpe/blob/master/exercise.md">exercise.md</a>，四步堆到能复现 GPT-4 行为。卡住就看测试和源码。</p>
+      <p>写完应能对齐 tiktoken：同一句编码得到同一串编号，再 decode 回来。你还可以实现 tiktoken 没有的 <code>train</code>。把 GPT-4 的合并可视化：前 256 是字节，第一次合并往往是两个空格焊成 256。用泰勒·斯威夫特的维基词条（很长，不是因为我是果粉）自己训一份，会看到相似的早期合并（in、空格+t），差别主要来自语料。GPT-4 词表里空白合并更多，说明分词语料里代码大概不少。</p>
+
+      <h3>SentencePiece：Llama 那条路</h3>
+      <p>业界另一套常用库是 Google 的 SentencePiece。Llama、Mistral 等许多模型用它。它能训练也能推理，算法之一就是 BPE。和 tiktoken 的关键差别是操作顺序。</p>
+      <p>tiktoken：码点 → UTF-8 字节 → 在字节上合并。SentencePiece：直接在码点上跑 BPE。罕见码点由 <code>character_coverage</code> 决定：不够常见就映射成 UNK；若打开 <code>byte_fallback</code>，则把罕见码点编成 UTF-8，再用词表里预留的 256 个字节词元表示。我认为 tiktoken 干净得多，但这个差别很大。</p>
+      <p>SentencePiece 配置极多，历史包袱重。许多开关属于别的算法，比如 shrinking factor 与 BPE 无关。讲座里尽量对齐 Llama 2：从 Meta 放出的 tokenizer 模型用 protobuf 读出选项再抄过来。归一化、小写、压缩空白——前 LLM 时代机器翻译、分类常用；做语言模型我希望尽量别碰原始数据，能关就关。</p>
+      <p>它还有「句子」这个概念：训练样本数、最大句长、是否打乱。对 LLM 来说，什么叫一句，不同语言定义不同，原始数据里更是说不清。我宁愿把文件当字节流。</p>
+      <p>它也有切数字、切空白这类规则，眯着眼看，相当于 tiktoken 用正则分家。特殊标记方面，UNK、BOS、EOS、PAD 是硬编码的；我的理解是 UNK 必须存在。</p>
+      <p>词表 400 的玩具例子：开头是 UNK=0、BOS=1、EOS=2；PAD 设成 -1 就没有；然后（若 byte_fallback）256 个字节词元；然后是合并出的父节点；最后是训练集里见过的原始码点。韩语若不在训练集里：有 byte_fallback 时走 UTF-8 字节（编号还要加上前面特殊标记造成的偏移）；关掉 fallback，整串变成 0，也就是 UNK。各种没见过的东西全挤进同一个 UNK，模型无法区分——所以 Llama 把 byte_fallback 打开是对的。</p>
+      <p>空格在可视化里常显示成粗下划线。更关键的是 <code>add_dummy_prefix</code>：在文本前加一个假空格，让句首的 world 和句中的 world 都变成「空格+world」。tiktoken 里 world 和 <code> world</code> 是两个编号，模型得自己学它们相近。Llama 2 也开了这个选项。</p>
+      <p>小结：SentencePiece 能训能推，工业上常用；句子长度、UNK 必须存在、码点上 BPE 再回退字节，这些我都不觉得优雅；文档也不友善。要用就对着 Llama 2 的配置抄，并自己把超参数逐项看懂，否则可能默默截断句子。</p>
+
+      <h3>词表该设多大</h3>
+      <p>回到上一讲的 GPT 实现。词表几乎只出现在两处：词元嵌入表（行数 = 词表），以及最后的 LM head（为每个词元打一个 logit）。词表变大，嵌入加行，最后一层多做点积。</p>
+      <p>为什么不能无限大？计算更贵；每个词元在数据里更稀，对应向量可能欠训练；单个词元若塞进太长的字符块，一次前向可能消化不了。这主要是经验超参。当时前沿大约在「高几万到十万」附近。</p>
+      <p>给预训练模型加词元很常见：聊天微调要加对话结构标记，工具调用再加一批。做法是嵌入表加行（小随机初始化），LM head 加列。可以冻住基座、只训新行，也可以一起训。手术很轻。</p>
+
+      <h3>新词元不只是特殊标记：gist tokens</h3>
+      <p>设计空间比「加几个聊天标记」大。有一篇工作叫 gist tokens：场景需要很长的提示词，每次都编码、都做注意力，很重。他们插入少量新词元，冻住整网，只训这些新嵌入，用蒸馏让模型在「只看见这几个 gist」时行为接近「看见整段长提示」。推理时丢掉长提示，换上这几个编号。这是参数高效微调的一种：不训 LoRA，只训词元嵌入。整类方法够单开一讲，这里只点一下。</p>
+
+      <h3>图像、视频、音频也在「分词」</h3>
+      <p>最近的趋势是：别为新模态改 Transformer 骨架，把图像、视频、音频切成词元，假装它们也是文本编号。早期论文把图像切成整数块，可以是硬词元（强制离散），也可以是软词元（过自编码器瓶颈，不必是整数）。Sora 那篇用 visual patches 谈视频：LLM 有文本词元，Sora 有视觉块，离散词元可走自回归，软词元可走扩散。细节超出这一讲，但「一切皆词元」是同一抽象。</p>
+
+      <h3>回过头看那些怪癖</h3>
+      <p>现在可以回答开头那张清单。</p>
+      <p><strong>拼写和字符串操作。</strong>字符被焊成长块。GPT-4 词表里有很长的词元，比如 defaultStyle 一类会整段变成一个编号。问「这个词里有几个 L」，模型看见的是一个原子，不是一串字母，数错并不稀奇。让它直接反转 defaultStyle，会搅成乱码。若先要求「把每个字符用空格分开打印」，再反转那张列表，它反而对了——因为你把一个词元拆回了许多字符级词元，任务突然变得可看。</p>
+      <p><strong>非英语。</strong>不只有模型数据偏英语，分词器也偏。Hello how are you 五个词元，译成韩语可能十五个，膨胀三倍。极常见的问候语「안녕」都可能是三个词元，而 hello 是一个。文本被拉长，窗口更快用完。</p>
+      <p><strong>算术。</strong>加法是按位的字符级算法，但数字被任意切开。有一篇博文叫 Integer tokenization is insane，系统看了 GPT-2 的四位数：有时一个词元，有时 1+3、2+2、3+1，完全任意。模型能凑合算，是顶着逆风。Llama 2 用 SentencePiece 时选择把数字拆开，部分就是为了减轻这件事。</p>
+      <p><strong>GPT-2 的 Python。</strong>缩进空格每个都是 220，上下文被空白吃掉。GPT-4 把多空格焊起来，这是分词修复，不只是模型变强。</p>
+      <p><strong>看见 <code>&lt;|endoftext|&gt;</code> 就停。</strong>让模型打印这个字符串，它会表现得很怪，像是内部把它当成了真正的结束标记。用户提示是攻击者可控输入，按理不该把其中的特殊标记解析成真词元；一旦 <code>encode(..., allowed_special=...)</code> 把用户文本里的这段放行，就会变成攻击面。想折腾模型，可以试试塞特殊标记。</p>
+      <p><strong>trailing whitespace。</strong>在 Playground 用 GPT-3.5 Turbo Instruct 这种补全模型，写「Here's a tagline for an ice cream shop」能正常续。若在末尾多打一个空格再提交，API 会警告：文本以空白结尾，表现会变差。原因：GPT 系喜欢把空格焊进下一个词，<code> o</code> 是词元 8840，不是「空格」加「o」。你在末尾先放一个孤立的 220，等于把下一个词元撕成两半，分布外了。模型几乎没见过这种「词元刚起了个头」的上下文。</p>
+      <p>同类问题还有「半截长词元」。defaultStyle 在训练里几乎总是一个整体；你只输入前半截，模型可能立刻吐结束符，或触发乱七八糟的安全策略。tiktoken 的 Rust 代码里搜 unstable，有大量未文档化的「不稳定词元」处理。补全 API 真正该做的，可能是在字符级搜索高概率延拓，而不是在半截词元后面硬接下一个整词元。这整坨都来自分词，以后或许能单开一讲。</p>
+      <p><strong>SolidGoldMagikarp。</strong>有人把词元嵌入聚类，发现一簇古怪字符串：SolidGoldMagikarp、StreamerBot 之类。问模型重复这些词，会得到回避、幻觉、甚至骂人——安全对齐像被打穿。SolidGoldMagikarp 是 Reddit 用户名。推测是：分词器训练集里 Reddit 很多，这个高频用户名被焊成了专属词元；后来语言模型的训练集里没有这批 Reddit，该词元从未被采样，嵌入表那一行从随机初始化起从未更新，等价于未分配内存。测试时一激活，Transformer 吃到未训练向量，行为未定义。分词语料和模型语料不一致，就会在词表里留下这种地雷。</p>
+      <p><strong>YAML 对 JSON。</strong>同一份结构化数据，JSON 往往更吃词元，YAML 更省。讲座里一份对照大约 116 对 99。按词元计费、按上下文付钱时，密度就是成本。多在 tiktokenizer 里量一量。</p>
+
+      <h3>收场建议</h3>
+      <p>这一讲又干又烦，我自己也不喜欢这层。但不要敷衍：暗坑、安全问题、把未分配内存插进模型，都在这里。能取消分词的人，将得到不朽荣耀。前面那篇无分词论文是一个方向，希望后来者更多。</p>
+      <p>眼下做应用：若能复用 GPT-4 词表，就用 tiktoken，推理又快又干净。我也更喜欢 OpenAI 那种字节级 BPE。若必须自己训词表，目前工业上仍常走 SentencePiece 的 BPE；我不喜欢它在码点上合并、不喜欢 byte fallback 的形态、不喜欢那一百万个开关——抄错一个最大句长，就会悄悄裁句子。对照 Meta 的配置，把超参数和源码过一遍。即便设对了，算法上我仍觉得不如字节级 BPE。理想状态是「tiktoken 的推理 + 能训练」，当时还不存在。minbpe 是这个理想的 Python 实现，还不够快。也许以后会有更干、更细的续集。希望有用，再见。</p>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+<script>
+(function () {
+  const textEl = document.getElementById("bpe-text");
+  const nEl = document.getElementById("bpe-n");
+  const chipsEl = document.getElementById("bpe-chips");
+  const statsBody = document.querySelector("#bpe-stats tbody");
+  const logEl = document.getElementById("bpe-log");
+  const statusEl = document.getElementById("bpe-status");
+  if (!textEl || !chipsEl) return;
+
+  function getStats(ids) {
+    const counts = new Map();
+    for (let i = 0; i < ids.length - 1; i++) {
+      const key = ids[i] + "," + ids[i + 1];
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    return counts;
+  }
+  function mergeOnce(ids, a, b, idx) {
+    const out = [];
+    for (let i = 0; i < ids.length; ) {
+      if (i < ids.length - 1 && ids[i] === a && ids[i + 1] === b) {
+        out.push(idx);
+        i += 2;
+      } else {
+        out.push(ids[i]);
+        i += 1;
+      }
+    }
+    return out;
+  }
+  function utf8(str) {
+    return Array.from(new TextEncoder().encode(str));
+  }
+  function renderBytes(bytes) {
+    try {
+      return new TextDecoder("utf-8", { fatal: false }).decode(Uint8Array.from(bytes));
+    } catch {
+      return "�";
+    }
+  }
+
+  let vocab = {};
+  let ids = [];
+  let step = 0;
+  let source = "";
+
+  function reset(keepText) {
+    source = keepText ? textEl.value : textEl.value;
+    vocab = {};
+    for (let i = 0; i < 256; i++) vocab[i] = [i];
+    ids = utf8(textEl.value);
+    step = 0;
+    logEl.innerHTML = "";
+    paint();
+  }
+
+  function chipClass(id) {
+    if (id >= 258) return "chip m3";
+    if (id === 257) return "chip m2";
+    if (id >= 256) return "chip m";
+    return "chip";
+  }
+
+  function paint() {
+    chipsEl.replaceChildren();
+    ids.forEach((id) => {
+      const el = document.createElement("span");
+      el.className = chipClass(id);
+      const bytes = vocab[id] || [id];
+      const shown = renderBytes(bytes).replace(/\n/g, "\\n").replace(/ /g, "·");
+      el.append(shown || "�");
+      const sub = document.createElement("span");
+      sub.className = "id";
+      sub.textContent = String(id);
+      el.appendChild(sub);
+      chipsEl.appendChild(el);
+    });
+
+    const stats = getStats(ids);
+    const rows = Array.from(stats.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    statsBody.replaceChildren();
+    const limit = parseInt(nEl.value, 10) || 0;
+    const canMerge = step < limit && rows.length > 0;
+    if (rows.length === 0) {
+      statusEl.textContent = "只剩 0 或 1 个词元，没有能再焊的对。";
+    } else if (step >= limit) {
+      statusEl.textContent = "已达到合并上限。当前长度 " + ids.length + "（起始 " + utf8(textEl.value).length + " 字节）。";
+    } else {
+      statusEl.textContent = "下一步会焊次数最多的一对。已合并 " + step + " / " + limit + " 次，序列长度 " + ids.length + "。";
+    }
+    rows.slice(0, 8).forEach((row, i) => {
+      const [key, count] = row;
+      const [a, b] = key.split(",").map(Number);
+      const tr = document.createElement("tr");
+      if (i === 0 && canMerge) tr.className = "win";
+      const t0 = document.createElement("td");
+      t0.textContent = renderBytes(vocab[a] || [a]) + " + " + renderBytes(vocab[b] || [b]) + "  (" + a + "," + b + ")";
+      const t1 = document.createElement("td");
+      t1.textContent = String(count);
+      const t2 = document.createElement("td");
+      t2.textContent = i === 0 && canMerge ? String(256 + step) : "—";
+      tr.append(t0, t1, t2);
+      statsBody.appendChild(tr);
+    });
+  }
+
+  function oneStep() {
+    if (textEl.value !== source) reset(true);
+    const limit = parseInt(nEl.value, 10) || 0;
+    if (step >= limit) return;
+    const stats = getStats(ids);
+    if (stats.size === 0) return;
+    let best = null;
+    let bestCount = -1;
+    for (const [key, count] of stats.entries()) {
+      if (count > bestCount) {
+        best = key;
+        bestCount = count;
+      }
+    }
+    const [a, b] = best.split(",").map(Number);
+    const idx = 256 + step;
+    vocab[idx] = (vocab[a] || [a]).concat(vocab[b] || [b]);
+    ids = mergeOnce(ids, a, b, idx);
+    const li = document.createElement("li");
+    li.textContent = "merge " + (step + 1) + ": (" + a + "," + b + ") -> " + idx + "  " + JSON.stringify(renderBytes(vocab[idx])) + "  ×" + bestCount;
+    logEl.appendChild(li);
+    step += 1;
+    paint();
+  }
+
+  document.getElementById("bpe-step").addEventListener("click", oneStep);
+  document.getElementById("bpe-all").addEventListener("click", () => {
+    const limit = parseInt(nEl.value, 10) || 0;
+    while (step < limit && getStats(ids).size) oneStep();
+  });
+  document.getElementById("bpe-reset").addEventListener("click", () => reset(true));
+  textEl.addEventListener("change", () => reset(true));
+  nEl.addEventListener("change", () => reset(true));
+  reset(true);
+})();
+</script>
+</body>
+</html>

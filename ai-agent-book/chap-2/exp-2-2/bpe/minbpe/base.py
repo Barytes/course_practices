@@ -1,52 +1,57 @@
-"""最小因果注意力：Q 检索 K，再按分数提取 V。"""
+"""
+Contains the base Tokenizer class and a few common helper functions.
+The base class also contains the (common) save/load functionality.
+It would be possible to be a lot more strict about the interface and
+e.g. isolating all regex/pattern parts to the RegexTokenizer, but
+some concessions are made for simplicity.
+"""
+import unicodedata
 
-import torch
-import torch.nn.functional as F
+# -----------------------------------------------------------------------------
+# a few helper functions useful for both BasicTokenizer and RegexTokenizer
 
-
-class CharTokenizer:
-    def __init__(self, corpus: list[str]):
-        # 定义特殊字符：填充、未知、开始、结束
-        specials = ["<pad>", "<unk>", "<bos>", "<eos>"]
-        chars = sorted(set[str]("".join(corpus)))
-        vocab = specials + [c for c in chars if c not in specials]
-        self.stoi = {char: i for i, char in enumerate(vocab)}
-        self.itos = {i: char for i, char in enumerate(vocab)}
-        self.pad_id = self.stoi["<pad>"]
-        self.unk_id = self.stoi["<unk>"]
-        self.bos_id = self.stoi["<bos>"]
-        self.eos_id = self.stoi["<eos>"]
-
-
-    def encode(self, text: str) -> list[int]:
-        return [self.stoi.get(char, self.unk_id) for char in text]
-
-    def decode(self, ids: list[int]) -> str:
-        skip = [self.pad_id, self.bos_id, self.eos_id]
-        return "".join(self.itos[id] for id in ids if id not in skip)
-
-
-def get_stats(ids: list[int]) -> dict[tuple[int, int], int]:
-    """[1, 2, 3, 1, 2] -> {(1, 2): 2, (2, 3): 1, (3, 1): 1}"""
-    counts = {}
-    for pair in zip(ids, ids[1:]):
-        counts[pair] = counts.get(pair, 0) + 1
+# 给定一个整数数组，统计每个相邻的pair出现的次数
+# ids: 整数数组
+# 返回：一个字典，键是相邻的pair，值是出现的次数
+def get_stats(ids, counts=None):
+    """
+    Given a list of integers, return a dictionary of counts of consecutive pairs
+    Example: [1, 2, 3, 1, 2] -> {(1, 2): 2, (2, 3): 1, (3, 1): 1}
+    Optionally allows to update an existing dictionary of counts
+    """
+    counts = {} if counts is None else counts
+    # >>> 填空：遍历 ids 里每一对相邻整数，把 counts[pair] 累加 1。
+    # 提示：for pair in zip(ids, ids[1:]): ...
+    # 必须写在传入的 counts 上，RegexTokenizer 训练时会把很多块的统计加到同一份字典。
+    for pair in zip(ids,ids[1:]):
+        counts[pair] = counts.get(pair,0) + 1
     return counts
 
-def merge(ids: list[int], pair: tuple[int, int], idx: int) -> list[int]:
-    """把 ids 里每一处相邻的 pair 换成新编号 idx。"""
-    new_ids = []
+# 给定一个整数数组，将所有出现的指定的pair替换为新的整数
+# ids: 整数数组
+# pair: 指定的pair
+# idx: 新的整数
+# 返回：新的整数数组
+def merge(ids, pair, idx):
+    """
+    In the list of integers (ids), replace all consecutive occurrences
+    of pair with the new integer token idx
+    Example: ids=[1, 2, 3, 1, 2], pair=(1, 2), idx=4 -> [4, 3, 4]
+    """
+    newids = []
+    i = 0
+    # >>> 填空：从左到右、互不重叠地扫描。
+    # 若 ids[i], ids[i+1] 正好是 pair，写入 idx 并 i += 2；否则写入 ids[i] 并 i += 1。
+    # 注意：aaa 里两处 aa 只能焊左边，得到 [aa] a，不是 a [aa]。
     i = 0
     while i < len(ids):
-        if i < len(ids) - 1 and ids[i:i+2] == pair:
-            new_ids.append(idx)
+        if i < len(ids) - 1 and (ids[i], ids[i+1]) == pair:
+            newids.append(idx)
             i += 2
         else:
-            new_ids.append(ids[i])
+            newids.append(ids[i])
             i += 1
-    return new_ids
-
-import unicodedata
+    return newids
 
 # first two helper functions...
 def replace_control_characters(s: str) -> str:
@@ -68,6 +73,7 @@ def render_token(t: bytes) -> str:
     s = replace_control_characters(s)
     return s
 
+# -----------------------------------------------------------------------------
 # the base Tokenizer class
 
 class Tokenizer:
@@ -75,10 +81,13 @@ class Tokenizer:
 
     def __init__(self):
         # default: vocab size of 256 (all bytes), no merges, no patterns
-        self.merges = {} # (int, int) -> int
+        self.merges = {} # (int, int) -> int 记录train里面如何将文本里的相邻的pair合并为一个新的编码（新的整数）。这个新的整数可以代表一个词组。
+                         # 为什么这个记录了合并的顺序？因为训练的过程中，先合并的pair会赋予一个更小的int，从而代表了“更早”被合并。
+                         # train: 查找出现频率最高的pair，合并为一个新的编码（int）。这个编码是按顺序由小到大生成的（256+i)。
         self.pattern = "" # str
         self.special_tokens = {} # str -> int, e.g. {'<|endoftext|>': 100257}
-        self.vocab = self._build_vocab() # int -> bytes
+        self.vocab = self._build_vocab() # int -> bytes 记录编码对应的原始字节，例如{257: b'aa', 258: b'ab', 259: b'ac'}
+                                         # build_vocab: 根据utf-8编码构造最初始的编码表，例如{97: b'a', 98: b'b', 99: b'c'}
 
     def train(self, text, vocab_size, verbose=False):
         # Tokenizer can train a vocabulary of size vocab_size from text
@@ -170,39 +179,3 @@ class Tokenizer:
         self.merges = merges
         self.special_tokens = special_tokens
         self.vocab = self._build_vocab()
-
-# 我对BPE的理解：目的就是压缩文本，用更少的“符号”来表示一段文本。
-# 方法：将常见的词组用一个新的编码替换，重复这个过程，直到没有更多的词组可以替换（或者达到预先定义的词表大小）
-class BPETokenizer:
-    """字节级 BPE，语义对齐 karpathy/minbpe 的 BasicTokenizer。"""
-
-    def __init__(self):
-        pass
-
-    def train(self, text: str, vocab_size: int, verbose: bool = False) -> None:
-        pass
-
-    def encode(self, text: str) -> list[int]:
-        pass
-
-    def decode(self, ids: list[int]) -> str:
-        pass
-
-
-class TokenEmbedding(torch.nn.Module):
-    pass
-
-
-
-def main():
-    corpus = [
-        "北京的天气怎么样",
-        "今天会下雨吗？",
-        "Hello, world!",
-    ]
-    tokenizer = CharTokenizer(corpus)
-    print(tokenizer.encode("北京的天气怎么样"))
-    print(tokenizer.decode([19, 16, 25, 21, 24, 22, 15, 23]))
-
-if __name__ == "__main__":
-    main()
