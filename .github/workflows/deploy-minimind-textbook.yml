@@ -2,16 +2,19 @@ name: Deploy MiniMind textbook
 
 on:
   push:
-    branches: [main]
+    branches: [main, cursor/fix-pages-deploy-0976]
     paths:
       - "ai-agent-book/chap-2/exp-2-2/minimind-textbook/**"
       - ".github/workflows/deploy-minimind-textbook.yml"
   workflow_dispatch:
 
+# Official actions/deploy-pages needs a Pages site that already exists.
+# Creating that site is a repo admin action; GITHUB_TOKEN cannot do it, so the
+# previous workflow 404'd at configure-pages. Publishing the gh-pages branch
+# works with contents:write. After that we try to point Pages at the branch.
 permissions:
-  contents: read
+  contents: write
   pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -19,20 +22,38 @@ concurrency:
 
 jobs:
   deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Prepare site
         run: |
           mkdir -p _site
           cp -a ai-agent-book/chap-2/exp-2-2/minimind-textbook/. _site/
           touch _site/.nojekyll
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+
+      - name: Publish gh-pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: _site
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_site
+          publish_branch: gh-pages
+          force_orphan: true
+
+      - name: Try enabling GitHub Pages from gh-pages
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/pages" \
+            -f "build_type=legacy" \
+            -f "source[branch]=gh-pages" \
+            -f "source[path]=/"
+          post=$?
+          if [ "$post" -ne 0 ]; then
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/pages" \
+              -f "source[branch]=gh-pages" \
+              -f "source[path]=/"
+          fi
+          gh api "repos/${GITHUB_REPOSITORY}/pages" || true
