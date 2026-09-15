@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe6d4">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MiniMind教材">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<title>第 2 章 · 词、编号与分词器 — MiniMind 手把手</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第一部 · 全貌</p>
+      <h1>第 2 章 · 词、编号与分词器</h1>
+      <p class="lead">模型不认识汉字，只认识整数。分词器是词典加切分规则：把文本切成词元，再换成编号；生成结束后再把编号拼回文本。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>字符串进模型之前，必须先变成一串整数。MiniMind 的词典一共 6400 个编号。作业里请加载官方已经训好的分词器，不要自己另训一本词典。</p>
+      </div>
+
+      <h2>模型看见的不是字，是编号</h2>
+      <p>「天空是蓝色的」对你是一句话。对模型，它必须先变成类似 <code>[12, 88, 3, 41, …]</code> 这样的整数列表。每个整数都是词表里的一个编号。</p>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>分词器像一本双语词典。编码 = 中文 → 页码；解码 = 页码 → 中文。模型从头到尾只翻页码，从不直接看汉字。</p>
+      </div>
+
+      <h2>为什么不能一个汉字一个编号</h2>
+      <p>如果每个汉字、每个英文单词、每个标点都占一个独立编号，词表会非常大。词表一大，嵌入层和输出层的参数就会爆炸。</p>
+      <p>算一笔账：词表若有 15 万，每个词用 768 个数表示，光嵌入层就是 150000 × 768 ≈ 1.15 亿个参数，已经比整个 MiniMind-3（6400 万）还大。小模型吃不消。</p>
+      <p>反过来，如果按字节切（每个字节 0–255），词表极小，但「中华人民共和国」这种常见短语会被拆得粉碎，模型要用很多层才能把它们重新拼成概念。</p>
+      <p>折中方案是 <strong>BPE（Byte Pair Encoding，字节对编码）</strong>：从字节出发，反复把最常见的相邻两块焊成一个新词元，直到词表达到预定大小。合并规则的手算和实现放在第 2.5 章。</p>
+      <p class="say">本章先把分词器当黑盒来用：<strong>会 encode / decode 就行</strong>。焊法留到下一章用显微镜看。</p>
+
+      <h2>MiniMind 的词表为什么是 6400</h2>
+      <p>Qwen2 一类中文友好模型的词表常在 15 万左右，同样一段中文会被切成更少的词元，生成也更省步数。MiniMind 故意只用 6400。</p>
+      <ul>
+        <li><strong>代价：</strong>中文压缩比大约 1.5–1.7 个字符 / 词元，弱于大词表。同样一句话，MiniMind 要用更多步才能说完。</li>
+        <li><strong>收益：</strong>嵌入层只有 6400 × 768 ≈ 491 万参数。对 64M 的模型，这个比例是健康的（大约 8%）。</li>
+      </ul>
+      <p>官方脚本 <code>trainer/train_tokenizer.py</code> 展示了如何用 <code>tokenizers</code> 库训练。教材要求你<strong>直接加载官方已经训好的分词器</strong>，不要自己重新训——否则你训出来的模型无法和社区权重互换。页码对不上，旧书就废了。</p>
+
+      <h2>特殊标记不是普通词</h2>
+      <p>对话、思考、工具调用都靠特殊标记把结构告诉模型。它们看起来像 <code>&lt;|im_start|&gt;</code> 这种奇怪字符串，但在词表里就是普通的一个编号。常见几个：</p>
+      <table class="plain">
+        <thead><tr><th>标记</th><th>角色</th></tr></thead>
+        <tbody>
+          <tr><td><code>&lt;|im_start|&gt;</code> / <code>&lt;|im_end|&gt;</code></td><td>一段角色发言的开始与结束。配置里分别作为 bos 与 eos。</td></tr>
+          <tr><td><code>&lt;|endoftext|&gt;</code></td><td>填充（padding）和未知回退，也常当作 pad / unk。</td></tr>
+          <tr><td><code>&lt;think&gt;</code> / <code>&lt;/think&gt;</code></td><td>显式思考块。推理时用开关决定要不要先写出思考开头。</td></tr>
+          <tr><td><code>&lt;tool_call&gt;</code> / <code>&lt;tool_response&gt;</code></td><td>工具调用与工具返回。</td></tr>
+        </tbody>
+      </table>
+      <p>预训练阶段几乎用不到对话模板：每条样本是一段纯文本，左右加上开始/结束编号即可。监督微调才会把 user / assistant 展开成带这些标记的字符串。第 15 章会写这一步。</p>
+
+      <h2>一个可以手算的小分词器</h2>
+      <p>在接官方 BPE 之前，先用「字符级词典」建立 encode / decode 的肌肉记忆。这和你目录里的 <code>attention.py</code> 草稿是同一思路：特殊符号放最前面，保证编号稳定。</p>
+      <p>「字符级」的意思：一个汉字、一个英文字母、一个标点，各占一个编号。这不是 MiniMind 真正用的切法，只是为了让你先摸到「字符串 ⇄ 整数列表」。</p>
+      <div class="where">
+        <p class="label">现在动手 · 写到哪里</p>
+        <table class="plain">
+          <tbody>
+            <tr><th>文件</th><td>热身：<code>exp-2-2/attention.py</code>（你已经有一份草稿）。<strong>不要</strong>写进 <code>minimind3/</code>——正式模型加载官方分词器。</td></tr>
+            <tr><th>符号</th><td>类 <code>CharTokenizer</code>；方法 <code>encode</code>、<code>decode</code>（以及可选的 <code>pad</code>）</td></tr>
+            <tr><th>怎么跑</th><td><code>python attention.py</code>，打印一句话的编号，再 decode 回去应对得上</td></tr>
+            <tr><th>对应原理</th><td>上文「模型看见的不是字，是编号」。encode = 中文→页码，decode = 页码→中文。</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figure class="code">
+        <figcaption>exp-2-2/attention.py · class CharTokenizer</figcaption>
+        <pre><code>class CharTokenizer:
+    def __init__(self, corpus: list[str]):
+        specials = ["&lt;pad&gt;", "&lt;unk&gt;", "&lt;bos&gt;", "&lt;eos&gt;"]
+        chars = sorted(set("".join(corpus)))
+        vocab = specials + [c for c in chars if c not in specials]
+        self.stoi = {s: i for i, s in enumerate(vocab)}  # string → id
+        self.itos = {i: s for s, i in self.stoi.items()}  # id → string
+        self.pad_id = self.stoi["&lt;pad&gt;"]
+        self.unk_id = self.stoi["&lt;unk&gt;"]
+        self.bos_id = self.stoi["&lt;bos&gt;"]
+        self.eos_id = self.stoi["&lt;eos&gt;"]
+
+    def encode(self, text: str, add_bos_eos: bool = True) -&gt; list[int]:
+        ids = [self.stoi.get(ch, self.unk_id) for ch in text]
+        if add_bos_eos:
+            ids = [self.bos_id] + ids + [self.eos_id]
+        return ids
+
+    def decode(self, ids: list[int], skip_specials: bool = True) -&gt; str:
+        special = {self.pad_id, self.unk_id, self.bos_id, self.eos_id}
+        chars = []
+        for i in ids:
+            ch = self.itos.get(i, "")
+            if skip_specials and i in special:
+                continue
+            chars.append(ch)
+        return "".join(chars)
+
+
+tok = CharTokenizer(["天空是蓝色的", "hello"])
+print(tok.encode("天空是蓝的"))
+print(tok.decode(tok.encode("天空是蓝的")))
+</code></pre>
+      </figure>
+      <dl class="walk">
+        <dt><code>stoi</code> / <code>itos</code></dt>
+        <dd>两张互相反着查的表。少一张，编码和解码就会断。</dd>
+        <dt><code>stoi.get(ch, self.unk_id)</code></dt>
+        <dd>没见过的字符不要崩溃，退回「未知」编号。字符级词表很小，这句话几乎一定会发生。</dd>
+        <dt><code>add_bos_eos</code></dt>
+        <dd>给句子加上「开始」和「结束」，模型才知道从哪起、在哪停。</dd>
+      </dl>
+      <div class="bridge">
+        <p class="label">代码怎么对上原理</p>
+        <ul>
+          <li><code>specials = ["&lt;pad&gt;", ...]</code> 放最前面 → 特殊标记不是普通字，但在词典里仍是一个稳定编号。</li>
+          <li><code>stoi</code> / <code>itos</code> 两张反表 → 「双语词典」的两个方向；少一张，编码或解码就会断。</li>
+          <li><code>stoi.get(ch, unk_id)</code> → 没见过的字符不要崩溃。字符级词表很小，这句话几乎一定会发生。</li>
+          <li>方法名必须是 <code>encode</code> 不是 <code>endcode</code>；字符集合用 <code>set("".join(corpus))</code>，不要写 <code>set[str](...)</code>。</li>
+        </ul>
+      </div>
+      <p>注意：你原来的草稿里方法名如果写成了 <code>endcode</code>，应改成 <code>encode</code>。另外 <code>set[str]("".join(corpus))</code> 这种写法不是「把字符串变成字符集合」的正确方式，应直接 <code>set("".join(corpus))</code>。</p>
+
+      <h2>真正训练 MiniMind 时怎么加载</h2>
+      <p>官方把词表放在 <code>model/tokenizer.json</code> 与 <code>model/tokenizer_config.json</code>。加载只需：</p>
+      <div class="where">
+        <p class="label">现在动手 · 写到哪里</p>
+        <table class="plain">
+          <tbody>
+            <tr><th>文件</th><td>临时脚本即可，例如在 <code>exp-2-2/</code> 下新开 <code>load_tokenizer.py</code> 跑一遍。不必并进 <code>minimind3</code> 包。</td></tr>
+            <tr><th>符号</th><td>调用 Hugging Face 的 <code>AutoTokenizer.from_pretrained</code>，不要自己实现 BPE。</td></tr>
+            <tr><th>怎么跑</th><td>把路径改成官方仓库的 <code>model/</code> 目录，确认 <code>len(tokenizer)==6400</code></td></tr>
+            <tr><th>对应原理</th><td>「作业里请加载官方已经训好的分词器」。页码必须和社区权重那本词典一致。</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figure class="code">
+        <figcaption>临时脚本 · 加载官方分词器</figcaption>
+        <pre><code>from transformers import AutoTokenizer
+
+# 指向官方仓库的 model 目录，或你拷贝出来的同一份文件
+tokenizer = AutoTokenizer.from_pretrained("../path/to/minimind/model")
+
+text = "为什么天空是蓝色的"
+ids = tokenizer(text, add_special_tokens=False).input_ids
+print(ids)
+print(tokenizer.decode(ids))
+print("词表大小 =", len(tokenizer))  # 6400
+</code></pre>
+      </figure>
+      <p>预训练数据集里，官方还会手动在两端加上 <code>bos_token_id</code> 和 <code>eos_token_id</code>，再用 pad 填到固定长度。形状检查时请打印一条样本的前几个编号，确认开头确实是 bos。</p>
+
+      <div class="callout">
+        <p class="label">压缩率怎么读</p>
+        <p>「100 个中文字符 ≈ 67 个词元」只是粗算。英文压缩比更高（约 4–5 字符 / 词元）。训练参数 <code>max_seq_len</code> 指的是<strong>词元个数</strong>，不是字符数。样本短于它会被填充，浪费计算；长于它会被截断，丢掉语义。这是第 14 章选截断长度时要权衡的事。</p>
+      </div>
+
+      <div class="callout stuck">
+        <p class="label">常见卡住</p>
+        <ul>
+          <li>encode 再 decode，中文变成乱码。——你可能把 BPE 的字节编号当成了字符。官方分词器请用 <code>tokenizer.decode</code>，不要自己 <code>chr(id)</code>。</li>
+          <li>词表大小打印出来不是 6400。——加载路径指错了，或者加载了另一套模型的分词器。</li>
+          <li>想自己训一个「更懂我语料」的词表。——可以当玩具，但不要拿去加载 MiniMind-3 的 <code>.pth</code>。</li>
+        </ul>
+      </div>
+
+      <h2>自测</h2>
+      <ul>
+        <li>词表从 6400 改到 15 万，哪两层的参数会几乎按比例变大？</li>
+        <li>BPE 从字节开始合并，为什么能同时覆盖中文和英文，还不容易遇到「这个字不在词表里」？</li>
+        <li>为什么不建议为本作业重新训练分词器？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案（先自己想）</summary>
+        <ol>
+          <li>嵌入层和输出层。它们的行数等于词表大小。</li>
+          <li>任何 Unicode 字符串都能编成 UTF-8 字节，字节永远在 0–255 里。罕见字至少能退回成几个字节，不会出现「查无此字」。常见字被焊成更长的词元之后，才获得更好的压缩。</li>
+          <li>自己训出来的编号和官方 6400 词表对不上。预训练权重的第 42 行，对应的是官方词典里的第 42 个词元，不是你词典里的第 42 个。</li>
+        </ol>
+      </details>
+      <p>下一章会把 BPE 从口号写成可以跑的代码。写完仍然加载官方 6400 词表，不要用自己焊出来的编号去接 MiniMind-3 的权重。</p>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

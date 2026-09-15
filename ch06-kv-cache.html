@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe6d4">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MiniMind教材">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<title>第 6 章 · 因果掩码与键值缓存 — MiniMind 手把手</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第二部 · 积木</p>
+      <h1>第 6 章 · 因果掩码与键值缓存</h1>
+      <p class="lead">语言模型有两条硬约束：训练时不能偷看未来；生成时不能把已经算过的键和值再算一遍。这一章把第 5 章的「缺陷版注意力」修成真正能训练、能加速推理的版本。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>两件事写在同一个 <code>forward</code> 里：① softmax 之前把「未来格子」设成负无穷；② 生成时把旧的 K、V 存下来，新词只算自己的 Q/K/V，再接到缓存后面。</p>
+      </div>
+
+      <h2>因果：对角线可以看，右上角不能看</h2>
+      <p>预测位置 t 的下一个词时，模型可以读位置 0 到 t 的全部信息，但不能读 t 之后。分数矩阵 S 的形状是 <code>[序列长度, 序列长度]</code>，行是查询位置，列是被检索的键位置。于是：</p>
+      <ul>
+        <li>对角线：查询 t 看键 t。允许。当前位置的词已经作为输入出现了，看见自己是合法的。</li>
+        <li>左下三角：查询 t 看键 j（j &lt; t）。允许。这是历史。</li>
+        <li>严格上三角：查询 t 看键 j（j &gt; t）。禁止。</li>
+      </ul>
+      <p>禁止的方法不是把那些格子设成 0——softmax 之后 0 仍会分到一点概率。正确做法是在 softmax <strong>之前</strong>把它们设成负无穷，exp(-∞)=0，权重才真正是 0。</p>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>考试时可以看自己已经写出来的草稿（对角线和左边），不能翻后面的标准答案（右上角）。把偷看的格子涂成「负无穷」= 监考直接把那一页撕掉，softmax 分不到任何权重。</p>
+      </div>
+
+      <div class="diagram">
+        <p class="cap" style="margin-top:0;margin-bottom:0.6rem;">T = 4 的因果掩码。深色格子是允许的，浅灰是 -∞。</p>
+        <div class="heat">
+          <div class="row"><span></span><span>键0</span><span>键1</span><span>键2</span><span>键3</span></div>
+          <div class="row"><span>查0</span><div class="cell s4">✓</div><div class="cell off">×</div><div class="cell off">×</div><div class="cell off">×</div></div>
+          <div class="row"><span>查1</span><div class="cell s3">✓</div><div class="cell s4">✓</div><div class="cell off">×</div><div class="cell off">×</div></div>
+          <div class="row"><span>查2</span><div class="cell s2">✓</div><div class="cell s3">✓</div><div class="cell s4">✓</div><div class="cell off">×</div></div>
+          <div class="row"><span>查3</span><div class="cell s1">✓</div><div class="cell s2">✓</div><div class="cell s3">✓</div><div class="cell s4">✓</div></div>
+        </div>
+      </div>
+
+      <div class="where">
+        <p class="label">现在动手 · 写到哪里</p>
+        <table class="plain">
+          <tbody>
+            <tr><th>文件</th><td>只改 <code>exp-2-2/minimind3/attention.py</code>。不要新建 <code>attention_v2.py</code>。</td></tr>
+            <tr><th>符号</th><td>继续填同一个 <code>Attention.forward</code>。新增参数 <code>past_key_value</code>、<code>use_cache</code>。</td></tr>
+            <tr><th>先写哪一段</th><td>可先单独写函数 <code>apply_causal_mask</code> 看懂右下角加法，再把它内联进 <code>forward</code>。</td></tr>
+            <tr><th>怎么跑</th><td>文件底部的 <code>__main__</code>：先送 4 个词拿到缓存，再送 1 个新词。缓存序列维应变成 5。</td></tr>
+            <tr><th>对应原理</th><td>「右上角涂负无穷」+「旧书脊不用重算，接到后面即可」。</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <figure class="code">
+        <figcaption>minimind3/attention.py · 先理解掩码这一小段</figcaption>
+        <pre><code>def apply_causal_mask(scores: torch.Tensor, query_len: int) -&gt; torch.Tensor:
+    """scores: [batch, heads, q_len, k_len]。只盖住「当前这一段查询」内部的未来。"""
+    causal = torch.triu(
+        torch.full((query_len, query_len), float("-inf"), device=scores.device),
+        diagonal=1,
+    )
+    scores = scores.clone()
+    scores[..., -query_len:] = scores[..., -query_len:] + causal
+    return scores
+</code></pre>
+      </figure>
+      <div class="bridge">
+        <p class="label">掩码这段怎么对上原理</p>
+        <ul>
+          <li><code>torch.triu(..., diagonal=1)</code> → 严格上三角（不含对角线）填 -inf。对角线保持 0，加上去不变 = 「可以看自己」。</li>
+          <li><code>scores[..., -query_len:]</code> → 只给<strong>最右边 query_len 列</strong>加上三角。训练时查询长度=键长度，这就是整块正方形；生成时左边是历史，故意不加掩码。</li>
+          <li>为什么不把禁止格设成 0？→ 第 0 章的 softmax：0 仍有 e^0=1，会分到概率。必须是 -inf。</li>
+        </ul>
+      </div>
+      <p><code>seq_len</code> 是<strong>当前这次前向的查询长度</strong>，不是缓存里已经积累的总长度。请务必分清这两个数，否则键值缓存一接上，掩码就会把历史盖掉。</p>
+
+      <h2>没有键值缓存，生成有多浪费</h2>
+      <p>生成 100 个新词、提示词长度是 20，若每次都把「提示词 + 已生成」整段重新送进模型：第 1 步算 21 个位置，第 100 步算 120 个位置。但每一步里，<strong>旧位置的键和值根本没变</strong>。唯一新增的是最新那个词的 Q、K、V。</p>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>缓存的是书脊和正文（K、V），不是你此刻的问题条（Q）。每问一个新问题，旧书不必重新编目，把新书接到书架末尾即可。</p>
+      </div>
+      <div class="formula">
+        <div class="eq">K ← concat(K<sub>cached</sub>, K<sub>new</sub>，沿序列维)　　V 同样　　Q 只用新位置</div>
+        <div class="hint">MiniMind 在变成 [批次, 头数, 长度, 头维度] 之前拼接，序列维是 dim=1。</hint>
+      </div>
+
+      <div class="diagram">
+        <svg viewBox="0 0 720 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="键值缓存逐步增长">
+          <text x="16" y="24" font-size="13" font-family="IBM Plex Sans, sans-serif">第 0 步：提示词「天空是」一次算完，缓存 K、V</text>
+          <rect x="16" y="40" width="70" height="36" fill="#c96a3c" stroke="#1b1610"/><text x="51" y="62" text-anchor="middle" font-size="12" fill="#fff" font-family="IBM Plex Sans, sans-serif">天</text>
+          <rect x="90" y="40" width="70" height="36" fill="#c96a3c" stroke="#1b1610"/><text x="125" y="62" text-anchor="middle" font-size="12" fill="#fff" font-family="IBM Plex Sans, sans-serif">空</text>
+          <rect x="164" y="40" width="70" height="36" fill="#c96a3c" stroke="#1b1610"/><text x="199" y="62" text-anchor="middle" font-size="12" fill="#fff" font-family="IBM Plex Sans, sans-serif">是</text>
+          <text x="16" y="108" font-size="13" font-family="IBM Plex Sans, sans-serif">第 1 步：只把新词「蓝」送进模型，K/V 接到缓存后面</text>
+          <rect x="16" y="124" width="70" height="36" fill="#eadfcb" stroke="#8a7f70"/><text x="51" y="146" text-anchor="middle" font-size="12" font-family="IBM Plex Sans, sans-serif">天</text>
+          <rect x="90" y="124" width="70" height="36" fill="#eadfcb" stroke="#8a7f70"/><text x="125" y="146" text-anchor="middle" font-size="12" font-family="IBM Plex Sans, sans-serif">空</text>
+          <rect x="164" y="124" width="70" height="36" fill="#eadfcb" stroke="#8a7f70"/><text x="199" y="146" text-anchor="middle" font-size="12" font-family="IBM Plex Sans, sans-serif">是</text>
+          <rect x="238" y="124" width="70" height="36" fill="#8b3114" stroke="#1b1610"/><text x="273" y="146" text-anchor="middle" font-size="12" fill="#fff" font-family="IBM Plex Sans, sans-serif">蓝</text>
+          <text x="330" y="146" font-size="12" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">浅色 = 复用缓存；深色 = 本步新算</text>
+        </svg>
+        <p class="cap">缓存的是键和值，不是查询。查询每一步都只需要当前这个新位置。</p>
+      </div>
+
+      <p>官方在<strong>旋转位置编码之后</strong>才拼接缓存。这一章还没有旋转，所以先在线性投影之后拼接。拼接发生在哪一步可以变，但有三件事不能变：</p>
+      <ol>
+        <li>K、V 在 <code>[batch, seq, …]</code> 格式下沿序列维（dim=1）拼接。</li>
+        <li>掩码只加在 <code>scores[..., -seq_len:]</code> 这块「当前查询 × 当前键」的右下角，不要盖住历史列。</li>
+        <li>返回给下一步的缓存，必须仍是「头维还没被换到前面」的 K、V，这样下一步才能继续沿 dim=1 拼接。</li>
+      </ol>
+      <figure class="code">
+        <figcaption>minimind3/attention.py · class CausalAttention.forward</figcaption>
+        <pre><code>import math
+import torch
+from torch import nn
+import torch.nn.functional as F
+
+class CausalAttention(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+        self.dim = dim
+        self.q_proj = nn.Linear(dim, dim, bias=False)
+        self.k_proj = nn.Linear(dim, dim, bias=False)
+        self.v_proj = nn.Linear(dim, dim, bias=False)
+        self.o_proj = nn.Linear(dim, dim, bias=False)
+
+    def forward(self, x, past_key_value=None, use_cache=False):
+        bsz, seq_len, _ = x.shape
+        q = self.q_proj(x)  # [B, T_q, D]
+        k = self.k_proj(x)
+        v = self.v_proj(x)
+
+        if past_key_value is not None:
+            k = torch.cat([past_key_value[0], k], dim=1)
+            v = torch.cat([past_key_value[1], v], dim=1)
+        present = (k, v) if use_cache else None
+
+        # [B, seq, D] -> [B, 1, seq, D]，1 表示「先假装只有一个头」
+        q = q.view(bsz, seq_len, 1, self.dim).transpose(1, 2)
+        k = k.view(bsz, -1, 1, self.dim).transpose(1, 2)
+        v = v.view(bsz, -1, 1, self.dim).transpose(1, 2)
+
+        scores = (q @ k.transpose(-2, -1)) / math.sqrt(self.dim)
+        causal = torch.triu(
+            torch.full((seq_len, seq_len), float("-inf"), device=x.device), 1
+        )
+        scores = scores.clone()
+        scores[..., -seq_len:] = scores[..., -seq_len:] + causal
+
+        weights = F.softmax(scores.float(), dim=-1).type_as(q)
+        out = (weights @ v).transpose(1, 2).reshape(bsz, seq_len, self.dim)
+        return self.o_proj(out), present
+
+
+if __name__ == "__main__":
+    attn = CausalAttention(8)
+    x_prompt = torch.randn(1, 4, 8)
+    y0, cache = attn(x_prompt, use_cache=True)
+    x_new = torch.randn(1, 1, 8)
+    y1, cache = attn(x_new, past_key_value=cache, use_cache=True)
+    assert y0.shape == (1, 4, 8)
+    assert y1.shape == (1, 1, 8)
+    assert cache[0].shape[1] == 5  # 历史 4 + 新 1
+    print("cache seq =", cache[0].shape[1])
+</code></pre>
+      </figure>
+      <div class="bridge">
+        <p class="label">forward 怎么对上原理</p>
+        <ul>
+          <li><code>torch.cat([past, k], dim=1)</code> → 「旧书脊接到新书后面」。dim=1 是词的个数这一维。</li>
+          <li><code>present = (k, v)</code> → 把更新后的书架交出去，供下一步接着接。Q 不进缓存。</li>
+          <li><code>seq_len = x.shape[1]</code> 是本步查询长度，有缓存时常常是 1；<code>k.shape[1]</code> 才是书架总长。</li>
+          <li><code>scores[..., -seq_len:]</code> 加上三角 → 新查询看全部历史（左边不盖），只禁止「比自己还未来」的格子。</li>
+          <li>返回 <code>(输出, present)</code> 而不是只返回输出 → 生成循环第 16 章要接着用这份缓存。</li>
+        </ul>
+      </div>
+
+      <div class="callout ok">
+        <p class="label">为什么没有缓存时，同样写 scores[..., -seq_len:]</p>
+        <p>没有缓存时，键长度等于查询长度，<code>-seq_len:</code> 就是全部列，等价于给整个正方形加上三角。有缓存时，左边多出来的历史列故意不加掩码。一种写法同时覆盖两种情况，这正是官方的选择。</p>
+      </div>
+
+      <h2>用缓存逐步生成时，输入该怎么切</h2>
+      <p>这是生成循环里最容易写错的一行。官方 <code>generate</code>：</p>
+      <figure class="code">
+        <figcaption>对照官方 · 只把尚未进入缓存的后缀送进模型</figcaption>
+        <pre><code>past_len = past_key_values[0][0].shape[1] if past_key_values else 0
+outputs = self.forward(input_ids[:, past_len:], attention_mask,
+                       past_key_values, use_cache=use_cache)
+</code></pre>
+      </figure>
+      <p>第一次：<code>past_len=0</code>，整段提示词都进去，算出完整缓存。之后 <code>input_ids</code> 会把新采样的词拼在右边，但送进模型的只是 <code>input_ids[:, past_len:]</code>，也就是那一个新词。注意力内部再把新 K、V 接到缓存上。</p>
+      <p>这一行现在先读懂；真正写进 <code>MiniMindForCausalLM.generate</code> 是第 16 章的事。</p>
+
+      <h2>填充掩码是另一回事</h2>
+      <p>一个批次里句子长短不同，短句右边会填 pad。这些位置不该被检索。官方把注意力掩码里 0 的位置加很大的负数。因果掩码管「未来」；padding 掩码管「空洞」。教学时先把因果和缓存做对，padding 在接 DataLoader 时再加。</p>
+
+      <div class="callout stuck">
+        <p class="label">常见卡住</p>
+        <ul>
+          <li>缓存序列维变成了 2 而不是 5。——你可能沿 dim=0（批次）或 dim=-1（隐藏维）拼接了。必须是词这一维 dim=1。</li>
+          <li>第二步输出形状是 [1, 5, D] 而不是 [1, 1, D]。——本步仍把整段历史当查询送进去了。有缓存时应只送新词。</li>
+          <li>历史列的权重全是 0。——掩码盖到了左边。检查是不是对全部 k_len 加了上三角，而不是只对右下角 seq_len×seq_len。</li>
+        </ul>
+      </div>
+
+      <h2>自测</h2>
+      <ul>
+        <li>T=4 的因果掩码，格子 (2, 3) 应不应该是 -∞？格子 (3, 3) 呢？</li>
+        <li>缓存里已有 10 个键，本步查询长度是 1。分数矩阵形状是 <code>[1, 11]</code> 还是 <code>[1, 1]</code>？掩码加在哪一列？</li>
+        <li>若错误地把 K 缓存在 <code>[batch, heads, seq, dim]</code> 格式下却仍沿 dim=1 拼接，会发生什么？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案（先自己想）</summary>
+        <ol>
+          <li>(2, 3) 是查询 2 看键 3，键在未来，应是 -∞。(3, 3) 是看自己，应保持原分数（加上 0）。</li>
+          <li>分数是 [查询长度, 键长度] = [1, 11]。掩码加在最后 1 列（右下角 1×1），左边 10 列是历史，不盖。</li>
+          <li>dim=1 变成「头」而不是「词」，缓存会在头数上越拼越长，词的个数反而不增。形状断言会立刻爆。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

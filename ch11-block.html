@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe6d4">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MiniMind教材">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<title>第 11 章 · 一层 Transformer — MiniMind 手把手</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第三部 · 拼装</p>
+      <h1>第 11 章 · 一层 Transformer</h1>
+      <p class="lead">把归一化、注意力、前馈用两次残差串起来，就是 MiniMind 的一层。后面 8 层只是把这一层复制 8 份，每份有自己的权重。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>一层只有两条支路：x ← x + Attention(RMSNorm(x))，再 x ← x + FeedForward(RMSNorm(x))。形状始终是 [B, T, 768]。残差加的是归一化之前的 x。</p>
+      </div>
+
+      <h2>一层里其实只有两条支路</h2>
+      <div class="formula">
+        <div class="eq">x ← x + Attention(RMSNorm(x))</div>
+        <div class="eq" style="margin-top:0.45rem;">x ← x + FeedForward(RMSNorm(x))</div>
+        <div class="hint">两条都是「先归一化，再子层，再加回没归一化的 x」。</hint>
+      </div>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>绿色折线是高速公路：原路信息可以直接开到下一层。归一化只发生在岔路入口（注意力、前馈各自的大门），不要把高速公路也改道。</p>
+      </div>
+
+      <div class="diagram">
+        <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MiniMind 一层结构">
+          <text x="40" y="28" font-size="13" font-family="IBM Plex Sans, sans-serif">hidden_states</text>
+          <path d="M40 44 H200" stroke="#1b1610"/>
+          <rect x="200" y="24" width="100" height="40" fill="#efe4c8" stroke="#8b3114"/>
+          <text x="250" y="48" text-anchor="middle" font-size="12" font-family="IBM Plex Sans, sans-serif">RMSNorm₁</text>
+          <path d="M300 44 H400" stroke="#1b1610"/>
+          <rect x="400" y="24" width="130" height="40" fill="#fbf6ea" stroke="#1b1610"/>
+          <text x="465" y="48" text-anchor="middle" font-size="12" font-family="IBM Plex Sans, sans-serif">Attention</text>
+          <path d="M530 44 H640" stroke="#1b1610"/>
+          <circle cx="656" cy="44" r="12" fill="none" stroke="#1b1610"/>
+          <text x="656" y="48" text-anchor="middle" font-size="14">+</text>
+          <path d="M40 44 V90 H656 V56" stroke="#3d6e67" fill="none"/>
+          <text x="40" y="130" font-size="13" font-family="IBM Plex Sans, sans-serif">加完残差之后</text>
+          <path d="M40 148 H200" stroke="#1b1610"/>
+          <rect x="200" y="128" width="100" height="40" fill="#efe4c8" stroke="#8b3114"/>
+          <text x="250" y="152" text-anchor="middle" font-size="12" font-family="IBM Plex Sans, sans-serif">RMSNorm₂</text>
+          <path d="M300 148 H400" stroke="#1b1610"/>
+          <rect x="400" y="128" width="130" height="40" fill="#fbf6ea" stroke="#1b1610"/>
+          <text x="465" y="152" text-anchor="middle" font-size="12" font-family="IBM Plex Sans, sans-serif">SwiGLU / MoE</text>
+          <path d="M530 148 H640" stroke="#1b1610"/>
+          <circle cx="656" cy="148" r="12" fill="none" stroke="#1b1610"/>
+          <text x="656" y="152" text-anchor="middle" font-size="14">+</text>
+          <path d="M40 148 V200 H656 V160" stroke="#3d6e67" fill="none"/>
+          <text x="360" y="240" text-anchor="middle" font-size="12" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">绿色折线是残差高速公路。use_moe=False 时右下是 FeedForward；True 时换成 MOEFeedForward。</text>
+        </svg>
+        <p class="cap">MiniMindBlock。注意力返回的键值缓存要原样传出层外，供生成时下一层、下一步使用。</p>
+      </div>
+
+      <div class="where">
+        <p class="label">现在动手 · 写到哪里</p>
+        <table class="plain">
+          <tbody>
+            <tr><th>文件</th><td><code>exp-2-2/minimind3/block.py</code></td></tr>
+            <tr><th>符号</th><td>类 <code>MiniMindBlock</code>；子模块名必须是 <code>self_attn</code>、<code>input_layernorm</code>、<code>post_attention_layernorm</code>、<code>mlp</code>，才能加载官方权重</td></tr>
+            <tr><th>导入</th><td><code>from .attention import Attention</code>；<code>from .norm import RMSNorm</code>；<code>from .mlp import FeedForward</code>（MoE 时再导入 <code>MOEFeedForward</code>）</td></tr>
+            <tr><th>不要改</th><td>注意力内部。这一章只负责接线。</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figure class="code">
+        <figcaption>minimind3/block.py · class MiniMindBlock</figcaption>
+        <pre><code>class MiniMindBlock(nn.Module):
+    def __init__(self, layer_id: int, config: MiniMindConfig):
+        super().__init__()
+        self.self_attn = Attention(config)
+        self.input_layernorm = RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.post_attention_layernorm = RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        if config.use_moe:
+            self.mlp = MOEFeedForward(config)  # 第 13 章
+        else:
+            self.mlp = FeedForward(config)
+
+    def forward(self, hidden_states, position_embeddings,
+                past_key_value=None, use_cache=False, attention_mask=None):
+        residual = hidden_states
+        hidden_states, present_key_value = self.self_attn(
+            self.input_layernorm(hidden_states),
+            position_embeddings,
+            past_key_value,
+            use_cache,
+            attention_mask,
+        )
+        hidden_states = hidden_states + residual
+        hidden_states = hidden_states + self.mlp(
+            self.post_attention_layernorm(hidden_states)
+        )
+        return hidden_states, present_key_value
+</code></pre>
+      </figure>
+      <div class="bridge">
+        <p class="label">代码怎么对上原理</p>
+        <ul>
+          <li><code>residual = hidden_states</code> 写在注意力之前 → 「把高速公路上的原车先记下」。若先写成 norm(x) 再覆盖 x，原路就被剪断。</li>
+          <li><code>self_attn(input_layernorm(...))</code> → 第一条公式：先 RMSNorm₁，再注意力。</li>
+          <li><code>hidden_states + residual</code> → 加回没归一化的 x。</li>
+          <li>第二条残差直接 <code>x + mlp(norm(x))</code> → 此时的 x 已经包含注意力残差，高速公路是连着的。</li>
+          <li><code>return ..., present_key_value</code> → 这一层自己的 K/V。8 层就有 8 份缓存，第 12 章用长度为 8 的列表来装。</li>
+          <li><code>layer_id</code> 官方接了但层内没用到。保留它是为了和官方构造函数签名一致。</li>
+        </ul>
+      </div>
+
+      <div class="callout warn">
+        <p class="label">残差加错对象是最常见的 bug</p>
+        <p>必须把注意力之前的 <code>hidden_states</code> 存进 <code>residual</code>。官方用显式的这一行，请照抄这个习惯。</p>
+      </div>
+
+      <h2>一层的键值缓存</h2>
+      <p>8 层就有 8 份互不相同的 K、V。生成时必须按层分别存储：进入第 ℓ 层的 <code>past_key_value</code> 只属于第 ℓ 层；该层返回的 <code>present_key_value</code> 写回列表的第 ℓ 格。</p>
+
+      <h2>自测</h2>
+      <ul>
+        <li>为什么注意力和前馈各用一个 RMSNorm，而不是共用一个？</li>
+        <li>若把第二条残差改成加在「前馈输入」而不是「注意力残差之后的 hidden」，信息流会少哪一段？</li>
+        <li>稠密改 MoE 时，这一层里需要改 Attention 吗？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案（先自己想）</summary>
+        <ol>
+          <li>两次归一化各自学一套 γ，注意力和前馈需要的尺度可以不同。共用等于强迫两条岔路用同一套音量旋钮。</li>
+          <li>注意力的输出无法再经过前馈这条岔路进入下一层的高速公路，等于少了一截「读完再想」。</li>
+          <li>不需要。只把 <code>self.mlp</code> 换成 <code>MOEFeedForward</code>。第 1 章的 <code>use_moe</code> 就是这个开关。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe6d4">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MiniMind教材">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<title>第 16 章 · 生成：采样与加速推理 — MiniMind 手把手</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第四部 · 训练</p>
+      <h1>第 16 章 · 生成：采样与加速推理</h1>
+      <p class="lead">训练好的模型给出的是分数，不是句子。生成循环每次取最后一个位置的分数，选出一个词元接到后面，并靠键值缓存避免重算历史。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>第一步把整段提示词送进去，填满缓存；之后每步只送 1 个新词。从最后一格 logits 里按温度 / top-k / top-p 抽出下一个编号，接到右边，直到 eos。</p>
+      </div>
+
+      <ol class="steps">
+        <li>把提示词编成 input_ids，第一次前向算完整缓存。</li>
+        <li>取出最后一个位置的 logits，按温度、top-k、top-p 变成概率，采样（或取 argmax）。</li>
+        <li>把新词元拼到 input_ids 右边。若启用缓存，下一步只把这个新词元送进模型。</li>
+        <li>若采到 eos，或达到 max_new_tokens，结束。</li>
+      </ol>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>接龙。第一轮把已经写好的开头读完（填缓存）；以后每写一个字，只把这个新字递给模型，旧草稿不用重读。温度像「大胆程度」：越小越认死理。</p>
+      </div>
+
+      <p>温度：softmax 之前把 logits 除以 T。T&lt;1 更贪心；T&gt;1 更随机。官方默认约 0.85。不要先 softmax 再除。</p>
+      <p>top-k：只保留分数最高的 k 个。top-p：按概率从大到小累加，刚超过 p 的丢掉。实现 top-p 时必须保证至少留下概率最大的那一个。</p>
+
+      <div class="where">
+        <p class="label">现在动手 · 写到哪里</p>
+        <table class="plain">
+          <tbody>
+            <tr><th>文件</th><td><code>exp-2-2/minimind3/model.py</code> 里的 <code>MiniMindForCausalLM.generate</code></td></tr>
+            <tr><th>符号</th><td>方法 <code>generate(self, inputs=None, ...)</code>，装饰器 <code>@torch.inference_mode()</code>。官方写在本类，不要另开 generate.py</td></tr>
+            <tr><th>依赖</th><td>第 12 章 <code>forward</code> 返回 <code>(loss, aux, logits, past)</code>。若你的元组顺序不同，按自己的解包。</td></tr>
+            <tr><th>怎么验</th><td>同一随机种子下，<code>use_cache=True/False</code> 的采样结果应几乎一致。差很多说明缓存或位置切片错了。</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figure class="code">
+        <figcaption>MiniMindForCausalLM.generate · 循环示意（填进 model.py 的方法体）</figcaption>
+        <pre><code>@torch.inference_mode()
+def generate(model, input_ids, max_new_tokens=64, temperature=0.85,
+             top_k=50, top_p=0.85, eos_token_id=2, use_cache=True):
+    past = None
+    finished = torch.zeros(input_ids.size(0), dtype=torch.bool, device=input_ids.device)
+    for _ in range(max_new_tokens):
+        past_len = past[0][0].shape[1] if past else 0
+        loss, aux, logits, past = model(
+            input_ids[:, past_len:], past_key_values=past, use_cache=use_cache
+        )
+        logits = logits[:, -1, :] / temperature
+
+        if top_k > 0:
+            kth = torch.topk(logits, top_k)[0][:, -1, None]
+            logits[logits &lt; kth] = -float("inf")
+        if top_p &lt; 1.0:
+            sorted_logits, sorted_idx = torch.sort(logits, descending=True)
+            cum = torch.softmax(sorted_logits, dim=-1).cumsum(-1)
+            mask = cum &gt; top_p
+            mask[..., 1:] = mask[..., :-1].clone()
+            mask[..., 0] = False
+            logits[mask.scatter(1, sorted_idx, mask)] = -float("inf")
+
+        probs = torch.softmax(logits, dim=-1)
+        next_token = torch.multinomial(probs, 1)
+        if eos_token_id is not None:
+            next_token = torch.where(
+                finished.unsqueeze(-1),
+                next_token.new_full((next_token.size(0), 1), eos_token_id),
+                next_token,
+            )
+        input_ids = torch.cat([input_ids, next_token], dim=-1)
+        if not use_cache:
+            past = None
+        finished |= next_token.squeeze(-1).eq(eos_token_id)
+        if bool(finished.all()):
+            break
+    return input_ids
+</code></pre>
+      </figure>
+      <div class="bridge">
+        <p class="label">代码怎么对上原理</p>
+        <ul>
+          <li><code>past_len = 0</code> 时 <code>input_ids[:, past_len:]</code> 是整段提示词 → 「第一轮把开头读完」。</li>
+          <li>之后 past_len 等于缓存里的词数，切片只剩最新一个词 → 第 6 章「只送新词」。</li>
+          <li><code>logits[:, -1, :]</code> → 只要最后一个位置的 6400 个分数。</li>
+          <li><code>/ temperature</code> 在 softmax 之前 → 「大胆程度」。</li>
+          <li>top-k / top-p 把不要的格设成 -inf → 和第 6 章掩码同一招，softmax 后权重为 0。</li>
+          <li><code>mask[..., 0] = False</code> → 概率最大的那个必须留下，否则整行可能全是 -inf。</li>
+          <li><code>inference_mode</code> → 不建计算图，省显存，也避免误调用 backward。</li>
+        </ul>
+      </div>
+
+      <div class="callout ok">
+        <p class="label">对照官方的 past_len</p>
+        <p>不要写成「永远只送最后一个词元」——第一步还没有缓存，必须把提示词全部算完。</p>
+      </div>
+
+      <h2>自测</h2>
+      <ul>
+        <li>关掉缓存与打开缓存，同一随机种子下采样结果是否应几乎一致？</li>
+        <li>top-p 若不把 mask[..., 0] 置 False，可能发生什么？</li>
+        <li>为什么生成循环要包在 <code>torch.inference_mode()</code> 里？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案（先自己想）</summary>
+        <ol>
+          <li>应当几乎一致（允许一点浮点误差）。差很多说明缓存拼接、因果掩码或 RoPE 的 start_pos 错了。</li>
+          <li>若最大那个概率已经 &gt; top_p，整行都被盖成 -inf，softmax 全是 nan，采样崩溃。</li>
+          <li>生成不需要梯度。inference_mode 比 no_grad 更彻底，也能防止误把张量留下来占显存。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

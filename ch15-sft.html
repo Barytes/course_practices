@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe6d4">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MiniMind教材">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<title>第 15 章 · 对话模板与监督微调 — MiniMind 手把手</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第四部 · 训练</p>
+      <h1>第 15 章 · 对话模板与监督微调</h1>
+      <p class="lead">预训练会接龙，还不会当助手。监督微调（SFT）继续做下一个词预测，但文本换成「用户 / 助手」模板，并且只在助手要说的那些词元上算损失。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>从预训练权重接着训，学习率降到 1e-5。用户说的话标签全是 -100，只有助手回复（含结束符）产生梯度。展开对话请调用分词器的 chat_template，不要手拼字符串。</p>
+      </div>
+
+      <h2>预训练和微调的相同与不同</h2>
+      <p>相同：还是交叉熵，还是同一个 MiniMind-3，还是 AdamW。不同有三处：</p>
+      <ol>
+        <li><strong>初始权重。</strong>从 <code>pretrain_768.pth</code> 加载。学习率降到 1e-5 量级，免得把已经学到的语言知识冲掉。</li>
+        <li><strong>数据。</strong>jsonl 里是 <code>conversations</code> 列表，角色为 user / assistant / system / tool。</li>
+        <li><strong>损失掩码。</strong>用户说的话、系统提示、填充，标签都是 -100。只有助手回复产生梯度。</li>
+      </ol>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>老师批改时把「学生问了什么」那几行用红笔圈掉不记分，只看「你作为助手怎么答」。若对提问也算分，模型会去模仿用户怎么提问，助手风格就不稳。</p>
+      </div>
+
+      <h2>对话模板把角色变成特殊标记</h2>
+      <figure class="code">
+        <figcaption>展开后的对话（示意）</figcaption>
+        <pre><code>&lt;|im_start|&gt;system
+你是 MiniMind。&lt;|im_end|&gt;
+&lt;|im_start|&gt;user
+天空为什么是蓝的？&lt;|im_end|&gt;
+&lt;|im_start|&gt;assistant
+因为短波蓝光更容易被散射。&lt;|im_end|&gt;
+</code></pre>
+      </figure>
+      <p>训练时 <code>add_generation_prompt=False</code>，因为样本里已经包含助手回复。推理时改为 True，模板会在末尾补上 <code>&lt;|im_start|&gt;assistant</code>，模型从这里开始续写。</p>
+
+      <div class="where">
+        <p class="label">现在动手 · 写到哪里</p>
+        <table class="plain">
+          <tbody>
+            <tr><th>文件</th><td>追加到 <code>exp-2-2/minimind3/data.py</code></td></tr>
+            <tr><th>符号</th><td>类 <code>SFTDataset</code> 的方法 <code>generate_labels</code>。官方在 <code>dataset/lm_dataset.py</code>；教学上先把掩码写对。</td></tr>
+            <tr><th>怎么验</th><td>用一条两轮对话打印：用户字对应 label 应是 -100；助手字应等于该位置的 input id。</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figure class="code">
+        <figcaption>minimind3/data.py · def generate_labels</figcaption>
+        <pre><code>def generate_labels(input_ids, bos_id, eos_id, max_length):
+    labels = [-100] * len(input_ids)
+    i = 0
+    while i &lt; len(input_ids):
+        if input_ids[i:i + len(bos_id)] == bos_id:
+            start = i + len(bos_id)
+            end = start
+            while end &lt; len(input_ids):
+                if input_ids[end:end + len(eos_id)] == eos_id:
+                    break
+                end += 1
+            for j in range(start, min(end + len(eos_id), max_length)):
+                labels[j] = input_ids[j]
+            i = end + len(eos_id) if end &lt; len(input_ids) else len(input_ids)
+        else:
+            i += 1
+    return labels
+</code></pre>
+      </figure>
+      <div class="bridge">
+        <p class="label">掩码怎么对上原理</p>
+        <ul>
+          <li>一开始 labels 全是 -100 → 「默认不算分」。</li>
+          <li>扫到 <code>bos_id</code>（助手段开始那一小串编号）之后才开始抄 input_ids → 「从助手开口算起」。</li>
+          <li>抄到 <code>eos_id</code> 含结束符 → 「助手说完的那个结束标记也要学，否则生成不会停」。</li>
+          <li>用户段、system 段永远匹配不上 bos_id，保持 -100 → 「提问不记分」。</li>
+        </ul>
+      </div>
+      <p><code>bos_id</code> 是把 <code>bos_token + "assistant\n"</code> 编成的那一小段 id；<code>eos_id</code> 是 <code>eos_token + "\n"</code>。模板一改换行，这两串对不上，标签会全变成 -100，损失假下降。</p>
+
+      <p>训练脚本几乎就是预训练脚本换皮：from_weight=pretrain，learning_rate=1e-5，保存前缀 full_sft。循环内部仍然是 <code>loss + aux_loss</code>。</p>
+
+      <h2>自测</h2>
+      <ul>
+        <li>推理时为什么必须 <code>add_generation_prompt=True</code>？</li>
+        <li>若 bos_id 匹配失败，标签会变成什么样？损失还能降吗？</li>
+        <li>为什么工具样本不要随机插入 system 提示？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案（先自己想）</summary>
+        <ol>
+          <li>否则字符串停在用户说完，模型不知道该以助手身份续写，可能接着扮演用户，或乱接。</li>
+          <li>标签全是 -100，交叉熵被 ignore_index 跳过，损失可能是 nan 或假的 0，参数几乎不更新。</li>
+          <li>工具样本里的 JSON 结构被随机插入打乱后，模型学到的调用格式会坏掉。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

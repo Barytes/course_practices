@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe6d4">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MiniMind教材">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<title>第 13 章 · 拼装 MiniMind-3-MoE — MiniMind 手把手</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第三部 · 拼装</p>
+      <h1>第 13 章 · 拼装 MiniMind-3-MoE</h1>
+      <p class="lead">注意力一行都不用改。把每一层的前馈换成「先由路由器选专家、再只跑被选中的 SwiGLU」，就得到 MiniMind-3-MoE。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>前馈复制成 4 个专家。每个词只去分数最高的那 1 个，输出还要乘回门概率。另外加一项很小的辅助损失，防止所有词都挤进同一个专家。</p>
+      </div>
+
+      <h2>混合专家要解决什么</h2>
+      <p>稠密前馈对每个词都跑同一套 5.6M 参数。若想增加记忆容量，最笨的办法是把中间维加宽，于是每个词的计算也变贵。混合专家把前馈复制成 N 份，每个词只激活其中 K 份。</p>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>医院有 4 个专科，分诊台（路由器）看一眼把你送到其中 1 科。医院总编制变大，但你这次只占用 1 个诊室。没有「所有人都要先去的那个公共诊室」——MiniMind 去掉了共享专家。</p>
+      </div>
+      <table class="plain">
+        <thead><tr><th>项</th><th>取值</th></tr></thead>
+        <tbody>
+          <tr><td>专家个数</td><td>4</td></tr>
+          <tr><td>每个词选几个</td><td>1（top-1）</td></tr>
+          <tr><td>共享专家</td><td>无</td></tr>
+          <tr><td>总参数 / 激活参数</td><td>约 198M / 64M</td></tr>
+        </tbody>
+      </table>
+      <div class="formula">
+        <div class="eq">p = softmax(x W<sub>gate</sub>)　　选 k* = argmax p　　输出 = p<sub>k*</sub> · Expert<sub>k*</sub>(x)</div>
+        <div class="hint">乘回 p_k* 很重要：否则路由器的分数无法通过专家输出反传，门就学不到东西。</hint>
+      </div>
+
+      <h2>按专家分桶，而不是 for 每个词</h2>
+      <p>把 <code>[B, T, 768]</code> 摊成 <code>[B·T, 768]</code>，算出每个词的 topk 下标，然后对专家 i：找出选了 i 的那些行 → 只把这些行送进 <code>experts[i]</code> → 乘上门概率 → 用 <code>index_add_</code> 写回原位置。</p>
+      <p>训练时若某个专家整批都没被选中，官方加一个恒为 0 的假梯度，让这些参数仍出现在计算图里。推理时不要走这分支。</p>
+
+      <h2>负载均衡辅助损失</h2>
+      <p>若放任不管，路由器很容易把所有词都塞给同一个专家。辅助损失鼓励「每个专家被选中的频率」与「门给出的平均概率」相匹配。训练总损失是 <code>交叉熵 + 各层 aux_loss 之和</code>。推理时 aux 置零。</p>
+
+      <div class="where">
+        <p class="label">现在动手 · 写到哪里</p>
+        <table class="plain">
+          <tbody>
+            <tr><th>文件</th><td>追加到 <code>exp-2-2/minimind3/mlp.py</code>，不要另开 moe.py</td></tr>
+            <tr><th>符号</th><td>类 <code>MOEFeedForward</code>。属性名必须是 <code>gate</code>、<code>experts</code>（<code>nn.ModuleList</code> 里每个是 <code>FeedForward</code>）</td></tr>
+            <tr><th>第 11 章</th><td><code>block.py</code> 里已经写了 <code>if config.use_moe</code>。现在只要把 <code>use_moe=True</code> 实例化整网。</td></tr>
+            <tr><th>怎么跑</th><td><code>MiniMindConfig(use_moe=True)</code>，参数量约 198M；<code>model.train()</code> 时 aux 应非零</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figure class="code">
+        <figcaption>minimind3/mlp.py · class MOEFeedForward</figcaption>
+        <pre><code>class MOEFeedForward(nn.Module):
+    def __init__(self, config: MiniMindConfig):
+        super().__init__()
+        self.config = config
+        self.gate = nn.Linear(config.hidden_size, config.num_experts, bias=False)
+        self.experts = nn.ModuleList([
+            FeedForward(config, intermediate_size=config.moe_intermediate_size)
+            for _ in range(config.num_experts)
+        ])
+
+    def forward(self, x):
+        batch_size, seq_len, hidden_dim = x.shape
+        x_flat = x.view(-1, hidden_dim)
+        scores = F.softmax(self.gate(x_flat), dim=-1)
+        topk_weight, topk_idx = torch.topk(
+            scores, k=self.config.num_experts_per_tok, dim=-1, sorted=False
+        )
+        if self.config.norm_topk_prob:
+            topk_weight = topk_weight / (topk_weight.sum(dim=-1, keepdim=True) + 1e-20)
+
+        y = torch.zeros_like(x_flat)
+        for i, expert in enumerate(self.experts):
+            mask = (topk_idx == i)
+            if mask.any():
+                token_idx = mask.any(dim=-1).nonzero().flatten()
+                weight = topk_weight[mask].view(-1, 1)
+                y.index_add_(
+                    0, token_idx,
+                    (expert(x_flat[token_idx]) * weight).to(y.dtype),
+                )
+            elif self.training:
+                y[0, 0] += 0 * sum(p.sum() for p in expert.parameters())
+
+        if self.training and self.config.router_aux_loss_coef > 0:
+            load = F.one_hot(topk_idx, self.config.num_experts).float().mean(0)
+            self.aux_loss = (load * scores.mean(0)).sum() \
+                * self.config.num_experts * self.config.router_aux_loss_coef
+        else:
+            self.aux_loss = scores.new_zeros(1).squeeze()
+        return y.view(batch_size, seq_len, hidden_dim)
+</code></pre>
+      </figure>
+      <div class="bridge">
+        <p class="label">代码怎么对上原理</p>
+        <ul>
+          <li><code>self.gate</code> 是 [768, 4] → 分诊台给 4 个专科打分。</li>
+          <li><code>experts</code> 里每个都是第 10 章的 <code>FeedForward</code> → 专科诊室就是一套 SwiGLU。</li>
+          <li><code>topk(..., k=1)</code> → 每个词只去 1 个专家。</li>
+          <li><code>expert(...) * weight</code> → 乘回门概率 p_k*，路由器才能学。</li>
+          <li><code>index_add_</code> → 按专家分桶写回原位置，不要对每个词写 Python for。</li>
+          <li><code>0 * sum(p.sum()...)</code> → 没被叫到的专家仍挂在计算图上，数值不变。</li>
+          <li><code>aux_loss</code> 存在模块上，第 12 章的 Model 会把各层加起来。</li>
+        </ul>
+      </div>
+
+      <figure class="code">
+        <figcaption>用配置开关实例化 MiniMind-3-MoE</figcaption>
+        <pre><code>cfg = MiniMindConfig(use_moe=True, num_experts=4, num_experts_per_tok=1)
+model = MiniMindForCausalLM(cfg)
+n = sum(p.numel() for p in model.parameters()) / 1e6
+print(f"{n:.2f}M")  # 应约 198
+</code></pre>
+      </figure>
+      <p>不要自己加 <code>shared_experts</code>，否则权重对不上，激活参数也不再是 64M。</p>
+
+      <h2>自测</h2>
+      <ul>
+        <li>top-1 时 <code>norm_topk_prob</code> 实际上会做什么？</li>
+        <li>辅助损失为什么要乘专家数 N？</li>
+        <li>推理时 <code>model.eval()</code> 后 aux_loss 为什么必须是 0 张量而不是 Python 的 0？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案（先自己想）</summary>
+        <ol>
+          <li>top-1 时只选中一个数，除以自己还是自己。这行几乎没效果，但 top-2 时会把两个概率重新归一化。保留它是为了和配置开关一致。</li>
+          <li>f 和 P 都是大约 1/N 量级，点乘再求和大约是 1/N。乘 N 后尺度不随专家数漂移，4 专家和 64 专家的系数才可比。</li>
+          <li>训练循环写成 <code>loss + aux_loss</code>。Python 的 0 和张量相加可能得到错误类型或离开计算图。0 张量能安全相加。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

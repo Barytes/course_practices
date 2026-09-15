@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe6d4">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MiniMind教材">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<title>第 14 章 · 损失、数据与预训练 — MiniMind 手把手</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">第四部 · 训练</p>
+      <h1>第 14 章 · 损失、数据与预训练</h1>
+      <p class="lead">结构已经能前向。预训练让它在普通文本上学会「高质量地词语接龙」。这一章把交叉熵、数据格式和训练循环写成你可以对照官方脚本理解的版本。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>每个位置做一次「6400 选 1」的分类。正确答案是下一个词。padding 的标签写成 -100，不算分。数据每行一个 json，字段叫 text。</p>
+      </div>
+
+      <h2>交叉熵在语言模型里具体指什么</h2>
+      <p>每个位置，模型给出词表上 6400 个分数。把正确那个词元的编号当作类别，做一次分类交叉熵。序列上所有有效位置求平均，就是这条样本的损失。</p>
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>老师把下一格的标准答案捂住，让你从 6400 个词里猜。猜得越不准，扣分越多。空出来凑齐长度的格子（pad）老师 squint 一眼直接跳过，不记分。</p>
+      </div>
+      <div class="formula">
+        <div class="eq">L = − Σ<sub>t∈有效位置</sub> log p<sub>θ</sub>(x<sub>t+1</sub> | x<sub>≤t</sub>)</div>
+        <div class="hint">padding 位置的标签是 -100，PyTorch 的 ignore_index 会跳过它们。</hint>
+      </div>
+      <p>第 12 章已经写了错位。长度为 4 的样本在脑子里走一遍：</p>
+      <table class="plain">
+        <thead><tr><th>位置</th><th>输入词元</th><th>该位置 logits 去预测</th><th>标签</th></tr></thead>
+        <tbody>
+          <tr><td>0</td><td>bos</td><td>第 1 个词</td><td>第 1 个词</td></tr>
+          <tr><td>1</td><td>第 1 个词</td><td>第 2 个词</td><td>第 2 个词</td></tr>
+          <tr><td>2</td><td>第 2 个词</td><td>eos</td><td>eos</td></tr>
+          <tr><td>3</td><td>eos / pad</td><td>（被切掉，不预测）</td><td>（被切掉）</td></tr>
+        </tbody>
+      </table>
+
+      <h2>预训练数据长什么样</h2>
+      <figure class="code">
+        <figcaption>pretrain_t2t.jsonl 的一行</figcaption>
+        <pre><code>{"text": "为什么天空是蓝色的？因为短波蓝光更容易被大气散射。"}</code></pre>
+      </figure>
+      <ol class="steps">
+        <li>用分词器把 text 编成编号，截断到 <code>max_length - 2</code>，给 bos/eos 留位置。</li>
+        <li>两端加上 bos、eos。</li>
+        <li>右边用 pad 填到固定 <code>max_length</code>。</li>
+        <li><code>labels = input_ids.clone()</code>，再把 pad 位置改成 -100。</li>
+      </ol>
+      <p>把真实 jsonl 按 MiniMind 文档下载到 <code>minimind_dataset/</code>。没有真实语料时，先用几条短 jsonl 把循环跑通。</p>
+
+      <div class="where">
+        <p class="label">现在动手 · 写到哪里</p>
+        <table class="plain">
+          <tbody>
+            <tr><th>数据集</th><td><code>exp-2-2/minimind3/data.py</code> 里的类 <code>PretrainDataset</code></td></tr>
+            <tr><th>训练一步</th><td>可以先写在 <code>data.py</code> 的 <code>__main__</code>，或另开 <code>train_pretrain_tiny.py</code>。真正大规模训练对照官方 <code>trainer/train_pretrain.py</code>，不必把分布式抄进作业包。</td></tr>
+            <tr><th>数据文件</th><td><code>exp-2-2/minimind_dataset/</code>，不要提交进 Git</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figure class="code">
+        <figcaption>minimind3/data.py · class PretrainDataset</figcaption>
+        <pre><code>import json
+import torch
+from torch.utils.data import Dataset
+
+class PretrainDataset(Dataset):
+    def __init__(self, path, tokenizer, max_length=128):
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+        self.rows = []
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    self.rows.append(json.loads(line)["text"])
+
+    def __len__(self):
+        return len(self.rows)
+
+    def __getitem__(self, i):
+        ids = self.tokenizer(
+            self.rows[i], add_special_tokens=False,
+            truncation=True, max_length=self.max_length - 2,
+        ).input_ids
+        ids = [self.tokenizer.bos_token_id] + ids + [self.tokenizer.eos_token_id]
+        pad = self.max_length - len(ids)
+        ids = ids + [self.tokenizer.pad_token_id] * pad
+        ids = torch.tensor(ids, dtype=torch.long)
+        labels = ids.clone()
+        labels[ids == self.tokenizer.pad_token_id] = -100
+        return ids, labels
+</code></pre>
+      </figure>
+      <div class="bridge">
+        <p class="label">数据集怎么对上原理</p>
+        <ul>
+          <li>只读 <code>["text"]</code> → 预训练没有 user/assistant，就是一段话。</li>
+          <li><code>max_length - 2</code> 再加 bos/eos → 两端结构标记也要占格子。</li>
+          <li><code>labels = ids.clone()</code> 再把 pad 改 -100 → 「空格子老师不记分」。bos、正文、eos 都算分。</li>
+          <li>真正的「右移一位」在第 12 章 <code>MiniMindForCausalLM.forward</code> 里，数据集不用再自己错位。</li>
+        </ul>
+      </div>
+
+      <figure class="code">
+        <figcaption>预训练一步（单卡教学版）</figcaption>
+        <pre><code>for input_ids, labels in loader:
+    input_ids = input_ids.to(device)
+    labels = labels.to(device)
+
+    loss, aux_loss, _, _ = model(input_ids, labels=labels)
+    total = (loss + aux_loss) / accumulation_steps
+    total.backward()
+
+    if 到了累积步数:
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        optimizer.step()
+        optimizer.zero_grad(set_to_none=True)
+</code></pre>
+      </figure>
+      <div class="bridge">
+        <p class="label">训练一步怎么对上原理</p>
+        <ul>
+          <li><code>loss + aux_loss</code> → 稠密时 aux 是 0 张量；MoE 时带上负载均衡。</li>
+          <li>除以累积步数再反向 → 显存不够就把 batch 拆开，等效大 batch。</li>
+          <li>梯度裁剪阈值 1.0 → 防止某批噪声把更新打飞。</li>
+          <li>预训练 <code>from_weight='none'</code> → 随机初始化，学习率 5e-4，比微调大一个数量级。</li>
+        </ul>
+      </div>
+
+      <p>官方默认：epochs=2，batch_size=32 再乘 accumulation_steps=8，max_seq_len=340，dtype=bfloat16。没有 GPU 时，用几十条样本确认损失下降即可。</p>
+      <p>损失从刚开始的大约 ln(6400)≈8.76（接近均匀乱猜）往下降。降到 3 附近时，贪心解码已经能接出「像中文的片段」，但还不会问答。</p>
+
+      <h2>自测</h2>
+      <ul>
+        <li>为什么 bos 位置的标签是「第一个正文词元」，而不是 bos 自己？</li>
+        <li>aux_loss 在稠密模型上是 0，为什么训练循环仍然写成 <code>loss + aux_loss</code>？</li>
+        <li>若忘记把 pad 改成 -100，损失会被怎样污染？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案（先自己想）</summary>
+        <ol>
+          <li>位置 0 的工作是猜下一个词。下一个词是正文第一个词，不是 bos 自己。</li>
+          <li>同一套循环要同时跑稠密和 MoE。aux 为 0 张量时加法是空操作，不必写两套脚本。</li>
+          <li>模型会把「猜 pad」当成目标，大量梯度浪费在填充上，有效词的学习被稀释，还可能学会一直输出 pad。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

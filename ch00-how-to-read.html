@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe6d4">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MiniMind教材">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<title>第 0 章 · 如何读这本书 — MiniMind 手把手</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">开始</p>
+      <h1>第 0 章 · 如何读这本书</h1>
+      <p class="lead">先约定阅读方式和几个会反复出现的「看图方法」。后面每一章都默认你已经同意这几条，就不会突然冒出一个没解释过的符号。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一章只要记住</p>
+        <p>按顺序读；每章先搞懂「它在整台机器的哪一格」；看到 <code>[B, T, 768]</code> 就念「几句话、每句几个词、每个词 768 个数」。形状对了，再谈数字对不对。</p>
+      </div>
+
+      <h2>这本书的推进方式</h2>
+      <p>语言模型看起来很大，其实是同一件小事重复很多遍：<strong>根据已经出现的词，预测下一个词</strong>。</p>
+      <p>MiniMind-3 把这件事拆成大约十个可以单独理解的零件。本书按这个顺序一次只加一个零件：</p>
+      <ol class="steps">
+        <li>先用人话和比喻建立直觉。</li>
+        <li>再用 2～4 个词、2～4 个数字这种超小例子手算。</li>
+        <li>然后写几行 Python，用断言检查形状。</li>
+        <li>最后才对照官方源码：「他们把这三行合成了一行」。</li>
+      </ol>
+      <p>因此请按章节顺序读。第 5 章的注意力还不包含位置编码，不是作者忘了，而是故意的：先把「用问题去检索索引、再按分数提取内容」写对，再给它加上位置。一上来把旋转、分组、缓存缠在一起，几乎一定晕。</p>
+
+      <div class="callout analogy">
+        <p class="label">生活比喻</p>
+        <p>像学开车。第 5 章是「方向盘怎么打」；第 6 章才是「后视镜和倒车雷达」；第 8 章才是「导航告诉你现在在第几米」。不要指望第一节课就把自动泊车学会。</p>
+      </div>
+
+      <h2>你需要准备什么</h2>
+      <ul>
+        <li>Python 3.10 左右，以及 PyTorch。有 NVIDIA 显卡最好；没有也没关系——用 CPU 跑「形状检查」和「三五个词的前向」完全够用。</li>
+        <li>会写函数、for 循环、<code>list</code> / <code>dict</code>。矩阵乘法不要求手推公式，但要能接受「一排数字乘一张表，得到另一排数字」。</li>
+        <li>能打开官方仓库：<a href="https://github.com/jingyaogong/minimind">jingyaogong/minimind</a>。本教材不会要求你把整个仓库抄进作业目录。</li>
+        <li><code>minimind_dataset/</code> 是数据下载位置，仓库里只保留空目录。完整训练数据在 GPU 机器上按 MiniMind 官方说明下载；第 14 章会告诉你最小可跑的数据长什么样。</li>
+      </ul>
+
+      <h2>「从零实现」指什么，不指什么</h2>
+      <p><strong>从零</strong>的意思是：模型结构、注意力、键值缓存、混合专家怎么选、损失函数、生成循环，都用 PyTorch 自己写。不调用 <code>transformers.LlamaModel</code> 这种已经封装好的大模型类。</p>
+      <p><strong>不是从零</strong>的部分：矩阵乘法、反向传播（自动根据对错改参数）、AdamW 优化器，仍然用 PyTorch 提供的。重新发明这些对理解 MiniMind 没有帮助。</p>
+      <p>分词器官方已经训练好了。第 2.5 章会用 minbpe 把切词算法亲手写一遍，但<strong>不要用自己的词表去训练 MiniMind-3</strong>——词表一变，权重、数据、社区模型全都对不上。就像换了一本词典，旧书页码全失效。</p>
+
+      <h2>必须先会的三件事：形状、线性层、softmax</h2>
+      <p>后面每一章都建立在这三件事上。现在用超小数字讲清楚，后面就不用每次重新解释。</p>
+
+      <h3>1. 形状怎么读</h3>
+      <p>张量 = 按格子排好的一堆数字。中括号里的列表叫形状。</p>
+      <div class="num-grid">
+        <div class="box"><b>一维 [3]</b>三个数排成一行<br><code>[1.0, 0.5, 2.0]</code></div>
+        <div class="box"><b>二维 [2, 3]</b>2 行 3 列的表<br>像 Excel 小表</div>
+        <div class="box"><b>三维 [2, 5, 4]</b>2 张 5×4 的表<br>两句话，各 5 个词，每词 4 个数</div>
+      </div>
+      <p>本书默认：</p>
+      <ul>
+        <li><strong>B</strong> = batch = 一次处理几句话</li>
+        <li><strong>T</strong> = 一句话有几个词元</li>
+        <li><strong>D</strong> = 每个词元用几个数字表示（MiniMind-3 是 768）</li>
+      </ul>
+      <p class="say">所以 <code>x.shape == [2, 5, 768]</code> 永远念作：<strong>2 句话，每句 5 个词，每个词 768 个数</strong>。卡住时先把形状念出来，再看代码。</p>
+      <p>形状里的最后一个数字，常常是「每个词自己的那一串」。归一化、线性层，多半都作用在这最后一维上，句子长度 T 不会变。</p>
+
+      <h3>2. nn.Linear 在干什么</h3>
+      <p><code>nn.Linear(3, 2)</code> 的意思：每个位置原来有 3 个数，乘一张可学习的表，变成 2 个数。</p>
+      <figure class="code">
+        <figcaption>手算 · 线性层不是魔法</figcaption>
+        <pre><code># 输入一个词：3 个数
+x = [1.0, 0.0, 2.0]
+
+# 权重是一张 2 行 3 列的表（PyTorch 里 weight 形状是 [out, in]）
+W = [[1, 0, 0],
+     [0, 0, 1]]
+
+# 输出两个数：
+# y0 = 1*1 + 0*0 + 0*2 = 1
+# y1 = 0*1 + 0*0 + 1*2 = 2
+y = [1.0, 2.0]
+</code></pre>
+      </figure>
+      <p>对一整句话，线性层会对<strong>每个词各自做一次</strong>同样的乘法。所以输入 <code>[B, T, 3]</code>，输出 <code>[B, T, 2]</code>，词的个数 T 不变。这就是为什么可以放心说「句子长度在这一步不会变」。</p>
+      <p>MiniMind 里绝大多数线性层<strong>没有偏置</strong>（<code>bias=False</code>）：只乘表，不再额外加一个常数向量。这是为了和 Qwen3 的权重对得上，不是因为偏置「不好」。</p>
+
+      <h3>3. softmax 在干什么</h3>
+      <p>输入一串分数，输出一串<strong>大于 0、加起来等于 1</strong>的权重。</p>
+      <figure class="code">
+        <figcaption>手算 · softmax</figcaption>
+        <pre><code>分数 s = [1.0, 2.0, 0.0]
+先做 e^s ≈ [2.718, 7.389, 1.000]
+加起来 ≈ 11.107
+除一下   ≈ [0.245, 0.665, 0.090]
+# 最大的分数 2.0 变成最大的权重 0.665，但另外两个没有变成 0
+</code></pre>
+      </figure>
+      <p>有两个重要推论：</p>
+      <ul>
+        <li>若某个格子是<strong>负无穷</strong>，<code>e^(-∞)=0</code>，权重就是真的 0。因果掩码靠的就是这一招。</li>
+        <li>若分数差得特别大，softmax 会几乎变成「只认最大的那个」（几乎 one-hot）。所以注意力里要把点积除以 √d，避免分数爆炸。</li>
+      </ul>
+
+      <h2>每一章你要做什么</h2>
+      <ol class="steps">
+        <li><strong>读懂这一步在整个前向计算里的位置。</strong>每章开头都有黑底框：「这一章只要记住」。没有它，模型会怎样，下一节会说。</li>
+        <li><strong>看一个小数字例子。</strong>3 个 token、2 维向量这种规模，是为了让你能用计算器算，不是为了展示性能。</li>
+        <li><strong>按「现在动手写」里的代码，自己敲一遍。</strong>建议放到 <code>exp-2-2/</code> 下一个你自己的 <code>minimind3/</code> 包里，章与章之间追加，不要每章新建互不相通的文件。</li>
+        <li><strong>跑形状断言。</strong>如果张量形状对不上，后面所有章节都会错。形状对了，再谈数值对不对。</li>
+        <li><strong>对照官方。</strong>官方把很多行压得很紧。教材会拆开写，并指出「官方把这三行合成了一行」。</li>
+        <li><strong>做自测，再展开答案核对。</strong>先自己说人话，不要立刻点开。</li>
+      </ol>
+
+      <div class="callout">
+        <p class="label">代码写到哪</p>
+        <p>不要每章新建一个互不相通的脚本。正式实现全部写进 <code>exp-2-2/minimind3/</code> 这个包，文件已经建好。完整对照表见 <a href="files.html">动手地图</a>。</p>
+        <p>第 2～5 章可以先在已有的 <code>exp-2-2/attention.py</code> 里热身；从第 6 章起，注意力只改 <code>minimind3/attention.py</code> 这一个文件。</p>
+        <p>每一章的代码块前面都有「写到哪里」（文件 / 符号 / 怎么跑），后面都有「代码怎么对上原理」。两块都读完再抄下一章。</p>
+      </div>
+
+      <h2>读公式时怎么不晕</h2>
+      <p>本书公式很少，出现时都带一句「读作……」。规则：</p>
+      <ul>
+        <li>先读文字，再看公式。公式只是把刚才那句话缩写成一行。</li>
+        <li>下标 t 几乎总是「第几个词」。x<sub>t</sub> = 第 t 个词元。</li>
+        <li>竖着的一小撮叫条件：P(下一个词 | 已经看见的词) 读作「在已经看见这些词的前提下，下一个词的概率」。</li>
+      </ul>
+
+      <div class="callout stuck">
+        <p class="label">常见卡住</p>
+        <ul>
+          <li>「隐藏维度 768」听着玄。——它就是「每个词用 768 个小数来表示」。没有更深的秘密。</li>
+          <li>「参数 64M」听着玄。——就是模型里大约 6400 万个可学习的小数。训练就是改这些数。</li>
+          <li>某一段突然出现三个新缩写。——先打开<a href="glossary.html">术语表</a>查，再往下读。不要硬背。</li>
+          <li>代码能跑但不知道对不对。——先 assert 形状，再打印一个 <code>[0, :3, :4]</code> 这样的小切片，用眼睛看。</li>
+        </ul>
+      </div>
+
+      <h2>自测</h2>
+      <p>合上这一章前，确认你能用自己的话回答：</p>
+      <ul>
+        <li><code>[4, 8, 768]</code> 怎么用中文念？</li>
+        <li>为什么第 5 章可以暂时没有位置编码？</li>
+        <li>「从零」包含注意力实现，但不包含重写 AdamW，这样划界是否合理？</li>
+        <li>你准备把代码写在哪个文件里，才能让第 4 章的归一化被第 5 章直接调用？</li>
+      </ul>
+      <details class="answer">
+        <summary>自测答案（先自己想）</summary>
+        <ol>
+          <li>4 句话，每句 8 个词元，每个词元 768 个数。</li>
+          <li>位置编码只改变查询和键的数值，不改变「用查询检索键、再按分数提取值」这件事本身。先把检索写对，再加位置，不容易缠在一起。</li>
+          <li>合理。我们要搞懂 MiniMind 自己独特的结构；矩阵乘法和自动求导是 PyTorch 的基础设施，重写它们对理解这台机器没有帮助。</li>
+          <li>同一个包里的模块即可，例如 <code>minimind3/norm.py</code> 被 <code>minimind3/attention.py</code> 导入。不要每章一个孤立脚本互相 copy。</li>
+        </ol>
+      </details>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

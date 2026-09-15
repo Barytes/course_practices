@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe6d4">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MiniMind教材">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<title>动手地图：文件、模块、函数 — MiniMind 手把手</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">开始</p>
+      <h1>动手地图：文件、模块、函数</h1>
+      <p class="lead">后面每一章的代码都写进同一套文件，而不是每章一个互不相通的草稿。卡住「这段该贴哪」时，回到这一页。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">总原则</p>
+        <p>工作目录是 <code>exp-2-2/</code>。正式实现全部放进包 <code>minimind3/</code>。第 2～5 章可以先在已有的 <code>attention.py</code> 里热身，写稳之后再迁进包里。</p>
+      </div>
+
+      <h2>目录长什么样</h2>
+      <figure class="code">
+        <figcaption>从 exp-2-2/ 往下看</figcaption>
+        <pre><code>exp-2-2/
+  attention.py              第 2～5 章草稿本（已有，热身用）
+  bpe/                      第 2.5 章：minbpe 填空
+  minimind_dataset/         第 14 章才用到的训练数据（空目录）
+  minimind3/                正式手写包，第 1 章起往这里填
+    __init__.py
+    config.py               第 1 章  MiniMindConfig
+    norm.py                 第 4 章  RMSNorm
+    rope.py                 第 8 章  旋转位置编码
+    attention.py            第 5～9 章  同一个 Attention 类逐步加零件
+    mlp.py                  第 10、13 章  FeedForward / MOEFeedForward
+    block.py                第 11 章  MiniMindBlock
+    model.py                第 3、12、16 章  MiniMindModel / CausalLM / generate
+    data.py                 第 14、15 章  PretrainDataset / SFTDataset
+  minimind-textbook/        你正在读的教材（不要改这里来交作业）
+</code></pre>
+      </figure>
+      <p>包已经建好：类名、函数签名、成员名与官方 <code>model/model_minimind.py</code>、<code>dataset/lm_dataset.py</code> 对齐，方法体留空。打开对应文件按注释填，不要另起文件名或改成员名。</p>
+      <p>在 <code>exp-2-2/</code> 下跑模块：</p>
+      <figure class="code">
+        <figcaption>怎么跑</figcaption>
+        <pre><code>cd exp-2-2
+python -m minimind3.config      # 第 1 章
+python -m minimind3.norm        # 第 4 章
+python -m minimind3.attention   # 第 5 章起
+</code></pre>
+      </figure>
+
+      <h2>按章：写哪个文件、哪个符号</h2>
+      <table class="plain">
+        <thead><tr><th>章</th><th>文件</th><th>你要留下的符号</th><th>动作</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><code>minimind3/config.py</code></td><td><code>MiniMindConfig</code>、<code>__post_init__</code></td><td>已有骨架，对照教材跑通即可</td></tr>
+          <tr><td>2</td><td><code>attention.py</code>（草稿）</td><td><code>CharTokenizer.encode/decode</code></td><td>热身。正式训练仍加载官方分词器</td></tr>
+          <tr><td>2.5</td><td><code>bpe/minbpe/base.py</code>、<code>basic.py</code></td><td><code>get_stats</code>、<code>merge</code>、<code>train/encode/decode</code></td><td>搜 <code># &gt;&gt;&gt; 填空</code></td></tr>
+          <tr><td>3</td><td><code>minimind3/model.py</code></td><td><code>embed_tokens</code>、<code>lm_head</code>、权重共享</td><td>先理解这两张表。正式类名是后面的 MiniMindModel / CausalLM</td></tr>
+          <tr><td>4</td><td><code>minimind3/norm.py</code></td><td><code>RMSNorm.norm</code>、<code>forward</code></td><td>填空。官方方法名是 <code>norm</code> 不是 <code>_norm</code></td></tr>
+          <tr><td>5</td><td>草稿 <code>attention.py</code> → 迁到 <code>minimind3/attention.py</code></td><td><code>Attention.forward</code></td><td>先草稿里写对检索，再拷进包里的同名类</td></tr>
+          <tr><td>6</td><td><code>minimind3/attention.py</code></td><td>把 forward 升级为因果 + 缓存</td><td>改同一个类，不要另开文件</td></tr>
+          <tr><td>7</td><td>同上</td><td><code>repeat_kv</code>；q/k/v 投影宽度分开</td><td>继续改同一个 forward</td></tr>
+          <tr><td>8</td><td><code>minimind3/rope.py</code> + 注意力 forward</td><td><code>rotate_half</code>、<code>apply_rotary_pos_emb</code>、<code>precompute_freqs_cis</code></td><td>函数放 rope.py，注意力里调用</td></tr>
+          <tr><td>9</td><td><code>minimind3/attention.py</code></td><td>类名定为 <code>Attention</code>；加 q_norm/k_norm 与 SDPA 分支</td><td>本章结束应能对上官方 Attention.forward</td></tr>
+          <tr><td>10</td><td><code>minimind3/mlp.py</code></td><td><code>FeedForward.forward</code></td><td>新建类</td></tr>
+          <tr><td>11</td><td><code>minimind3/block.py</code></td><td><code>MiniMindBlock.forward</code></td><td>把 norm / attn / mlp 串起来</td></tr>
+          <tr><td>12</td><td><code>minimind3/model.py</code></td><td><code>MiniMindModel</code>、<code>MiniMindForCausalLM</code></td><td>填空。不要另建 EmbedAndHead</td></tr>
+          <tr><td>13</td><td><code>minimind3/mlp.py</code></td><td><code>MOEFeedForward</code></td><td>追加，不改注意力</td></tr>
+          <tr><td>14</td><td><code>minimind3/data.py</code></td><td><code>PretrainDataset</code></td><td>填空</td></tr>
+          <tr><td>15</td><td><code>minimind3/data.py</code></td><td><code>SFTDataset.generate_labels</code></td><td>同一文件追加</td></tr>
+          <tr><td>16</td><td><code>minimind3/model.py</code></td><td><code>MiniMindForCausalLM.generate</code></td><td>官方写在本类里，不要另开 generate.py</td></tr>
+          <tr><td>17</td><td>对照官方 <code>model_lora.py</code> 等</td><td>不必再往包里加文件</td><td>读源码地图即可</td></tr>
+        </tbody>
+      </table>
+
+      <h2>注意力为什么始终改同一个文件</h2>
+      <p>第 5～9 章看起来像五段互不相干的代码，其实是<strong>同一条 forward 逐步加条件</strong>：</p>
+      <ol class="steps">
+        <li>第 5 章：Q、K、V 检索，无掩码、无缓存、单头。</li>
+        <li>第 6 章：在分数上加因果掩码；K/V 沿序列维拼接缓存。</li>
+        <li>第 7 章：把头维切开，键值头变少，用 <code>repeat_kv</code> 对齐。</li>
+        <li>第 8 章：拼接缓存之前旋转 Q、K。</li>
+        <li>第 9 章：旋转之前做 QK-Norm；能走硬件加速就走。</li>
+      </ol>
+      <p>所以不要为每一章新建 <code>attention_v2.py</code>。打开 <code>minimind3/attention.py</code>，在现有 <code>forward</code> 里插入新的几行。</p>
+
+      <div class="callout analogy">
+        <p class="label">和原理怎么对上</p>
+        <p>教材里每一段代码前面都有一块绿色的「写到哪里」，后面都有一块「代码怎么对上原理」。前面告诉你贴哪，后面告诉你刚才那些人话分别对应哪一行。两块都读完再往下一章走。</p>
+      </div>
+
+      <h2>和官方仓库怎么对照</h2>
+      <p>你写的是拆开的教学包。官方把绝大部分都塞进一个文件 <code>model/model_minimind.py</code>。对照时按类名找，不要按文件名找：</p>
+      <table class="plain">
+        <thead><tr><th>你写的</th><th>官方大约在</th></tr></thead>
+        <tbody>
+          <tr><td><code>MiniMindConfig</code></td><td>同名类</td></tr>
+          <tr><td><code>RMSNorm</code></td><td>同名类</td></tr>
+          <tr><td><code>repeat_kv</code> / <code>Attention</code></td><td>同名函数与类</td></tr>
+          <tr><td><code>precompute_freqs_cis</code> / <code>apply_rotary_pos_emb</code></td><td>同名函数</td></tr>
+          <tr><td><code>FeedForward</code> / <code>MOEFeedForward</code></td><td>同名类</td></tr>
+          <tr><td><code>MiniMindBlock</code> / <code>MiniMindModel</code> / <code>MiniMindForCausalLM</code></td><td>同名类；<code>generate</code> 是 CausalLM 的方法</td></tr>
+          <tr><td><code>PretrainDataset</code> / <code>SFTDataset</code></td><td><code>dataset/lm_dataset.py</code></td></tr>
+        </tbody>
+      </table>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>
