@@ -60,6 +60,7 @@ python -m miniharness watch --save snapshot.json
         <li><strong>把句子跟到 PR / commit。</strong>看测试改了什么，比看宣传句更接近真实约束。</li>
         <li><strong>最后才看新功能清单。</strong>功能是广告；约束才是架构。</li>
       </ol>
+      <p>第四部已经把快照日之前、改了取舍的 PR 列成目录（第 10 章 pi、第 11 章 opencode、第 12 章 Codex、第 13 章 dsh）。自学时把 <code>watch</code> 接到那份目录后面：新 release 有没有推翻带 ★ 的那几票？有没有把「故意不做」做成默认？不要从头通读几千条 PR 页。</p>
       <p>把某一段 release 扔给现在的模型时，不要问「总结一下」，问：</p>
       <figure class="code">
         <figcaption>更好的提问</figcaption>
@@ -81,10 +82,10 @@ python -m miniharness watch --save snapshot.json
         <tbody>
           <tr><td>nanocode</td><td>2026-01 后几乎无推送，无 Release</td><td>扫 250 行即可，偶尔看 commit 是否复活</td></tr>
           <tr><td>mini-swe-agent</td><td>v2.4.6（2026-07-23）</td><td>看迁移说明与 default.py，发版不勤</td></tr>
-          <tr><td>pi</td><td>v0.85.1（2026-09-05），Release 极多</td><td>按包读，盯扩展是否爬进默认</td></tr>
-          <tr><td>opencode</td><td>v1.18.31（2026-09-14）</td><td>盯 v2、可观测性、会话持久化</td></tr>
-          <tr><td>codex</td><td>rust-v0.155.0-alpha.6（2026-09-15）</td><td>盯 sandbox、approval、AGENTS.md</td></tr>
-          <tr><td>deepseek-harness</td><td>dsh-v0.1.6-alpha.1（2026-09-15）</td><td>盯破坏性变更、PTC 运行时、事件改名</td></tr>
+          <tr><td>pi</td><td>v0.85.1（2026-09-05）；约 979 条已合并 PR</td><td>按包读，盯扩展是否爬进默认。changelog 是权威时间线</td></tr>
+          <tr><td>opencode</td><td>v1.18.31（2026-09-14）；约 8958 条已合并 PR</td><td>盯 v2、可观测性、会话持久化。不要通读 PR 页</td></tr>
+          <tr><td>codex</td><td>rust-v0.155.0-alpha.6（2026-09-15）；约 2509 条已合并 PR</td><td>盯 sandbox、approval、AGENTS.md。tag 可能当天又涨</td></tr>
+          <tr><td>deepseek-harness</td><td>dsh-v0.1.6-alpha.1（2026-09-15）；公开 PR 页为 0</td><td>盯 <code>.agents/notes</code>、破坏性变更、PTC 运行时。内部 merge 编号不在 GitHub PR 页</td></tr>
         </tbody>
       </table>
 

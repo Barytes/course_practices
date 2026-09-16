@@ -19,7 +19,7 @@
     <article class="prose">
       <div class="plain-box">
         <p class="label">这一章只要记住</p>
-        <p>仓库 <a href="https://github.com/deepseek-ai/deepseek-harness">deepseek-ai/deepseek-harness</a>（快照 dsh-v0.1.6-alpha.1，2026-09-15；仓库 2026-08-13 才创建）。先读架构文档。不要背包名——当天的 release 就会改名。带走两件事：会话日志是唯一真相；模型可以一次写一段程序来组合工具。</p>
+        <p>仓库 <a href="https://github.com/deepseek-ai/deepseek-harness">deepseek-ai/deepseek-harness</a>（快照 dsh-v0.1.6-alpha.1，2026-09-15；公开 GitHub 的 Pull Requests 页是空的，内部 merge 编号另算；仓库 2026-08-13 才公开，master 已有约 1.7 万次提交）。先读 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/architecture.md">docs/architecture.md</a>。不要背包名。带走两件事：会话日志是唯一真相；模型可以一次写一段程序来组合工具。最重要的三次投票是：事件溯源会话、可重建请求、PTC。</p>
       </div>
 
       <h2>没有特权核心</h2>
@@ -28,13 +28,165 @@
         <p class="label">生活比喻</p>
         <p>pi 是改装空间很大的车架，螺丝孔是厂家打好的。dsh 是实验室底盘：连车架本身也是用快拆螺丝拼起来的。换悬挂很爽；说明书上的螺丝编号每周都会改一版。</p>
       </div>
-      <p>启动是一棵树：先叠一组官方组合，再叠用户的补丁文件。同一套代码可以长出网页、无头、SDK。这解释了为什么界面和研究用的最小模式能共享循环——换的是叠了哪些插件。</p>
-      <p>他们把这套插件系统叫做 Cordis。名字会过时，结构不会：共享上下文、类型化事件、可逆效果。</p>
+      <p>启动是一棵树：profile 列出要叠的 bundle，再叠用户的 <code>cordis.patch.yml</code>。同一套代码可以长出网页、无头、SDK、ACP。界面和研究用的最小模式能共享循环——换的是叠了哪些插件。</p>
+      <p>他们把这套插件系统叫做 Cordis（源码 vendored 进仓库，为了可审计、可打补丁、钉死版本）。名字会过时，结构不会：共享上下文、类型化事件、可逆效果。</p>
 
-      <h2>模型看见的东西必须能重建</h2>
-      <p>会话日志是上下文的源。凡是进模型请求的东西，必须能从日志投影出来。界面上一个字一个字往外蹦的增量走另一条「活事件」；落盘的是结算后的完整消息。</p>
-      <p>进程在结算前死掉，就不该假装有过那次成功回复。对比 miniharness：我们的 messages 数组既是真相也是请求。教学够用；一要崩溃恢复、分叉会话、多端同步，你就需要「事件在前、投影在后」。</p>
-      <p>这和第 11 章「先记账再执行」是亲戚。opencode 从产品稳定性走进来；dsh 从「模型可见必须可重建」走进来。两条路碰到同一块石头。</p>
+      <h2>架构：日志在前，投影在后</h2>
+      <div class="diagram">
+        <svg viewBox="0 0 720 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="dsh 插件树与会话日志">
+          <rect x="16" y="12" width="688" height="40" fill="#fbf6ea" stroke="#1b1610"/>
+          <text x="360" y="38" text-anchor="middle" font-size="13" font-family="IBM Plex Sans, sans-serif">profile：web / headless / sdk / sdk-minimal / acp · 再叠用户 patch</text>
+          <rect x="16" y="68" width="130" height="70" fill="#efe4c8" stroke="#8b3114"/>
+          <text x="81" y="96" text-anchor="middle" font-size="12" fill="#8b3114" font-family="IBM Plex Sans, sans-serif">llm</text>
+          <text x="81" y="114" text-anchor="middle" font-size="10" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">适配器</text>
+          <rect x="158" y="68" width="130" height="70" fill="#efe4c8" stroke="#8b3114"/>
+          <text x="223" y="96" text-anchor="middle" font-size="12" fill="#8b3114" font-family="IBM Plex Sans, sans-serif">tools</text>
+          <text x="223" y="114" text-anchor="middle" font-size="10" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">管道 + PTC</text>
+          <rect x="300" y="68" width="130" height="70" fill="#1b1610"/>
+          <text x="365" y="96" text-anchor="middle" font-size="12" fill="#f6f0e4" font-family="IBM Plex Sans, sans-serif">session</text>
+          <text x="365" y="114" text-anchor="middle" font-size="10" fill="#f0d3b8" font-family="IBM Plex Sans, sans-serif">唯一真相</text>
+          <rect x="442" y="68" width="130" height="70" fill="#efe4c8" stroke="#8b3114"/>
+          <text x="507" y="96" text-anchor="middle" font-size="12" fill="#8b3114" font-family="IBM Plex Sans, sans-serif">agent-loop</text>
+          <text x="507" y="114" text-anchor="middle" font-size="10" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">也是插头</text>
+          <rect x="584" y="68" width="120" height="70" fill="#efe4c8" stroke="#8b3114"/>
+          <text x="644" y="96" text-anchor="middle" font-size="12" fill="#8b3114" font-family="IBM Plex Sans, sans-serif">sandbox</text>
+          <text x="644" y="114" text-anchor="middle" font-size="10" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">审批</text>
+          <rect x="16" y="156" width="688" height="78" fill="#e7eeea" stroke="#1f4a45"/>
+          <text x="360" y="182" text-anchor="middle" font-size="13" fill="#1f4a45" font-family="IBM Plex Sans, sans-serif">append-only SessionEvent 日志 → deriveMessages() 投影给模型</text>
+          <text x="360" y="204" text-anchor="middle" font-size="11" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">活的字走 agent/assistant-stream；落盘的是结算后的完整消息。结算前进程死了，就没有那次成功回复。</text>
+          <text x="360" y="220" text-anchor="middle" font-size="11" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">运行时断言：寄出的请求必须能从日志重建。</text>
+        </svg>
+        <p class="cap">miniharness 的 messages 数组既是真相也是请求。dsh 把这两份拆开：日志是源，请求是投影。</p>
+      </div>
+      <p>一轮 turn 里可以有多步 step。工具走完整管道：<code>tools/pre-execute</code> → 单调护栏 → <code>tools/execute</code> → <code>tools/post-execute</code> → <code>tools/result</code>。PTC 的 <code>run_code</code> 和它里面每一次 <code>tools.read</code> 都走同一条管道——不能因为「这是一段程序」就放行。</p>
+
+      <h2>先把「全部 PR」这件事说清楚</h2>
+      <div class="census">
+        <div class="box"><b>公开时间</b><strong>2026-08-13</strong></div>
+        <div class="box"><b>GitHub PR 页</b><strong>0</strong></div>
+        <div class="box"><b>master 提交</b><strong>~17177</strong></div>
+        <div class="box"><b>架构笔记</b><strong>100+ 篇</strong></div>
+      </div>
+      <p>这个仓库的特殊处：<strong>公开 GitHub 上搜不到 Pull Request</strong>。合入信息长这样：<code>Merge pull request #4192 from deepseek-harness/worktree-...</code>。编号属于内部流程，不是 github.com/deepseek-ai/deepseek-harness/pull/4192。所以「历史所有 PR」在这里有两个合法来源：</p>
+      <ol>
+        <li><strong>架构/特性笔记</strong>（<code>.agents/notes/implemented/</code>）。这是他们自己写的投票记录，比 merge 信息更接近「为什么」。</li>
+        <li><strong>git 里的 Merge pull request #N</strong>。能对上笔记的，下面写出来；对不上的，用命令自己拉。</li>
+      </ol>
+      <figure class="code">
+        <figcaption>把内部编号和笔记拉回来</figcaption>
+        <pre><code>git log --oneline --grep='Merge pull request' | head -200
+ls .agents/notes/implemented/architecture
+ls .agents/notes/implemented/feature
+# 公开 GitHub：
+gh api repos/deepseek-ai/deepseek-harness/commits?per_page=100</code></pre>
+      </figure>
+      <p>笔记从 2026-06-11 就开始了——早于公开仓库。公开那天带上来的是已经吵过三个月的底盘，不是空的 README。</p>
+
+      <h2>最重要的投票（先读这 8 条）</h2>
+      <table class="plain pr">
+        <thead><tr><th></th><th>日期</th><th>贡献</th><th>投的票</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="star">★</span> event-sourced-sessions</td>
+            <td>2026-06-11</td>
+            <td>会话是 append-only 的类型化事件日志。LLM 消息列表由 <code>deriveMessages()</code> 投影，从不另存一份。</td>
+            <td>模型看见的东西必须能重建。这是整仓的宪法。</td>
+          </tr>
+          <tr>
+            <td><span class="star">★</span> capability-seams</td>
+            <td>2026-06-13</td>
+            <td>能力是缝：定义、提供者、消费者三角色。换文件系统提供者，Bash / PTY / LSP 一起走。</td>
+            <td>不要给循环打补丁。往缝上挂。</td>
+          </tr>
+          <tr>
+            <td><span class="star">★</span> <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/feature/2026-06-15-ptc.md">PTC 笔记</a></td>
+            <td>2026-06-15</td>
+            <td>工具呈现模式：native / ptc / both。<code>run_code</code> 是运输层，SDK 由注册表生成。</td>
+            <td>少轮次，不少约束。每一次底层调用仍走原管道。</td>
+          </tr>
+          <tr>
+            <td><span class="star">★</span> reconstructable-requests</td>
+            <td>2026-07-05</td>
+            <td>运行时断言：寄出的请求必须能从日志字节级重建。</td>
+            <td>不是文档里的愿望。对不上就大声失败。</td>
+          </tr>
+          <tr>
+            <td><span class="star">★</span> profile-plugin-bundles</td>
+            <td>2026-08-05</td>
+            <td>profile + bundle + patch 组成启动树。web/headless/sdk 共享 dsh-base。</td>
+            <td>产品形态是叠了哪些插头，不是 fork 一份循环。</td>
+          </tr>
+          <tr>
+            <td><span class="star">★</span> session-projection-mandatory-seam</td>
+            <td>2026-08-19</td>
+            <td>投影注册表成为宿主必须依赖的缝。没有它就显式失败，不许静默默认。</td>
+            <td>UI 看到的状态也要从日志折出来。禁止第二份缓存当真相。</td>
+          </tr>
+          <tr>
+            <td><span class="star">★</span> v2-embedded-assistant-streams</td>
+            <td>2026-09-01</td>
+            <td>活的增量走短暂事件；落盘的是结算后的完整 assistant/message。失败尝试进 assistant/attempt，不进模型历史。</td>
+            <td>结算前 kill -9，不得假装有过成功回复。</td>
+          </tr>
+          <tr>
+            <td><span class="star">★</span> sandboxed-node-ptc-runtime / ptc-runtime-vocabulary</td>
+            <td>2026-09-11 … 09-12</td>
+            <td>PTC 运行时词汇钉死；沙箱化的 Node 运行时进主线。早期 worker-thread 实现声明「信任姿态与 bash 等价」。</td>
+            <td>组合器可以变；权限不能因为是程序就放宽。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>按时代的架构笔记 + 能对上的 merge 编号</h2>
+
+      <h3>时代 1 · 宪法（2026-06）</h3>
+      <table class="plain pr">
+        <thead><tr><th>笔记 / 编号</th><th>贡献</th><th>取舍</th></tr></thead>
+        <tbody>
+          <tr><td>content-block-vocabulary</td><td>内容块的共同词汇。</td><td>各家模型信封不同，内部只讲一种块。</td></tr>
+          <tr><td>microkernel-event-taxonomy</td><td>事件按域分类：会话（耐用）、agent（在飞）、能力（缝上的政策）。</td><td>扩展点就是选对域。选错域会把短暂增量写进日志。</td></tr>
+          <tr><td>event-sourced-sessions</td><td>日志是源。</td><td>禁止「内存 messages 才是真的」。</td></tr>
+          <tr><td>dev-invariants-over-deep-readonly</td><td>开发期不变量，深只读。</td><td>与其靠纪律，不如让改历史编译失败。</td></tr>
+          <tr><td>twin-llm-adapters</td><td>成对的 LLM 适配器缝。</td><td>供应商差异停在适配器，不渗进循环。</td></tr>
+          <tr><td>session-persistence</td><td>JSONL 逻辑日志，可 zstd；chunk 也要无损保存。</td><td>过滤 chunk 会弄出序号空洞，破坏 <code>seq === i</code>。派生视图以后再说。</td></tr>
+          <tr><td>PTC 特性笔记</td><td><code>run_code</code> + 生成 SDK；子调用走同一管道；并发上限。</td><td>both 模式可能把模型搞糊涂。预设要选一种呈现。</td></tr>
+          <tr><td>session-surface</td><td>表面层：哪些事件产生模型可见消息。</td><td>turn/step 边界、attempt、纯日志事件不进 transcript。</td></tr>
+        </tbody>
+      </table>
+
+      <h3>时代 2 · 管道、取消、可重建（2026-07）</h3>
+      <table class="plain pr">
+        <thead><tr><th>笔记</th><th>贡献</th><th>取舍</th></tr></thead>
+        <tbody>
+          <tr><td>reconstructable-requests</td><td>寄出即断言。</td><td>性能换正确性。对不上就失败，不要「差不多」。</td></tr>
+          <tr><td>approval-seam / sandbox</td><td>审批和沙箱都是缝，不是循环里的 if。</td><td>和 Codex 同一类旋钮，但挂在插件树上。</td></tr>
+          <tr><td>parallel-tool-call-execution</td><td>原生并行工具。</td><td>并发安全由工具声明。fail closed。</td></tr>
+          <tr><td>ptc-live-parallel-dispatch</td><td>PTC 子调用按提交序启动，可并行到上限，排他调用当屏障。</td><td>早期序列化占位被替换。并行是调度，不是放宽权限。</td></tr>
+          <tr><td>explicit-turn-cancellation / cooperative-tool-cancellation</td><td>取消是合作的，有边界。</td><td>杀进程和「这一轮停」不是同一件事。</td></tr>
+          <tr><td>separate-context-injection-from-turn-execution</td><td>注入的上下文等下一则真正唤醒的消息。</td><td>inbox 里有的东西不立即进模型。避免鬼上下文。</td></tr>
+          <tr><td>zstandard-jsonl-session-logs</td><td>物理层默认压缩。</td><td>逻辑日志仍无损。编码是插件，不是语义。</td></tr>
+          <tr><td>harness-level-loop</td><td>循环本身是可替换驱动。</td><td>pi 还有一块核心循环。dsh 连这块也是插头。</td></tr>
+        </tbody>
+      </table>
+
+      <h3>时代 3 · 公开预览，破坏性变更当日常（2026-08 公开 → 快照）</h3>
+      <table class="plain pr">
+        <thead><tr><th>笔记 / merge</th><th>贡献</th><th>取舍</th></tr></thead>
+        <tbody>
+          <tr><td>per-session-agent-presets</td><td>每个会话自己的预设，服务行要 isolate 域。</td><td>两个会话挂同一预设不能抢全局单例。</td></tr>
+          <tr><td>profile-plugin-bundles</td><td>启动树。</td><td>sdk-minimal 故意不叠 dsh-base，作为对照实验。</td></tr>
+          <tr><td>merge <a href="https://github.com/deepseek-ai/deepseek-harness/commit/66cd593bf3eb80c2512d19cacd431704acbe3991">#2559</a></td><td>UI 上 Code Mode 英文名改成 PTC mode。</td><td>呈现改名。预设 id 后来从 <code>code</code> 改到 <code>ptc</code>，旧会话续不上（Discussion #4869）——破坏性变更是预览期的诚实。</td></tr>
+          <tr><td>merge #2392 / #2638</td><td>Claude Code / Codex 作为可安装的产品子 agent；Codex 具名实例。</td><td>子 agent 是缝上的后端，不是把别人的循环 fork 进来。生产发行后来又把某些产品子 agent 默认排除。</td></tr>
+          <tr><td>merge #2730</td><td>投影：宿主状态和客户端视图分开。</td><td>给 UI 的裁剪快照不是日志本身。</td></tr>
+          <tr><td>session-projection-mandatory-seam</td><td>宿主必须声明投影依赖。</td><td>缺了就失败。不许静默走空实现。</td></tr>
+          <tr><td>released-session-format-migrations</td><td>JSONL 分代：v0 的 session.jsonl，vN 的 session.vN.jsonl；只追加相邻迁移；已提交路径永不改名删除。</td><td>迁移是单向出版下一代，不是原地改写。</td></tr>
+          <tr><td>v2-embedded-assistant-streams</td><td>增量与结算分离。</td><td>UI 可以一个字一个字蹦；崩溃恢复只认结算。</td></tr>
+          <tr><td>system-prompt-as-surface-node</td><td>系统提示也是表面上的节点，能清空、能替换、能接在缓存前缀后面。</td><td>空渲染必须清掉旧提示，否则模型会看见上周的人设。</td></tr>
+          <tr><td>single-dsh-application-launcher</td><td>所有 Node 应用都从 <code>dsh</code> CLI + 具名 profile 进。禁止旁路入口。</td><td>多一个可执行文件就是多种启动真相。</td></tr>
+          <tr><td>plugin-owned-message-projections</td><td>插件可注册纯函数投影改已有消息内容。</td><td>改可见内容必须可重放。禁止插件私下改内存再寄出。</td></tr>
+          <tr><td>0.1.6-alpha.1 说明</td><td>配置热更新不再做事务回滚；解析失败留旧配置，插件激活失败可能部分生效。</td><td>比假装「永远原子」诚实。网页侧同期加终端多标签、归档、PTC 轨迹——同一棵树的不同层，同一趟火车。</td></tr>
+        </tbody>
+      </table>
 
       <h2>PTC：一个工具，一段程序</h2>
       <p>到目前为止，模型每一轮点名几次工具，harness 就跑几次，再问下一轮。想读两个文件，通常是：</p>
@@ -55,7 +207,7 @@ print(tools.read(path='b.txt'))
         <p class="label">生活比喻</p>
         <p>原生调用像对店员喊五次「再拿一瓶」。PTC 像一次写好购物清单，店员按清单拿。清单里可以有「如果没有可乐就拿汽水」这种分支——这是编程语言自带的，不必再问模型一轮。</p>
       </div>
-      <p>换来的是：少轮次（省钱、省延迟）、能用语言自带的循环和分支。代价是：要有代码运行时；权限仍须套在每一次底层工具上，不能因为「这是一段程序」就放行；提示词里的 SDK 必须和真正注册的工具一致。</p>
+      <p>换来的是：少轮次（省钱、省延迟）、能用语言自带的循环和分支。代价是：要有代码运行时；权限仍须套在每一次底层工具上；提示词里的 SDK 必须和真正注册的工具一致。worker-thread 实现清空环境、限制堆和输出、按敌对对等端来对待端口协议——但官方仍写明：信任姿态与 bash 等价，因为仓库里已经有更宽松的本地 bash。</p>
 
       <div class="where">
         <p class="label">写到哪里（教学版 PTC）</p>
@@ -80,14 +232,12 @@ print(tools.read(path='b.txt'))
         <p>2026-09-15 的 release 还在改 PTC：包名、是否独立进程、环境变量清不清理、内存上限。预览期的日常就是这样。你若把上周的配置抄进书当标准，书已经在撒谎。盯「独立进程 + 权限仍走底层工具」这个方向即可。</p>
       </div>
 
-      <h2>热插拔的诚实代价</h2>
-      <p>同一份 0.1.6-alpha.1 说明：配置热更新不再做事务回滚；解析失败保留旧配置，插件激活失败可能部分生效。这比假装「永远原子」诚实。网页侧则在同一次发版里加终端多标签、归档会话、PTC 轨迹查看——界面和研究架构被放在同一个发布火车上，因为它们本来就是同一棵插件树的不同层。</p>
-
       <h2>读这个仓库时问什么</h2>
       <ul>
         <li>我想加的能力，应该挂在哪条缝上（工具、模型、文件系统、界面）？</li>
         <li>预设是原生工具、PTC，还是两者都给？两者都给会不会把模型搞糊涂？</li>
-        <li>最近一次破坏性变更改了哪条事件名？</li>
+        <li>最近一次破坏性变更改了哪条事件名？预设 id 从 code 改到 ptc 那种。</li>
+        <li>这条新笔记进了 architecture 还是 feature？进 architecture 就是在改宪法。</li>
       </ul>
 
       <h2>自测</h2>
@@ -95,6 +245,7 @@ print(tools.read(path='b.txt'))
         <li>PTC 少了哪些轮次？没少什么约束？</li>
         <li>为什么 SDK 说明书必须和真正注册的工具一致？</li>
         <li>miniharness 的 <code>exec</code> 能代替 Codex 沙箱吗？</li>
+        <li>为什么公开 GitHub 上 PR 数为 0，教材还要写「历史投票」？</li>
       </ul>
       <details class="answer">
         <summary>自测答案</summary>
@@ -102,6 +253,7 @@ print(tools.read(path='b.txt'))
           <li>少的是「每调一次宿主工具就问一轮模型」。不少的是每一次底层 read/edit/bash 仍要过路径和护栏。</li>
           <li>模型按说明书调用不存在的函数，程序会报错；说明书少写了已有工具，模型会绕远路或放弃。两边必须是同一张表生成出来的。</li>
           <li>不能。<code>exec</code> 跑在同一进程、同一用户权限里。它只是教学用的组合器。</li>
+          <li>因为他们的投票写在架构笔记和内部 merge 编号里，不写在 GitHub Pull Requests 页。读这个仓，releases 和 <code>.agents/notes</code> 比 PR 页更接近真相。</li>
         </ol>
       </details>
     </article>

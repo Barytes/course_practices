@@ -59,15 +59,15 @@
         <p class="label">现在动手 · 写到哪里</p>
         <table class="plain">
           <tbody>
-            <tr><th>文件</th><td>追加到 <code>exp-2-2/minimind3/mlp.py</code>，不要另开 moe.py</td></tr>
+            <tr><th>文件</th><td>追加到 <code>exp-2-2/minimind3/model/model_minimind.py</code>，不要另开 moe.py</td></tr>
             <tr><th>符号</th><td>类 <code>MOEFeedForward</code>。属性名必须是 <code>gate</code>、<code>experts</code>（<code>nn.ModuleList</code> 里每个是 <code>FeedForward</code>）</td></tr>
-            <tr><th>第 11 章</th><td><code>block.py</code> 里已经写了 <code>if config.use_moe</code>。现在只要把 <code>use_moe=True</code> 实例化整网。</td></tr>
+            <tr><th>第 11 章</th><td><code>MiniMindBlock</code> 里已经写了 <code>if config.use_moe</code>。现在只要把 <code>use_moe=True</code> 实例化整网。</td></tr>
             <tr><th>怎么跑</th><td><code>MiniMindConfig(use_moe=True)</code>，参数量约 198M；<code>model.train()</code> 时 aux 应非零</td></tr>
           </tbody>
         </table>
       </div>
       <figure class="code">
-        <figcaption>minimind3/mlp.py · class MOEFeedForward</figcaption>
+        <figcaption>minimind3/model/model_minimind.py · class MOEFeedForward</figcaption>
         <pre><code>class MOEFeedForward(nn.Module):
     def __init__(self, config: MiniMindConfig):
         super().__init__()
@@ -77,6 +77,7 @@
             FeedForward(config, intermediate_size=config.moe_intermediate_size)
             for _ in range(config.num_experts)
         ])
+        self.act_fn = ACT2FN[config.hidden_act]
 
     def forward(self, x):
         batch_size, seq_len, hidden_dim = x.shape

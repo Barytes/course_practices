@@ -41,7 +41,7 @@
         <div class="eq">SiLU(z) = z · σ(z)　　SwiGLU(x) = SiLU(W<sub>gate</sub> x) ⊙ (W<sub>up</sub> x)</div>
         <div class="hint">⊙ 是逐元素相乘。然后再乘 W_down 投回隐藏维度。σ 是 sigmoid。</hint>
       </div>
-      <p>SiLU 在负半轴不会像 ReLU 那样彻底死掉。MiniMind 配置里 <code>hidden_act='silu'</code>，你可以直接写 <code>F.silu</code>。</p>
+      <p>SiLU 在负半轴不会像 ReLU 那样彻底死掉。MiniMind 配置里 <code>hidden_act='silu'</code>，官方用 <code>ACT2FN[config.hidden_act]</code> 取激活，不要写死 <code>F.silu</code>。</p>
 
       <h3>超小例子</h3>
       <p>假设某维 gate=2.0，up=3.0。sigmoid(2)≈0.88，SiLU(2)≈1.76，相乘得到 1.76×3≈5.3。若 gate 是很大的负数，SiLU≈0，这维内容几乎被关掉。</p>
@@ -61,7 +61,7 @@
         <p class="label">现在动手 · 写到哪里</p>
         <table class="plain">
           <tbody>
-            <tr><th>文件</th><td>新建实现于 <code>exp-2-2/minimind3/mlp.py</code></td></tr>
+            <tr><th>文件</th><td>填进 <code>exp-2-2/minimind3/model/model_minimind.py</code> 里已有的 <code>FeedForward</code> 骨架</td></tr>
             <tr><th>符号</th><td>类 <code>FeedForward</code>；三个线性层在 <code>__init__</code>；一行计算在 <code>forward</code></td></tr>
             <tr><th>构造参数</th><td><code>FeedForward(config, intermediate_size=None)</code>。第 13 章每个专家会传入 <code>config.moe_intermediate_size</code>，所以不要把 2432 写死。</td></tr>
             <tr><th>怎么跑</th><td>输入 <code>[2, 5, 768]</code>，输出必须还是 <code>[2, 5, 768]</code></td></tr>
@@ -69,27 +69,26 @@
         </table>
       </div>
       <figure class="code">
-        <figcaption>minimind3/mlp.py · class FeedForward</figcaption>
-        <pre><code>import torch.nn.functional as F
-from torch import nn
+        <figcaption>minimind3/model/model_minimind.py · 与官方 FeedForward 对齐</figcaption>
+        <pre><code>from transformers.activations import ACT2FN
 
 class FeedForward(nn.Module):
-    def __init__(self, config, intermediate_size=None):
+    def __init__(self, config: MiniMindConfig, intermediate_size: int = None):
         super().__init__()
-        hidden = config.hidden_size
-        inner = intermediate_size or config.intermediate_size
-        self.gate_proj = nn.Linear(hidden, inner, bias=False)
-        self.up_proj = nn.Linear(hidden, inner, bias=False)
-        self.down_proj = nn.Linear(inner, hidden, bias=False)
+        intermediate_size = intermediate_size or config.intermediate_size
+        self.gate_proj = nn.Linear(config.hidden_size, intermediate_size, bias=False)
+        self.down_proj = nn.Linear(intermediate_size, config.hidden_size, bias=False)
+        self.up_proj = nn.Linear(config.hidden_size, intermediate_size, bias=False)
+        self.act_fn = ACT2FN[config.hidden_act]
 
     def forward(self, x):
-        return self.down_proj(F.silu(self.gate_proj(x)) * self.up_proj(x))
+        return self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
 </code></pre>
       </figure>
       <div class="bridge">
         <p class="label">代码怎么对上原理</p>
         <ul>
-          <li><code>gate_proj(x)</code> 再 <code>F.silu</code> → 「开关」那一支。SiLU(z)=z·σ(z)。</li>
+          <li><code>self.act_fn = ACT2FN[config.hidden_act]</code> → 官方用 Hugging Face 的激活表，默认 silu。不要写死 <code>F.silu</code>，否则改 hidden_act 对不上。</li>
           <li><code>up_proj(x)</code> → 「内容」那一支，升到 2432 维。</li>
           <li><code>*</code> 是逐元素相乘 → 公式里的 ⊙。某维开关≈0，内容就被关掉。</li>
           <li><code>down_proj</code> → 压回 768。形状进出相同，所以第 11 章可以安全地加残差。</li>

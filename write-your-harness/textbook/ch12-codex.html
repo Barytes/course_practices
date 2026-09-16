@@ -19,7 +19,7 @@
     <article class="prose">
       <div class="plain-box">
         <p class="label">这一章只要记住</p>
-        <p>仓库 <a href="https://github.com/openai/codex">openai/codex</a>（快照 rust-v0.155.0-alpha.6，2026-09-15）。看两个旋钮：沙箱（命令能做什么）和审批（什么时候必须问人）。miniharness 的路径检查相对这个，只是礼貌。</p>
+        <p>仓库 <a href="https://github.com/openai/codex">openai/codex</a>（教材快照 rust-v0.155.0-alpha.6，2026-09-15；GitHub Search 于 2026-09-16 计 3497 条 PR、2509 条已合并，最新 tag 已到 alpha.9）。看两个旋钮：沙箱（命令能做什么）和审批（什么时候必须问人）。最重要的三次投票是：TypeScript→Rust（Discussion #1174）、Linux 沙箱改走独立 helper（#1086）、文件系统/网络策略拆开（#13439 / #13448）。miniharness 的路径检查相对这个，只是礼貌。</p>
       </div>
 
       <h2>先把第 6 章的缺口说清楚</h2>
@@ -37,21 +37,49 @@ bash("cat ~/.ssh/id_rsa")
         <p>第 6 章是在厨房门口贴告示：「不要进冷藏库」。Codex 是把冷藏库的门锁上，钥匙分两把：一把决定锁有多紧（沙箱），一把决定谁有权开锁（审批）。告示挡君子，锁挡真把刀拿出来的人。</p>
       </div>
 
-      <h2>拆箱方式本身就是架构</h2>
+      <h2>架构：一套核心，多张脸</h2>
+      <div class="diagram">
+        <svg viewBox="0 0 720 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="codex 分层">
+          <rect x="16" y="12" width="160" height="50" fill="#fbf6ea" stroke="#1b1610"/>
+          <text x="96" y="32" text-anchor="middle" font-size="12" font-family="IBM Plex Sans, sans-serif">tui</text>
+          <text x="96" y="48" text-anchor="middle" font-size="10" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">全屏 Ratatui</text>
+          <rect x="192" y="12" width="160" height="50" fill="#fbf6ea" stroke="#1b1610"/>
+          <text x="272" y="32" text-anchor="middle" font-size="12" font-family="IBM Plex Sans, sans-serif">exec</text>
+          <text x="272" y="48" text-anchor="middle" font-size="10" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">无头 / CI</text>
+          <rect x="368" y="12" width="160" height="50" fill="#fbf6ea" stroke="#1b1610"/>
+          <text x="448" y="32" text-anchor="middle" font-size="12" font-family="IBM Plex Sans, sans-serif">app-server</text>
+          <text x="448" y="48" text-anchor="middle" font-size="10" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">IDE JSON-RPC</text>
+          <rect x="544" y="12" width="160" height="50" fill="#fbf6ea" stroke="#1b1610"/>
+          <text x="624" y="32" text-anchor="middle" font-size="12" font-family="IBM Plex Sans, sans-serif">cli</text>
+          <text x="624" y="48" text-anchor="middle" font-size="10" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">焊成一个二进制</text>
+          <rect x="16" y="84" width="688" height="50" fill="#efe4c8" stroke="#8b3114"/>
+          <text x="360" y="104" text-anchor="middle" font-size="13" fill="#8b3114" font-family="IBM Plex Sans, sans-serif">codex-core · 循环 · 工具路由 · 会话 · 压缩</text>
+          <text x="360" y="122" text-anchor="middle" font-size="11" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">Op 进去，EventMsg 出来。皮肤只订阅，不同步调用循环。</text>
+          <rect x="16" y="154" width="330" height="58" fill="#1b1610"/>
+          <text x="181" y="178" text-anchor="middle" font-size="13" fill="#f6f0e4" font-family="IBM Plex Sans, sans-serif">审批</text>
+          <text x="181" y="196" text-anchor="middle" font-size="11" fill="#f0d3b8" font-family="IBM Plex Sans, sans-serif">什么时候必须问人</text>
+          <rect x="374" y="154" width="330" height="58" fill="#1b1610"/>
+          <text x="539" y="178" text-anchor="middle" font-size="13" fill="#f6f0e4" font-family="IBM Plex Sans, sans-serif">沙箱</text>
+          <text x="539" y="196" text-anchor="middle" font-size="11" fill="#f0d3b8" font-family="IBM Plex Sans, sans-serif">Seatbelt / Landlock+seccomp / 受限令牌</text>
+        </svg>
+        <p class="cap">被关进沙箱的是子命令整棵进程树，不是整个 CLI。CLI 还要画画、读配置、找密钥。</p>
+      </div>
       <table class="plain">
         <thead><tr><th>板块</th><th>职责</th></tr></thead>
         <tbody>
           <tr><td>core</td><td>业务逻辑，希望变成别人也能链的库。</td></tr>
-          <tr><td>exec</td><td>无头模式，给自动化 / CI，没有全屏界面。</td></tr>
-          <tr><td>tui</td><td>全屏终端界面。</td></tr>
-          <tr><td>cli</td><td>把上面焊成一个二进制。</td></tr>
+          <tr><td>exec</td><td>无头模式，给自动化 / CI。</td></tr>
+          <tr><td>tui</td><td>全屏终端界面（和 pi 默认相反：抢视口）。</td></tr>
+          <tr><td>app-server</td><td>给 VS Code / Cursor 的 JSON-RPC 桥。#14005 之后 exec 也走同一条桥。</td></tr>
+          <tr><td>cli</td><td>把上面焊成一个二进制。Linux 沙箱 helper 用 arg0 诡计藏在同一个文件里。</td></tr>
         </tbody>
       </table>
+      <p>内部通信是提交/事件，不是请求/响应：皮肤提交 <code>UserTurn</code> / <code>Interrupt</code>，核心吐出 delta、ExecCommandBegin/End、TurnFinished。这和 pi 的事件总线是亲戚，语言不同。</p>
       <p>和 pi 一样：循环不跟某一张脸绑死。不同的是语言选择——Rust 换来单文件分发、和操作系统沙箱接口的近距离接触、以及更少的运行时惊喜。代价是扩展的门槛更高。</p>
 
       <h2>两个旋钮，不要拧成一个</h2>
-      <p><strong>沙箱模式</strong>回答：不经人允许，命令能做什么？常见档位包括只读、工作区可写、完全放开。</p>
-      <p><strong>审批策略</strong>回答：什么时候必须问人？即使沙箱已经很紧，出界仍可「请求升级」。</p>
+      <p><strong>沙箱模式</strong>回答：不经人允许，命令能做什么？常见档位：<code>read-only</code>、<code>workspace-write</code>、<code>danger-full-access</code>。</p>
+      <p><strong>审批策略</strong>回答：什么时候必须问人？即使沙箱已经很紧，出界仍可「请求升级」。YOLO 的官方旗标叫 <code>--dangerously-bypass-approvals-and-sandbox</code>：两个旋钮一起拧到最大，名字故意吓人。</p>
       <table class="plain">
         <thead><tr><th>组合（示意）</th><th>人话</th></tr></thead>
         <tbody>
@@ -60,29 +88,146 @@ bash("cat ~/.ssh/id_rsa")
           <tr><td>全放开 + 永远不问</td><td>真正的 YOLO。Codex 把这个名字弄得很吓人，是产品诚实</td></tr>
         </tbody>
       </table>
-      <p>nanocode 只有 YOLO。把危险默认成唯一选项，和把危险做成显式、吓人的名字，是两种产品道德。</p>
+      <p>nanocode 只有 YOLO。把危险默认成唯一选项，和把危险做成显式、吓人的名字，是两种产品道德。pi 站前一种（并告诉你去容器化）；Codex 站后一种。</p>
+
+      <h2>先把「全部 PR」这件事说清楚</h2>
+      <div class="census">
+        <div class="box"><b>仓库创建</b><strong>2025-04-13</strong></div>
+        <div class="box"><b>PR 总数</b><strong>3497</strong></div>
+        <div class="box"><b>已合并</b><strong>2509</strong></div>
+        <div class="box"><b>快照 tag</b><strong>几乎每天</strong></div>
+      </div>
+      <p>2509 条已合并。发版极快：教材写 rust-v0.155.0-alpha.6 的当天，已经有 alpha.7、.8、.9。不要背某一个 alpha 的特性列表。下面只列改了<strong>语言、沙箱、审批、AGENTS.md、核心与皮肤的接口</strong>的投票。</p>
+      <figure class="code">
+        <figcaption>拉全集，然后按关键词收窄</figcaption>
+        <pre><code>gh search prs --repo openai/codex --merged --limit 1000 --json number,title,closedAt
+gh search prs --repo openai/codex --merged sandbox --limit 100
+gh search prs --repo openai/codex --merged approval --limit 50
+gh search prs --repo openai/codex --merged AGENTS.md --limit 50</code></pre>
+      </figure>
+
+      <h2>最重要的 PR / 讨论（先读这 8 条）</h2>
+      <table class="plain pr">
+        <thead><tr><th></th><th>日期</th><th>贡献</th><th>投的票</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="star">★</span> 2025-04 开源</td>
+            <td>2025-04</td>
+            <td>TypeScript / Node CLI 公开。为了速度快：Ink TUI、先能用。</td>
+            <td>先有用户，再换引擎。和后来 Rust 重写不矛盾。</td>
+          </tr>
+          <tr>
+            <td><span class="star">★</span> <a href="https://github.com/openai/codex/discussions/1174">Discussion #1174</a></td>
+            <td>2025 春夏</td>
+            <td>Fouad Matin 宣布 Native / Rust：零依赖安装、原生沙箱绑定、无 GC 停顿、给其他语言的线协议。</td>
+            <td>harness 的核心约束在操作系统，不在 npm 生态。这是本章的主投票。</td>
+          </tr>
+          <tr>
+            <td><span class="star">★</span> <a href="https://github.com/openai/codex/pull/1086">#1086</a></td>
+            <td>2025-05-23</td>
+            <td>Linux 不再在当前线程上套 Landlock/seccomp 再 spawn。改为独立 helper；单文件分发用 arg0=<code>codex-linux-sandbox</code> 伪装成第二个二进制。</td>
+            <td>沙箱必须套住整棵子进程树。线程级策略和 macOS 的 sandbox-exec 对不齐，也难推理。</td>
+          </tr>
+          <tr>
+            <td><span class="star">★</span> <a href="https://github.com/openai/codex/pull/13439">#13439</a></td>
+            <td>2026-03-07</td>
+            <td>运行时带上拆开的文件系统策略和网络策略，不再只看旧的综合 <code>SandboxPolicy</code> 投影。</td>
+            <td>读盘和上网不是同一个开关。合成一个投影会把「不可读的挖空」弄丢。</td>
+          </tr>
+          <tr>
+            <td><span class="star">★</span> <a href="https://github.com/openai/codex/pull/13448">#13448</a></td>
+            <td>2026-03-08</td>
+            <td>macOS Seatbelt 直接吃拆开的策略；显式不可读子路径必须活进生成的 profile。</td>
+            <td>策略在 Rust 里拆开了，落到 OS 配置还合成回去，等于没拆。</td>
+          </tr>
+          <tr>
+            <td><span class="star">★</span> <a href="https://github.com/openai/codex/pull/14005">#14005</a></td>
+            <td>2026-03-09</td>
+            <td>exec 改为走进程内 app-server，不再直接接线 <code>ThreadManager</code>。</td>
+            <td>无头、TUI、IDE 必须是同一条水管。否则你会修三遍循环。</td>
+          </tr>
+          <tr>
+            <td><span class="star">★</span> <a href="https://github.com/openai/codex/pull/15592">#15592</a> / <a href="https://github.com/openai/codex/pull/15603">#15603</a></td>
+            <td>2026-03-24</td>
+            <td>Landlock helper 和 SandboxManager 抽到 <code>codex-sandboxing</code> crate。</td>
+            <td>沙箱是可复用库，不是 core 肚子里的一堆平台 if。</td>
+          </tr>
+          <tr>
+            <td><span class="star">★</span> <a href="https://github.com/openai/codex/pull/29810">#29810</a></td>
+            <td>2026-06-25</td>
+            <td>AGENTS.md 随远程环境就绪而刷新，并写成可持久化的 WorldState；resume/fork 时若说明书变了，只注入一次替换。</td>
+            <td>项目规矩是上下文的一部分，不是启动时读一次就冻住的装饰。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>按时代的架构向 PR 目录</h2>
+
+      <h3>时代 1 · TypeScript 能跑，Linux 沙箱先用上（2025-04 → 2025-09）</h3>
+      <table class="plain pr">
+        <thead><tr><th>编号</th><th>贡献</th><th>取舍</th></tr></thead>
+        <tbody>
+          <tr><td>开源 CLI</td><td>Node 22+、Ink 全屏 TUI。</td><td>速度换运行时依赖。企业/离线安装后来成为换 Rust 的理由。</td></tr>
+          <tr><td><a href="https://github.com/openai/codex/discussions/1174">#1174</a></td><td>公开 Native 重写目标。</td><td>核心循环用最适合碰 OS 的语言。TS 留下当 npm 薄包装和 SDK。</td></tr>
+          <tr><td><a href="https://github.com/openai/codex/pull/1086">#1086</a></td><td>Linux helper + arg0 诡计，和 macOS sandbox-exec 对齐。</td><td>单文件分发 vs 两个二进制。选了「一个文件，两种人格」。</td></tr>
+          <tr><td><a href="https://github.com/openai/codex/pull/3483">#3483</a></td><td>扩大默认沙箱。</td><td>默认太紧，模型会不断请求升级，把审批噪声变成产品。</td></tr>
+          <tr><td><a href="https://github.com/openai/codex/pull/3874">#3874</a></td><td>会话 cwd 和沙箱 cwd 分开。</td><td>「我在哪说话」和「命令允许写哪」不是同一个目录。</td></tr>
+          <tr><td><a href="https://github.com/openai/codex/pull/1777">#1777</a></td><td>TUI 靠重绘历史来流式输出。</td><td>全屏 TUI 必须自己实现滚动。pi 故意不走这条路。</td></tr>
+        </tbody>
+      </table>
+
+      <h3>时代 2 · 策略拆开，沙箱变成 crate（2026-03 → 2026-04）</h3>
+      <table class="plain pr">
+        <thead><tr><th>编号</th><th>贡献</th><th>取舍</th></tr></thead>
+        <tbody>
+          <tr><td><a href="https://github.com/openai/codex/pull/13439">#13439</a></td><td>拆开的 FS/网络策略打进 TurnContext、spawn、exec。</td><td>旧投影继续活着做兼容，但运行时决策不再只信它。</td></tr>
+          <tr><td><a href="https://github.com/openai/codex/pull/13448">#13448</a></td><td>Seatbelt 生成器吃拆开策略；失败时对托管网络收紧。</td><td>fail closed：代理端点不可用就不要假装有网。</td></tr>
+          <tr><td>linux-sandbox #13449 系</td><td>Linux helper 同样改吃拆开策略。</td><td>三个平台必须讲同一种权限语言，尽管落实机制不同。</td></tr>
+          <tr><td><a href="https://github.com/openai/codex/pull/14005">#14005</a></td><td>exec 走 InProcessAppServerClient。</td><td>多一张脸，不许多一套循环。</td></tr>
+          <tr><td><a href="https://github.com/openai/codex/pull/15592">#15592</a></td><td>抽出 landlock 参数构造。</td><td>分步迁 crate，避免一次 PR 三千行。</td></tr>
+          <tr><td><a href="https://github.com/openai/codex/pull/15603">#15603</a></td><td>SandboxManager 和 transforms 进同一 crate。</td><td>选沙箱、变形请求、真正 spawn，应该是同一个包的故事。</td></tr>
+          <tr><td><a href="https://github.com/openai/codex/pull/20106">#20106</a></td><td>Linux helper 改为吃 <code>PermissionProfile</code>。</td><td>运行时权限的标准名字只有一个。legacy SandboxPolicy 退出 helper 边界。</td></tr>
+        </tbody>
+      </table>
+
+      <h3>时代 3 · 说明书活起来，审批继续拆（2026-06 → 快照）</h3>
+      <table class="plain pr">
+        <thead><tr><th>编号</th><th>贡献</th><th>取舍</th></tr></thead>
+        <tbody>
+          <tr><td><a href="https://github.com/openai/codex/pull/29810">#29810</a></td><td>延迟 executor 就绪时刷新 AGENTS.md；WorldState 可替换可删除。</td><td>远程环境晚于会话启动。说明书不能只在 session setup 读一次。</td></tr>
+          <tr><td><a href="https://github.com/openai/codex/pull/29870">#29870</a></td><td>AGENTS.md / Git 根探测有界并发，不再串行等每一层。</td><td>启动延迟是产品。探测仍保持「近的优先」。</td></tr>
+          <tr><td><a href="https://github.com/openai/codex/pull/44675">#44675</a></td><td>模型请求边界刷新全局说明书。</td><td>人改了 ~/.codex/AGENTS.md，下一轮就该看见。</td></tr>
+          <tr><td><a href="https://github.com/openai/codex/pull/42590">#42590</a></td><td>硬化 macOS 沙箱，防终端输入注入。</td><td>沙箱不仅挡写文件，还挡「往你的 tty 灌命令」。</td></tr>
+          <tr><td><a href="https://github.com/openai/codex/pull/44286">#44286</a></td><td>堵住 WSL 互操作逃逸。</td><td>策略在 Linux 侧收紧了，经 Windows 互操作绕出去等于零。</td></tr>
+          <tr><td><a href="https://github.com/openai/codex/pull/43462">#43462</a></td><td>删掉旧 Guardian 审批路径。</td><td>审批只有一条现在的路。legacy 评论路径会变成第二套真相。</td></tr>
+          <tr><td><a href="https://github.com/openai/codex/pull/45693">#45693</a></td><td>Guardian 审批路由搬进 reviewer 扩展。</td><td>自动评审是扩展，不是焊死在 core 里的唯一道德。</td></tr>
+          <tr><td>exec YOLO 与 git 检查</td><td><code>--yolo</code> 同时跳过「必须在 git 仓库里」的检查。</td><td>你已经声明外层有沙箱。内层再拦 git 根是重复的假安全。</td></tr>
+        </tbody>
+      </table>
 
       <h2>约束下沉到操作系统</h2>
       <ul>
         <li>macOS：Seatbelt（<code>sandbox-exec</code> 一套默认拒绝的配置）。</li>
-        <li>Linux：bubblewrap + Landlock + seccomp 的组合，随内核能力降级。</li>
-        <li>被关进沙箱的是<strong>子命令</strong>，不是整个 CLI 进程。CLI 还要画画、读配置、找密钥。</li>
+        <li>Linux：bubblewrap + Landlock + seccomp 的组合，随内核能力降级；helper 用 arg0 藏在同一二进制里。</li>
+        <li>Windows：受限令牌 + ACL。快照前几周还在拆服务、补卸载清理（#45455、#45799）。</li>
+        <li>被关进沙箱的是<strong>子命令整棵进程树</strong>，不是整个 CLI 进程。</li>
       </ul>
       <p>容器里这些机制可能不可用，文档会叫你在外层容器隔离，然后内层放开。工业级文档的标志是：把「什么时候失效」写清楚。</p>
       <div class="callout">
         <p class="label">先别管</p>
-        <p>具体系统调用表、Seatbelt 配置文件字段。那些会随内核和发版改。你要带走的是分层：Python 礼貌围栏 → 人点头 → OS 强制。以及：拒绝必须能和「命令自己失败」区分开，否则模型会在不该重试的时候重试。</p>
+        <p>具体系统调用表、Seatbelt 配置文件字段、审批模式在某次 alpha 里叫 untrusted 还是 permissive。那些会随内核和发版改。你要带走的是分层：Python 礼貌围栏 → 人点头 → OS 强制。以及：拒绝必须能和「命令自己失败」区分开，否则模型会在不该重试的时候重试。</p>
       </div>
 
       <h2>AGENTS.md：把规矩写进仓库</h2>
-      <p>项目级说明书，启动时读入上下文。这是「穿越模型迭代」的少数手段之一：把「测试怎么跑、哪些目录别动」写在仓库里，而不是写在某年某月的电子书。</p>
-      <p>你的 miniharness 还没读它。加一段「若工作区有 AGENTS.md，把它放进 system 提示」，是最小的生产化步骤，也不依赖任何框架。</p>
+      <p>项目级说明书，启动时读入上下文，并在环境变化时刷新。这是「穿越模型迭代」的少数手段之一：把「测试怎么跑、哪些目录别动」写在仓库里，而不是写在某年某月的电子书。</p>
+      <p>发现顺序大体是：全局 <code>~/.codex/AGENTS.md</code>（可被 override 文件盖掉）→ 从项目根走到 cwd，每层最多一份。有字节上限。你的 miniharness 还没读它。加一段「若工作区有 AGENTS.md，把它放进 system 提示」，是最小的生产化步骤，也不依赖任何框架。</p>
 
       <h2>读这个仓库时问什么</h2>
       <ul>
         <li>一次被沙箱拒绝的 bash，如何区分「命令真失败」和「策略拒绝」？</li>
         <li>审批界面在全屏 TUI 和无头 CI 下分别是什么行为？CI 里谁来点同意？</li>
         <li>核心库和界面之间的接口稳不稳——这决定你能不能拿 core 做自己的皮肤。</li>
+        <li>文件系统策略和网络策略最近一次是不是还拆开的？有没有人又把它们合成一个投影？</li>
       </ul>
       <p>发版极快（一年里可以有数百个 tag）。不要背某一个 alpha 版本的特性列表。拉 releases，专门搜 <code>sandbox</code>、<code>approval</code>、<code>agents</code>。</p>
 
@@ -91,6 +236,7 @@ bash("cat ~/.ssh/id_rsa")
         <li>为什么沙箱和审批必须是两个旋钮？</li>
         <li>miniharness 把 bash 超时杀掉，算不算沙箱？</li>
         <li>模型读到「操作被拒绝」和「文件不存在」，下一步分别可能怎样？</li>
+        <li>#1086 的 arg0 诡计在换什么、付什么？</li>
       </ul>
       <details class="answer">
         <summary>自测答案</summary>
@@ -98,6 +244,7 @@ bash("cat ~/.ssh/id_rsa")
           <li>一个限制能力（它做不到），一个限制自主（它做得到但要先问）。合成一个开关，你就没法表达「能力很小但完全自动」或「能力很大但每步问人」。</li>
           <li>不算。超时是预算，不是权限隔离。超时后的进程如果没被真正隔离，仍可能已经发出了网络请求。</li>
           <li>拒绝：应该换策略或问人，不该换一种写法硬闯（那是在越狱）。文件不存在：可以改路径再试。所以拒绝码要单独标明。</li>
+          <li>换的是「单文件分发 + 整棵子进程树进沙箱」。付的是：同一个二进制有两种人格，启动时必须先看 arg0。文档和测试都要覆盖这条分叉。</li>
         </ol>
       </details>
     </article>

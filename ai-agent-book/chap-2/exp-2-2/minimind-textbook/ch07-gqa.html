@@ -104,9 +104,9 @@
         <p class="label">现在动手 · 写到哪里</p>
         <table class="plain">
           <tbody>
-            <tr><th>文件</th><td>仍然是 <code>exp-2-2/minimind3/attention.py</code></td></tr>
+            <tr><th>文件</th><td>仍然是 <code>exp-2-2/minimind3/model/model_minimind.py</code></td></tr>
             <tr><th>新增函数</th><td>文件顶部的模块级函数 <code>repeat_kv</code>（不要塞进类里，官方也是独立函数）</td></tr>
-            <tr><th>改哪个类</th><td>把 <code>CausalAttention</code> 升级为 <code>GroupedAttention</code>（或直接改名 <code>Attention</code>）。<code>__init__</code> 改为从 <code>MiniMindConfig</code> 读头数；<code>forward</code> 里 reshape / repeat / transpose。</td></tr>
+            <tr><th>改哪个类</th><td>始终是官方的 <code>Attention</code>。成员名必须是 <code>n_local_heads</code> / <code>n_local_kv_heads</code> / <code>n_rep</code> / <code>head_dim</code>，不要另起 GroupedAttention。</td></tr>
             <tr><th>不要动</th><td>第 6 章的「dim=1 拼接缓存」和「右下角因果掩码」。它们原样留在 forward 里。</td></tr>
             <tr><th>怎么跑</th><td>用 <code>MiniMindConfig()</code> 实例化：repeat 之前的 k 应是 <code>[B, T, 4, 96]</code>，q 转置后是 <code>[B, 8, T, 96]</code></td></tr>
           </tbody>
@@ -114,53 +114,30 @@
       </div>
 
       <figure class="code">
-        <figcaption>minimind3/attention.py · repeat_kv + GroupedAttention.forward</figcaption>
-        <pre><code>def repeat_kv(x, n_rep: int):
-    bs, slen, n_kv, head_dim = x.shape
+        <figcaption>minimind3/model/model_minimind.py · 官方 repeat_kv 与 Attention 的头宽</figcaption>
+        <pre><code>def repeat_kv(x: torch.Tensor, n_rep: int) -&gt; torch.Tensor:
+    bs, slen, num_key_value_heads, head_dim = x.shape
     if n_rep == 1:
         return x
     return (
         x[:, :, :, None, :]
-        .expand(bs, slen, n_kv, n_rep, head_dim)
-        .reshape(bs, slen, n_kv * n_rep, head_dim)
+        .expand(bs, slen, num_key_value_heads, n_rep, head_dim)
+        .reshape(bs, slen, num_key_value_heads * n_rep, head_dim)
     )
 
-class GroupedAttention(nn.Module):
-    def __init__(self, config):
-        super().__init__()
-        self.n_q = config.num_attention_heads
-        self.n_kv = config.num_key_value_heads
-        self.n_rep = self.n_q // self.n_kv
-        self.head_dim = config.head_dim
-        self.q_proj = nn.Linear(config.hidden_size, self.n_q * self.head_dim, bias=False)
-        self.k_proj = nn.Linear(config.hidden_size, self.n_kv * self.head_dim, bias=False)
-        self.v_proj = nn.Linear(config.hidden_size, self.n_kv * self.head_dim, bias=False)
-        self.o_proj = nn.Linear(self.n_q * self.head_dim, config.hidden_size, bias=False)
+# Attention.__init__ 里与官方同名：
+# self.n_local_heads = config.num_attention_heads
+# self.n_local_kv_heads = self.num_key_value_heads
+# self.n_rep = self.n_local_heads // self.n_local_kv_heads
+# self.q_proj = nn.Linear(hidden, n_local_heads * head_dim, bias=False)
+# self.k_proj = nn.Linear(hidden, n_local_kv_heads * head_dim, bias=False)
 
-    def forward(self, x, past_key_value=None, use_cache=False):
-        bsz, seq_len, _ = x.shape
-        q = self.q_proj(x).view(bsz, seq_len, self.n_q, self.head_dim)
-        k = self.k_proj(x).view(bsz, seq_len, self.n_kv, self.head_dim)
-        v = self.v_proj(x).view(bsz, seq_len, self.n_kv, self.head_dim)
-
-        if past_key_value is not None:
-            k = torch.cat([past_key_value[0], k], dim=1)
-            v = torch.cat([past_key_value[1], v], dim=1)
-        present = (k, v) if use_cache else None
-
-        q = q.transpose(1, 2)
-        k = repeat_kv(k, self.n_rep).transpose(1, 2)
-        v = repeat_kv(v, self.n_rep).transpose(1, 2)
-
-        scores = (q @ k.transpose(-2, -1)) / math.sqrt(self.head_dim)
-        causal = torch.triu(
-            torch.full((seq_len, seq_len), float("-inf"), device=x.device), 1
-        )
-        scores = scores.clone()
-        scores[..., -seq_len:] = scores[..., -seq_len:] + causal
-        weights = F.softmax(scores.float(), dim=-1).type_as(q)
-        out = (weights @ v).transpose(1, 2).reshape(bsz, seq_len, -1)
-        return self.o_proj(out), present
+# Attention.forward 里，RoPE 与拼接缓存之后：
+xq, xk, xv = (
+    xq.transpose(1, 2),
+    repeat_kv(xk, self.n_rep).transpose(1, 2),
+    repeat_kv(xv, self.n_rep).transpose(1, 2),
+)
 </code></pre>
       </figure>
       <div class="bridge">

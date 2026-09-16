@@ -56,7 +56,7 @@
         <p class="label">现在动手 · 写到哪里</p>
         <table class="plain">
           <tbody>
-            <tr><th>文件</th><td>只改 <code>exp-2-2/minimind3/attention.py</code>。不要新建 <code>attention_v2.py</code>。</td></tr>
+            <tr><th>文件</th><td>只改 <code>exp-2-2/minimind3/model/model_minimind.py</code>。不要新建 <code>attention_v2.py</code>。</td></tr>
             <tr><th>符号</th><td>继续填同一个 <code>Attention.forward</code>。新增参数 <code>past_key_value</code>、<code>use_cache</code>。</td></tr>
             <tr><th>先写哪一段</th><td>可先单独写函数 <code>apply_causal_mask</code> 看懂右下角加法，再把它内联进 <code>forward</code>。</td></tr>
             <tr><th>怎么跑</th><td>文件底部的 <code>__main__</code>：先送 4 个词拿到缓存，再送 1 个新词。缓存序列维应变成 5。</td></tr>
@@ -66,7 +66,7 @@
       </div>
 
       <figure class="code">
-        <figcaption>minimind3/attention.py · 先理解掩码这一小段</figcaption>
+        <figcaption>minimind3/model/model_minimind.py · 先理解掩码这一小段</figcaption>
         <pre><code>def apply_causal_mask(scores: torch.Tensor, query_len: int) -&gt; torch.Tensor:
     """scores: [batch, heads, q_len, k_len]。只盖住「当前这一段查询」内部的未来。"""
     causal = torch.triu(
@@ -122,69 +122,31 @@
         <li>返回给下一步的缓存，必须仍是「头维还没被换到前面」的 K、V，这样下一步才能继续沿 dim=1 拼接。</li>
       </ol>
       <figure class="code">
-        <figcaption>minimind3/attention.py · class CausalAttention.forward</figcaption>
-        <pre><code>import math
-import torch
-from torch import nn
-import torch.nn.functional as F
+        <figcaption>对照官方 Attention.forward · 缓存拼接与因果掩码</figcaption>
+        <pre><code># reshape / QK-Norm / RoPE 之后（第 8、9 章补齐），官方这样接缓存：
+if past_key_value is not None:
+    xk = torch.cat([past_key_value[0], xk], dim=1)
+    xv = torch.cat([past_key_value[1], xv], dim=1)
+past_kv = (xk, xv) if use_cache else None
 
-class CausalAttention(nn.Module):
-    def __init__(self, dim: int):
-        super().__init__()
-        self.dim = dim
-        self.q_proj = nn.Linear(dim, dim, bias=False)
-        self.k_proj = nn.Linear(dim, dim, bias=False)
-        self.v_proj = nn.Linear(dim, dim, bias=False)
-        self.o_proj = nn.Linear(dim, dim, bias=False)
-
-    def forward(self, x, past_key_value=None, use_cache=False):
-        bsz, seq_len, _ = x.shape
-        q = self.q_proj(x)  # [B, T_q, D]
-        k = self.k_proj(x)
-        v = self.v_proj(x)
-
-        if past_key_value is not None:
-            k = torch.cat([past_key_value[0], k], dim=1)
-            v = torch.cat([past_key_value[1], v], dim=1)
-        present = (k, v) if use_cache else None
-
-        # [B, seq, D] -> [B, 1, seq, D]，1 表示「先假装只有一个头」
-        q = q.view(bsz, seq_len, 1, self.dim).transpose(1, 2)
-        k = k.view(bsz, -1, 1, self.dim).transpose(1, 2)
-        v = v.view(bsz, -1, 1, self.dim).transpose(1, 2)
-
-        scores = (q @ k.transpose(-2, -1)) / math.sqrt(self.dim)
-        causal = torch.triu(
-            torch.full((seq_len, seq_len), float("-inf"), device=x.device), 1
-        )
-        scores = scores.clone()
-        scores[..., -seq_len:] = scores[..., -seq_len:] + causal
-
-        weights = F.softmax(scores.float(), dim=-1).type_as(q)
-        out = (weights @ v).transpose(1, 2).reshape(bsz, seq_len, self.dim)
-        return self.o_proj(out), present
-
-
-if __name__ == "__main__":
-    attn = CausalAttention(8)
-    x_prompt = torch.randn(1, 4, 8)
-    y0, cache = attn(x_prompt, use_cache=True)
-    x_new = torch.randn(1, 1, 8)
-    y1, cache = attn(x_new, past_key_value=cache, use_cache=True)
-    assert y0.shape == (1, 4, 8)
-    assert y1.shape == (1, 1, 8)
-    assert cache[0].shape[1] == 5  # 历史 4 + 新 1
-    print("cache seq =", cache[0].shape[1])
+# transpose + repeat_kv 之后，走手工分数时：
+scores = (xq @ xk.transpose(-2, -1)) / math.sqrt(self.head_dim)
+if self.is_causal:
+    scores[:, :, :, -seq_len:] += torch.full(
+        (seq_len, seq_len), float("-inf"), device=scores.device
+    ).triu(1)
+if attention_mask is not None:
+    scores += (1.0 - attention_mask.unsqueeze(1).unsqueeze(2)) * -1e9
+output = self.attn_dropout(F.softmax(scores.float(), dim=-1).type_as(xq)) @ xv
 </code></pre>
       </figure>
       <div class="bridge">
         <p class="label">forward 怎么对上原理</p>
         <ul>
-          <li><code>torch.cat([past, k], dim=1)</code> → 「旧书脊接到新书后面」。dim=1 是词的个数这一维。</li>
-          <li><code>present = (k, v)</code> → 把更新后的书架交出去，供下一步接着接。Q 不进缓存。</li>
-          <li><code>seq_len = x.shape[1]</code> 是本步查询长度，有缓存时常常是 1；<code>k.shape[1]</code> 才是书架总长。</li>
-          <li><code>scores[..., -seq_len:]</code> 加上三角 → 新查询看全部历史（左边不盖），只禁止「比自己还未来」的格子。</li>
-          <li>返回 <code>(输出, present)</code> 而不是只返回输出 → 生成循环第 16 章要接着用这份缓存。</li>
+          <li><code>torch.cat([past_key_value[0], xk], dim=1)</code> → 官方沿序列维 dim=1 拼接。变量名是 <code>xk/xv</code>，返回的缓存叫 <code>past_kv</code>。</li>
+          <li><code>scores[:, :, :, -seq_len:] += ...triu(1)</code> → 官方就地给右下角加上三角，不必另写 <code>apply_causal_mask</code>。</li>
+          <li><code>attention_mask</code> 那一行 → padding 位置加 -1e9。先把因果做对，再打开这一行。</li>
+          <li>返回 <code>(output, past_kv)</code> → 生成循环第 16 章要接着用这份缓存。</li>
         </ul>
       </div>
 

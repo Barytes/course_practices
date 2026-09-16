@@ -138,9 +138,9 @@ print(tok.decode(tok.encode("天空是蓝的")))
         <p class="label">现在动手 · 写到哪里</p>
         <table class="plain">
           <tbody>
-            <tr><th>文件</th><td>临时脚本即可，例如在 <code>exp-2-2/</code> 下新开 <code>load_tokenizer.py</code> 跑一遍。不必并进 <code>minimind3</code> 包。</td></tr>
-            <tr><th>符号</th><td>调用 Hugging Face 的 <code>AutoTokenizer.from_pretrained</code>，不要自己实现 BPE。</td></tr>
-            <tr><th>怎么跑</th><td>把路径改成官方仓库的 <code>model/</code> 目录，确认 <code>len(tokenizer)==6400</code></td></tr>
+            <tr><th>文件</th><td>临时脚本即可。分词器已经在 <code>minimind3/model/</code>，不必自己实现 BPE。</td></tr>
+            <tr><th>符号</th><td>调用 Hugging Face 的 <code>AutoTokenizer.from_pretrained</code>。</td></tr>
+            <tr><th>怎么跑</th><td>在 <code>exp-2-2/minimind3/</code> 下加载 <code>./model</code>，确认 <code>len(tokenizer)==6400</code></td></tr>
             <tr><th>对应原理</th><td>「作业里请加载官方已经训好的分词器」。页码必须和社区权重那本词典一致。</td></tr>
           </tbody>
         </table>
@@ -149,8 +149,8 @@ print(tok.decode(tok.encode("天空是蓝的")))
         <figcaption>临时脚本 · 加载官方分词器</figcaption>
         <pre><code>from transformers import AutoTokenizer
 
-# 指向官方仓库的 model 目录，或你拷贝出来的同一份文件
-tokenizer = AutoTokenizer.from_pretrained("../path/to/minimind/model")
+# 在 exp-2-2/minimind3/ 下运行；指向本仓库已对齐的官方分词器
+tokenizer = AutoTokenizer.from_pretrained("./model")
 
 text = "为什么天空是蓝色的"
 ids = tokenizer(text, add_special_tokens=False).input_ids

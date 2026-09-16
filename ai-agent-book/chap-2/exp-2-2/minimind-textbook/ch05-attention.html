@@ -92,66 +92,40 @@ V = [[10.0, 0.0],
         <p class="label">现在动手 · 写到哪里</p>
         <table class="plain">
           <tbody>
-            <tr><th>先写草稿</th><td><code>exp-2-2/attention.py</code>。你已经有 <code>CharTokenizer</code> 和一份 <code>Attention</code> 草稿。本章先把检索写成最小版，迁进包时类名必须是官方的 <code>Attention</code>。</td></tr>
-            <tr><th>再迁进包</th><td>把同样的 Q/K/V 逻辑拷进 <code>exp-2-2/minimind3/attention.py</code> 的 <code>Attention</code>。第 6 章起只改包里这份，不要再在草稿里分叉。</td></tr>
-            <tr><th>符号</th><td>类 <code>Attention</code>；四个线性层 <code>q_proj / k_proj / v_proj / o_proj</code>；计算发生在 <code>forward</code></td></tr>
-            <tr><th>怎么跑</th><td>草稿：<code>python attention.py</code>。包：<code>python -m minimind3.attention</code>。形状必须是 <code>[B, T, D]</code>。</td></tr>
+            <tr><th>先写草稿</th><td><code>exp-2-2/attention.py</code> 只用来玩形状。写入作业包时类名必须是官方的 <code>Attention</code>，不要另起 <code>TinyAttention</code>。</td></tr>
+            <tr><th>再写入作业</th><td>把 Q/K/V 检索写进 <code>exp-2-2/minimind3/model/model_minimind.py</code> 的 <code>Attention.forward</code>。第 6～9 章继续改这一个类。</td></tr>
+            <tr><th>符号</th><td>官方变量名 <code>xq / xk / xv</code>；四个线性层 <code>q_proj / k_proj / v_proj / o_proj</code>，均 <code>bias=False</code></td></tr>
+            <tr><th>怎么跑</th><td>草稿：<code>python attention.py</code>。作业：<code>cd exp-2-2/minimind3</code> 后 <code>from model.model_minimind import Attention</code>。形状必须是 <code>[B, T, D]</code>。</td></tr>
             <tr><th>对应原理</th><td>图书馆三件套 + 公式 softmax(QKᵀ/√d)V。下面「代码怎么对上原理」逐行翻译。</td></tr>
           </tbody>
         </table>
       </div>
       <figure class="code">
-        <figcaption>minimind3/attention.py · class Attention.forward</figcaption>
+        <figcaption>minimind3/model/model_minimind.py · 官方 Attention 里的检索核心（第 9 章补齐其余零件）</figcaption>
         <pre><code>import math
-import torch
-from torch import nn
 import torch.nn.functional as F
 
-class TinyAttention(nn.Module):
-    """单头自注意力：只为了把 Q/K/V 检索写对。"""
+# __init__ 里四块投影与官方一致，均无 bias：
+# self.q_proj = nn.Linear(hidden, n_heads * head_dim, bias=False)
+# self.k_proj / v_proj / o_proj 同理
 
-    def __init__(self, dim: int):
-        super().__init__()
-        self.dim = dim
-        self.q_proj = nn.Linear(dim, dim, bias=False)
-        self.k_proj = nn.Linear(dim, dim, bias=False)
-        self.v_proj = nn.Linear(dim, dim, bias=False)
-        self.o_proj = nn.Linear(dim, dim, bias=False)
-
-    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
-        # x: [batch, seq, dim]
-        q = self.q_proj(x)
-        k = self.k_proj(x)
-        v = self.v_proj(x)
-
-        # 分数: [batch, seq, seq]
-        scale = 1.0 / math.sqrt(self.dim)
-        scores = torch.matmul(q, k.transpose(-2, -1)) * scale
-        weights = F.softmax(scores.float(), dim=-1).type_as(q)
-        context = torch.matmul(weights, v)
-        return self.o_proj(context)
-
-
-if __name__ == "__main__":
-    B, T, D = 2, 5, 8
-    attn = TinyAttention(D)
-    x = torch.randn(B, T, D)
-    y = attn(x)
-    assert y.shape == (B, T, D)
-    print("ok", y.shape)
+def scores_core(self, x):
+    bsz, seq_len, _ = x.shape
+    xq, xk, xv = self.q_proj(x), self.k_proj(x), self.v_proj(x)
+    # 第 7 章会 view 成 [B, T, heads, head_dim] 再 transpose
+    scores = (xq @ xk.transpose(-2, -1)) / math.sqrt(self.head_dim)
+    output = F.softmax(scores.float(), dim=-1).type_as(xq) @ xv
+    return self.o_proj(output)
 </code></pre>
       </figure>
       <div class="bridge">
         <p class="label">代码怎么对上原理</p>
         <ul>
-          <li><code>q_proj(x)</code> → 把每个词变成「我在找什么」（问题条 Q）。</li>
-          <li><code>k_proj(x)</code> → 把每个词变成「书脊分类号」（键 K）。</li>
-          <li><code>v_proj(x)</code> → 把每个词变成「正文」（值 V）。三块表不同，所以叫「自」注意力。</li>
-          <li><code>k.transpose(-2, -1)</code> → 让「查询位置 × 键位置」能做点积，得到 [T, T] 分数表。</li>
-          <li><code>* scale</code> 且 <code>scale = 1/√d</code> → 公式里的 /√d，防止分数随维度爆炸。</li>
-          <li><code>softmax(..., dim=-1)</code> → 每一行变成加起来为 1 的权重。dim=-1 是「对着所有键」。</li>
-          <li><code>weights @ v</code> → 用权重去混合正文，得到每个位置读到的上下文。</li>
-          <li><code>o_proj</code> → 读完再做一次线性混合。单头时看起来多余，第 7 章多头拼回去时它就会派上用场。</li>
+          <li><code>xq, xk, xv = self.q_proj(x), self.k_proj(x), self.v_proj(x)</code> → 官方一行写出三件套。变量名请用 <code>xq/xk/xv</code>，后面旋转、缓存都沿用它们。</li>
+          <li><code>xq @ xk.transpose(-2, -1)</code> → 「查询位置 × 键位置」点积，得到分数表。</li>
+          <li><code>/ math.sqrt(self.head_dim)</code> → 公式里的 /√d。完整模型里 head_dim=96，不是 768。</li>
+          <li><code>F.softmax(scores.float(), dim=-1).type_as(xq) @ xv</code> → 官方手工路径：float32 算权重，再乘 V。</li>
+          <li><code>o_proj</code> → 读完再线性混合。多头拼回去时它把 8×96 混回 768。</li>
         </ul>
       </div>
 

@@ -66,44 +66,40 @@
         <p class="label">现在动手 · 写到哪里</p>
         <table class="plain">
           <tbody>
-            <tr><th>数据集</th><td><code>exp-2-2/minimind3/data.py</code> 里的类 <code>PretrainDataset</code></td></tr>
-            <tr><th>训练一步</th><td>可以先写在 <code>data.py</code> 的 <code>__main__</code>，或另开 <code>train_pretrain_tiny.py</code>。真正大规模训练对照官方 <code>trainer/train_pretrain.py</code>，不必把分布式抄进作业包。</td></tr>
+            <tr><th>数据集</th><td><code>exp-2-2/minimind3/dataset/lm_dataset.py</code> 里的类 <code>PretrainDataset</code></td></tr>
+            <tr><th>训练一步</th><td>填 <code>minimind3/trainer/train_pretrain.py</code> 的 <code>train_epoch</code>。分布式细节可先对照官方，但文件路径必须对齐。</td></tr>
             <tr><th>数据文件</th><td><code>exp-2-2/minimind_dataset/</code>，不要提交进 Git</td></tr>
           </tbody>
         </table>
       </div>
       <figure class="code">
-        <figcaption>minimind3/data.py · class PretrainDataset</figcaption>
-        <pre><code>import json
-import torch
+        <figcaption>minimind3/dataset/lm_dataset.py · 与官方 PretrainDataset 对齐</figcaption>
+        <pre><code>from datasets import load_dataset
 from torch.utils.data import Dataset
+import torch
 
 class PretrainDataset(Dataset):
-    def __init__(self, path, tokenizer, max_length=128):
+    def __init__(self, data_path, tokenizer, max_length=512):
+        super().__init__()
         self.tokenizer = tokenizer
         self.max_length = max_length
-        self.rows = []
-        with open(path, encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    self.rows.append(json.loads(line)["text"])
+        self.samples = load_dataset("json", data_files=data_path, split="train")
 
     def __len__(self):
-        return len(self.rows)
+        return len(self.samples)
 
-    def __getitem__(self, i):
-        ids = self.tokenizer(
-            self.rows[i], add_special_tokens=False,
-            truncation=True, max_length=self.max_length - 2,
+    def __getitem__(self, index):
+        sample = self.samples[index]
+        tokens = self.tokenizer(
+            str(sample["text"]), add_special_tokens=False,
+            max_length=self.max_length - 2, truncation=True,
         ).input_ids
-        ids = [self.tokenizer.bos_token_id] + ids + [self.tokenizer.eos_token_id]
-        pad = self.max_length - len(ids)
-        ids = ids + [self.tokenizer.pad_token_id] * pad
-        ids = torch.tensor(ids, dtype=torch.long)
-        labels = ids.clone()
-        labels[ids == self.tokenizer.pad_token_id] = -100
-        return ids, labels
+        tokens = [self.tokenizer.bos_token_id] + tokens + [self.tokenizer.eos_token_id]
+        input_ids = tokens + [self.tokenizer.pad_token_id] * (self.max_length - len(tokens))
+        input_ids = torch.tensor(input_ids, dtype=torch.long)
+        labels = input_ids.clone()
+        labels[input_ids == self.tokenizer.pad_token_id] = -100
+        return input_ids, labels
 </code></pre>
       </figure>
       <div class="bridge">
@@ -117,25 +113,17 @@ class PretrainDataset(Dataset):
       </div>
 
       <figure class="code">
-        <figcaption>预训练一步（单卡教学版）</figcaption>
-        <pre><code>for input_ids, labels in loader:
-    input_ids = input_ids.to(device)
-    labels = labels.to(device)
-
-    loss, aux_loss, _, _ = model(input_ids, labels=labels)
-    total = (loss + aux_loss) / accumulation_steps
-    total.backward()
-
-    if 到了累积步数:
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-        optimizer.step()
-        optimizer.zero_grad(set_to_none=True)
+        <figcaption>对照官方 trainer/train_pretrain.py · 损失解包</figcaption>
+        <pre><code>res = model(input_ids, labels=labels)
+loss = res.loss + res.aux_loss
+loss = loss / accumulation_steps
+loss.backward()
 </code></pre>
       </figure>
       <div class="bridge">
         <p class="label">训练一步怎么对上原理</p>
         <ul>
-          <li><code>loss + aux_loss</code> → 稠密时 aux 是 0 张量；MoE 时带上负载均衡。</li>
+          <li><code>res.loss + res.aux_loss</code> → 官方返回 <code>MoeCausalLMOutputWithPast</code>，不要解包成元组。</li>
           <li>除以累积步数再反向 → 显存不够就把 batch 拆开，等效大 batch。</li>
           <li>梯度裁剪阈值 1.0 → 防止某批噪声把更新打飞。</li>
           <li>预训练 <code>from_weight='none'</code> → 随机初始化，学习率 5e-4，比微调大一个数量级。</li>

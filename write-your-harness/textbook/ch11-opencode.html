@@ -19,7 +19,7 @@
     <article class="prose">
       <div class="plain-box">
         <p class="label">这一章只要记住</p>
-        <p>仓库 <a href="https://github.com/anomalyco/opencode">anomalyco/opencode</a>（快照 v1.18.31，2026-09-14）。看三件事：工具调用如何先记账再执行；服务如何按工作区划范围；v1/v2 并存时他们如何避免「两套真相」。不必学会他们用的那套函数式运行时。</p>
+        <p>仓库 <a href="https://github.com/anomalyco/opencode">anomalyco/opencode</a>（快照 v1.18.31，2026-09-14；GitHub Search 于 2026-09-16 计 21900 条 PR、8958 条已合并）。看三件事：工具调用如何先记账再执行；服务如何按工作区划范围；v1/v2 并存时他们如何避免「两套真相」。最重要的三次投票是：工具调用当状态机持久化、Effect 把取消变成类型、v2 把「录取输入」和「执行」拆开（#30632）。</p>
       </div>
 
       <h2>规模会改变循环的形状</h2>
@@ -34,29 +34,162 @@
         <p>小饭馆用口头报菜就行。百桌酒楼必须先写菜单存根，再进厨房。客人中途买单走人，存根还能告诉你锅里那道菜该不该倒掉。opencode 在补的就是存根系统。</p>
       </div>
 
-      <h2>三件你该带走的东西（路径可能已搬家）</h2>
-      <ol class="steps">
-        <li><strong>先记账，再执行。</strong>工具调用在动手之前先落到可靠存储。授权钩子打在执行前。崩溃后你知道「已经答应做什么」，而不是磁盘上留下半截、日志里没有。</li>
-        <li><strong>会话事件可以投影回来。</strong>不要只靠内存里的数组。进程死了，应能从记录重建「模型看见过什么」。</li>
-        <li><strong>服务有范围。</strong>全局的（配置、模型目录）和工作区级的（这个 repo 的语言服务器）不要混在一张表里。混了就会串味。</li>
-      </ol>
-      <p class="say">对你自己的 harness：不必上他们那套运行时库。要上的是<strong>事件 + 取消 + 「先记后做」</strong>。miniharness 的 <code>events</code> 列表是起点；真正持久化是下一课，代码在上游，不在我们包里。</p>
+      <h2>架构：两套并存的运行时</h2>
+      <p>快照时的诚实画面：产品还在卖 v1，核心正在长 v2。读这个仓库，不要假装只有一张架构图。</p>
+      <div class="diagram">
+        <svg viewBox="0 0 720 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="opencode v1 与 v2">
+          <rect x="16" y="12" width="688" height="36" fill="#fbf6ea" stroke="#1b1610"/>
+          <text x="360" y="35" text-anchor="middle" font-size="13" font-family="IBM Plex Sans, sans-serif">皮肤：TUI · IDE · 桌面 · Web · 分享链接</text>
+          <rect x="16" y="64" width="330" height="120" fill="#efe4c8" stroke="#8b3114"/>
+          <text x="181" y="88" text-anchor="middle" font-size="13" fill="#8b3114" font-family="IBM Plex Sans, sans-serif">v1 SessionProcessor</text>
+          <text x="181" y="110" text-anchor="middle" font-size="11" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">工具 part：pending → running</text>
+          <text x="181" y="126" text-anchor="middle" font-size="11" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">→ completed / error / interrupted</text>
+          <text x="181" y="150" text-anchor="middle" font-size="11" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">SQLite 消息行是投影</text>
+          <text x="181" y="166" text-anchor="middle" font-size="11" fill="#5c5348" font-family="IBM Plex Sans, sans-serif">插件 server() 钩子</text>
+          <rect x="374" y="64" width="330" height="120" fill="#1b1610"/>
+          <text x="539" y="88" text-anchor="middle" font-size="13" fill="#f6f0e4" font-family="IBM Plex Sans, sans-serif">v2 Effect core</text>
+          <text x="539" y="110" text-anchor="middle" font-size="11" fill="#f0d3b8" font-family="IBM Plex Sans, sans-serif">session_input 先录取</text>
+          <text x="539" y="126" text-anchor="middle" font-size="11" fill="#f0d3b8" font-family="IBM Plex Sans, sans-serif">再 promote 进可见历史</text>
+          <text x="539" y="150" text-anchor="middle" font-size="11" fill="#f0d3b8" font-family="IBM Plex Sans, sans-serif">Location 范围的服务图</text>
+          <text x="539" y="166" text-anchor="middle" font-size="11" fill="#f0d3b8" font-family="IBM Plex Sans, sans-serif">插件 setup() / effect()</text>
+          <rect x="16" y="200" width="688" height="44" fill="#e7eeea" stroke="#1f4a45"/>
+          <text x="360" y="227" text-anchor="middle" font-size="12" fill="#1f4a45" font-family="IBM Plex Sans, sans-serif">同一根循环，换的是工具权限：build 默认可写 · plan 只读</text>
+        </svg>
+        <p class="cap">左边是已经能扛产品的存根。右边是把存根升级成「录取和执行分开」的账本。迁移期两套 API 同时活着。</p>
+      </div>
+      <p><strong>v1</strong>：<code>SessionProcessor</code> 把一次工具调用当成有身份的状态机，而不是助手文本里的一行字。provider 一流出「要点名」，先写入 <code>pending</code>；开始跑变成 <code>running</code>；结束写成 <code>completed</code> / <code>error</code>。取消和崩溃至少还留着「答应过什么」。</p>
+      <p><strong>v2</strong>（<a href="https://github.com/anomalyco/opencode/blob/dev/specs/v2/session.md">specs/v2/session.md</a>）：<code>sessions.prompt()</code> 先把输入写进耐用的 <code>session_input</code> 收件箱，给你一张幂等回执；执行是另一件事。崩溃后，收件箱里的活还在，不会把「正在跑」的工具默默重放——标成 interrupted，让人看见。</p>
+      <p>服务按 <strong>Location</strong>（工作区）划范围：模型目录、权限、文件系统、工具表挂在 Location 上；进程级的只有会话存储和执行协调器。两个窗口打开同一仓库，工作区级服务该共享；打开两个仓库，不该串味。</p>
+      <p>产品层仍有 agent 模式：<strong>build</strong>（默认可写）和 <strong>plan</strong>（只读，跑命令要问）。同一根循环，换的是工具权限集。不要把 Plan 理解成另一种魔法模型。</p>
+
+      <h2>先把「全部 PR」这件事说清楚</h2>
+      <div class="census">
+        <div class="box"><b>仓库创建</b><strong>2025-04-30</strong></div>
+        <div class="box"><b>PR 总数</b><strong>21900</strong></div>
+        <div class="box"><b>已合并</b><strong>8958</strong></div>
+        <div class="box"><b>快照版本</b><strong>v1.18.31</strong></div>
+      </div>
+      <p>近九千条已合并 PR。其中大量是模型目录、桌面 CSS、某家 provider 的流解析、i18n。把它们逐条印进书，书在你读完之前就会再长出几十条。下面只列<strong>改了循环、持久化、取消、工作区范围、插件面</strong>的历史投票，并标出最重要的。</p>
+      <figure class="code">
+        <figcaption>自己拉全集（需要 gh；会很多）</figcaption>
+        <pre><code>gh search prs --repo anomalyco/opencode --merged --limit 1000 --json number,title,closedAt
+# 按架构关键词缩小：
+gh search prs --repo anomalyco/opencode --merged "session" --limit 100
+gh search prs --repo anomalyco/opencode --merged "Effect" --limit 100
+gh search prs --repo anomalyco/opencode --merged "persist" --limit 50</code></pre>
+      </figure>
+      <p>仓库曾叫 <code>sst/opencode</code>。2026-01 前后迁到 <code>anomalyco/opencode</code>（#6687 清引用，#8376 改镜像名）。旧教程写 sst，就是过期地图。</p>
+
+      <h2>最重要的 PR（先读这 8 条）</h2>
+      <table class="plain pr">
+        <thead><tr><th></th><th>日期</th><th>贡献</th><th>投的票</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="star">★</span> <a href="https://github.com/anomalyco/opencode/pull/1">#1</a></td>
+            <td>2025-05-02</td>
+            <td>公开历史上第 1 号 PR：compact 和其他改进。仓库从第一天就把压缩当循环问题，而不是以后再说。</td>
+            <td>长会话是产品的日常，不是评测的边角。</td>
+          </tr>
+          <tr>
+            <td><span class="star">★</span> <a href="https://github.com/anomalyco/opencode/pull/4">#4</a></td>
+            <td>2025-05-14</td>
+            <td>模型选择持久化。</td>
+            <td>用户的选择必须活过重启。内存数组不够当产品。</td>
+          </tr>
+          <tr>
+            <td><span class="star">★</span> <a href="https://github.com/anomalyco/opencode/pull/18">#18</a></td>
+            <td>2025-05-16</td>
+            <td>无头 / 非交互模式。</td>
+            <td>循环不跟某一张脸绑死。CI 和 TUI 共用同一根。</td>
+          </tr>
+          <tr>
+            <td><span class="star">★</span> <a href="https://github.com/anomalyco/opencode/pull/6687">#6687</a></td>
+            <td>2026-01-02</td>
+            <td>引用从 sst/opencode 改到 anomalyco/opencode。</td>
+            <td>组织搬家会打碎所有文档。发版说明里的路径以 GitHub 为准。</td>
+          </tr>
+          <tr>
+            <td><span class="star">★</span> <a href="https://github.com/anomalyco/opencode/pull/26148">#26148</a></td>
+            <td>2026-05-08</td>
+            <td>桌面主进程迁到 Effect-TS。</td>
+            <td>取消、失败、依赖不再靠随手 Promise。先从桌面外壳练刀，再砍核心。</td>
+          </tr>
+          <tr>
+            <td><span class="star">★</span> <a href="https://github.com/anomalyco/opencode/pull/30632">#30632</a></td>
+            <td>2026-06-04</td>
+            <td>嵌入式 v2 会话运行时：耐用录取与执行分离；按 Location 路由；工具目录收进 core；崩溃中的 running 工具标 interrupted，不静默重放。</td>
+            <td>这是本章的主投票。先记账，再进厨房。</td>
+          </tr>
+          <tr>
+            <td><span class="star">★</span> <a href="https://github.com/anomalyco/opencode/pull/35228">#35228</a></td>
+            <td>2026-07-03</td>
+            <td>约束 Location 服务，避免工作区级能力漏到全局。</td>
+            <td>范围是架构，不是命名风格。</td>
+          </tr>
+          <tr>
+            <td><span class="star">★</span> <a href="https://github.com/anomalyco/opencode/pull/46558">#46558</a></td>
+            <td>2026-09-02</td>
+            <td>桌面/网页持久化改走 Effect Schema：类型、校验、历史形状变换共用一份。</td>
+            <td>「存盘格式」也要有 schema。迁移回调散落各处，等于没有真相。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>按时代的架构向 PR 目录</h2>
+
+      <h3>时代 1 · 从终端变成产品（2025-05 → 2025-12）</h3>
+      <table class="plain pr">
+        <thead><tr><th>编号</th><th>贡献</th><th>取舍</th></tr></thead>
+        <tbody>
+          <tr><td><a href="https://github.com/anomalyco/opencode/pull/1">#1</a></td><td>compact 进入主线。</td><td>上下文预算从第一天就是循环的事。</td></tr>
+          <tr><td><a href="https://github.com/anomalyco/opencode/pull/4">#4</a></td><td>模型选择写入配置。</td><td>重启后还认人。</td></tr>
+          <tr><td><a href="https://github.com/anomalyco/opencode/pull/8">#8</a></td><td>文件/目录补全菜单。</td><td>TUI 开始从「能打字」变成「能当编辑器」。</td></tr>
+          <tr><td><a href="https://github.com/anomalyco/opencode/pull/18">#18</a></td><td>非交互模式。</td><td>无头和有头必须共用循环。</td></tr>
+          <tr><td><a href="https://github.com/anomalyco/opencode/pull/23">#23</a></td><td>shell 可配置。</td><td>不要假设用户的壳是 bash。</td></tr>
+          <tr><td><a href="https://github.com/anomalyco/opencode/pull/24">#24</a></td><td>F9 工具对话框。</td><td>工具表要能被人看见、被关掉——这是权限的萌芽。</td></tr>
+          <tr><td><a href="https://github.com/anomalyco/opencode/pull/25">#25</a></td><td>权限窗口显示正确路径。</td><td>拒绝必须让人看懂「拒的是哪一条」，否则模型会换一种写法硬闯。</td></tr>
+          <tr><td>build / plan 代理</td><td>产品文档把 Tab 切换写成一等功能：build 默认可写，plan 只读。</td><td>模式是权限集，不是新模型。具体哪一号 PR 把 plan 写进默认，以当时 changelog 为准；形状没有变。</td></tr>
+        </tbody>
+      </table>
+      <p>这一时代还形成了后来一直在的形状：工具调用不是 transcript 里的一段字，而是 SQLite 里带状态的 part。源码路径会搬家；「先有 pending 再有 running」这条不变量不会。</p>
+
+      <h3>时代 2 · 搬家，然后用 Effect 换引擎（2026-01 → 2026-06）</h3>
+      <table class="plain pr">
+        <thead><tr><th>编号</th><th>贡献</th><th>取舍</th></tr></thead>
+        <tbody>
+          <tr><td><a href="https://github.com/anomalyco/opencode/pull/6687">#6687</a></td><td>文档和引用改组织名。</td><td>破坏性的是 URL，不是循环。</td></tr>
+          <tr><td><a href="https://github.com/anomalyco/opencode/pull/8376">#8376</a></td><td>容器镜像从 ghcr.io/sst/opencode 改名。</td><td>发版火车上连安装路径都会碎。</td></tr>
+          <tr><td><a href="https://github.com/anomalyco/opencode/pull/26148">#26148</a></td><td>桌面 main process 改 Effect。</td><td>先改外壳：IPC、sidecar 生命周期、取消。学习曲线换可检查的失败。</td></tr>
+          <tr><td><a href="https://github.com/anomalyco/opencode/pull/43207">#43207</a></td><td>桌面 IPC 迁到 Effect RPC。</td><td>主进程和渲染进程不再靠临时 JSON 约定。</td></tr>
+          <tr><td><a href="https://github.com/anomalyco/opencode/pull/30632">#30632</a></td><td>v2 嵌入式会话：幂等 create/prompt、steer/queue 投递、Location 路由、先持久化再执行工具、stream delta 保持短暂、重放游标显式化。</td><td>两套会话模型并存一段时间。插件要准备 v1 <code>server()</code> 和 v2 <code>setup()</code> 双出口。</td></tr>
+        </tbody>
+      </table>
+
+      <h3>时代 3 · 把范围、权限、schema 钉死（2026-07 → 快照）</h3>
+      <table class="plain pr">
+        <thead><tr><th>编号</th><th>贡献</th><th>取舍</th></tr></thead>
+        <tbody>
+          <tr><td><a href="https://github.com/anomalyco/opencode/pull/35228">#35228</a></td><td>收紧 Location 服务。</td><td>全局表混进工作区服务就会串味。</td></tr>
+          <tr><td><a href="https://github.com/anomalyco/opencode/pull/45705">#45705</a></td><td>从 Location 服务里抽出 instance 模块。</td><td>进程实例 ≠ 工作区。继续拆，避免一张图上画两种寿命。</td></tr>
+          <tr><td><a href="https://github.com/anomalyco/opencode/pull/43710">#43710</a></td><td>plan 模式允许只写 PLAN 文件。</td><td>只读不是「什么都不能写」。计划本身需要一张磁盘上的纸。</td></tr>
+          <tr><td><a href="https://github.com/anomalyco/opencode/pull/46905">#46905</a></td><td>默认改回：plan agent 先讨论，不急着写文件。</td><td>#43710 的权限开了一条缝；默认行为立刻往回收。这是产品在权限和自主之间拧旋钮。</td></tr>
+          <tr><td><a href="https://github.com/anomalyco/opencode/pull/45453">#45453</a></td><td>插件可在查找工具之前修复 tool call。</td><td>模型填错名字时，harness 可以改，但必须发生在执行前、记账后。</td></tr>
+          <tr><td><a href="https://github.com/anomalyco/opencode/pull/44526">#44526</a></td><td>工作区身份与供给解耦。</td><td>「这是哪个 repo」和「机器在哪」不是同一个字段。</td></tr>
+          <tr><td><a href="https://github.com/anomalyco/opencode/pull/45781">#45781</a></td><td>恢复的 shell 结果能唤醒会话。</td><td>崩溃后的子进程不是幽灵。结果回来必须能继续循环。</td></tr>
+          <tr><td><a href="https://github.com/anomalyco/opencode/pull/46558">#46558</a></td><td>30 处持久化消费者改走一份 Effect Schema。</td><td>存盘没有第二套类型。</td></tr>
+          <tr><td><a href="https://github.com/anomalyco/opencode/pull/47695">#47695</a></td><td>桌面渲染状态从 electron-store 迁到 SQLite。</td><td>和会话同一类存储。键值文件扛不住多窗。</td></tr>
+          <tr><td><a href="https://github.com/anomalyco/opencode/pull/48351">#48351</a></td><td>按会话的权限规则。</td><td>权限不再只是全局档位。同一仓库两个会话可以不一样严。</td></tr>
+          <tr><td>插件双出口（文档，约 1.18.29）</td><td>一个包可以同时 export v1 <code>server()</code> 和 v2 <code>setup()</code>。</td><td>适配器写两遍，换来旧插件不在迁移周集体死亡。</td></tr>
+        </tbody>
+      </table>
 
       <h2>「Effect」这个词先别怕</h2>
-      <p>你在 release 和博客里会反复看见 Effect。人话版：它是 TypeScript 里一套帮你处理「失败、取消、依赖、追踪」的库。Agent 运行时充满长时间运行、中断、竞赛、必须清理的资源。用库把这些写成可检查的类型，代价是学习曲线，以及迁移期旧写法与新写法并存。</p>
+      <p>人话版：它是 TypeScript 里一套帮你处理「失败、取消、依赖、追踪」的库。Agent 运行时充满长时间运行、中断、竞赛、必须清理的资源。用库把这些写成可检查的类型，代价是学习曲线，以及迁移期旧写法与新写法并存。</p>
       <div class="callout">
         <p class="label">先别管</p>
         <p>Layer、LayerNode、OpenTelemetry 的具体 API。问三个问题就够：一次工具在执行前写了什么？kill -9 之后还能否知道？两个窗口打开同一仓库，工作区级服务是共享还是隔离？</p>
       </div>
-
-      <h2>产品层仍有 agent 模式</h2>
-      <p>文档里常见两种：build（默认可写）和 plan（只读，跑命令要问）。同一根循环，换的是工具权限集。这和 Codex 的「沙箱 × 审批」、dsh 的 agent 预设是同一类旋钮。</p>
-      <p>不要把「Plan 模式」理解成另一种魔法模型。它首先是 harness 策略：这一轮允许哪些手、要不要先问人。</p>
-
-      <div class="callout warn">
-        <p class="label">怎么读一个正在重构的巨仓</p>
-        <p>不要从根 README 线性读到第 400 个包。去 releases 搜 <code>v2</code>、<code>effect</code>、<code>session</code>。点进 PR 看他们删了哪条旧 API。并存期的仓库，任何「全书架构图」隔周就错。动态读，是唯一不自欺的方法。</p>
-      </div>
+      <p class="say">对你自己的 harness：不必上他们那套运行时库。要上的是<strong>事件 + 取消 + 「先记后做」</strong>。miniharness 的 <code>events</code> 列表是起点；真正持久化是下一课，代码在上游，不在我们包里。</p>
 
       <h2>和 miniharness 的距离</h2>
       <table class="plain">
@@ -65,26 +198,35 @@
           <tr><td>执行前持久化</td><td>只在内存 append</td><td>每次 tool_start 先写一行 JSONL</td></tr>
           <tr><td>可取消的运行时</td><td>没有取消</td><td>Ctrl-C 时设标志，bash 用超时</td></tr>
           <tr><td>按工作区隔离的服务</td><td>一个 Workspace 对象</td><td>先别做服务图，把根目录传对就行</td></tr>
+          <tr><td>plan / build 权限集</td><td>YOLO</td><td>给 Toolbelt 加一个只读开关</td></tr>
         </tbody>
       </table>
+
+      <div class="callout warn">
+        <p class="label">怎么读一个正在重构的巨仓</p>
+        <p>不要从根 README 线性读到第 400 个包。去 releases 搜 <code>v2</code>、<code>effect</code>、<code>session</code>。点进 PR 看他们删了哪条旧 API。并存期的仓库，任何「全书架构图」隔周就错。动态读，是唯一不自欺的方法。</p>
+      </div>
 
       <h2>读这个仓库时问什么</h2>
       <ul>
         <li>一次工具调用在执行前写了什么记录？进程被强杀之后能否知道？</li>
         <li>两个窗口打开同一 repo，工作区级服务是共享还是隔离？</li>
-        <li>插件 API 的新版和旧版谁是源，谁是适配器？</li>
+        <li>插件 API 的新版和旧版谁是源，谁是适配器？一个包能不能两个都 export？</li>
+        <li>#43710 放开 plan 写文件，#46905 又把默认收回——你的产品准备把旋钮拧在哪一档？</li>
       </ul>
 
       <h2>自测</h2>
       <ul>
         <li>为什么「先执行工具，成功了再写日志」在崩溃时会撒谎？</li>
         <li>Plan 模式换的是模型，还是工具权限？</li>
+        <li>#30632 把 prompt 拆成录取和执行，崩溃时哪一边还在？</li>
       </ul>
       <details class="answer">
         <summary>自测答案</summary>
         <ol>
           <li>工具可能已经改了半个文件，日志却说「没做过」。下次恢复会按「没做过」再改一次，或按「做过」跳过——两种都可能是错的。先记账，崩溃后至少知道答应过什么。</li>
           <li>首先是工具权限（以及要不要问人）。模型可以是同一个。</li>
+          <li>收件箱里的录取还在，可以再 wake。执行侧正在跑的工具不能当成功重放，要标 interrupted。这就是「存根还在、锅里的菜另说」。</li>
         </ol>
       </details>
     </article>

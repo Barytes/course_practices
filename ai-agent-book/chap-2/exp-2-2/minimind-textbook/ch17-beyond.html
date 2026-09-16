@@ -25,16 +25,16 @@
     <article class="prose">
       <div class="plain-box">
         <p class="label">这一章只要记住</p>
-        <p>不必再往 <code>minimind3/</code> 里加文件。LoRA / DPO / PPO / GRPO 调用的仍是你第 12、13 章的 <code>forward</code>。差别只在「动哪些权重、损失怎么写」。</p>
+        <p>后训练骨架已经在 <code>model/model_lora.py</code>、<code>trainer/</code>、<code>scripts/</code> 里。按官方符号填实现，不要另起文件名。LoRA / DPO / PPO / GRPO 调用的仍是你第 12、13 章的 <code>forward</code>。差别只在「动哪些权重、损失怎么写」。</p>
       </div>
 
       <div class="where">
         <p class="label">这一章怎么动手</p>
         <table class="plain">
           <tbody>
-            <tr><th>作业包</th><td>不用新增模块。第 12、16 章写对，就是所有后训练的公共底座。</td></tr>
+            <tr><th>作业包</th><td>填已有骨架：<code>model/model_lora.py</code>、<code>trainer/train_*.py</code>、<code>scripts/</code>。第 12、16 章写对，就是所有后训练的公共底座。</td></tr>
             <tr><th>对照官方</th><td>按下面顺序读源码，带着「它改的是哪一块」去看，不要被类名吓住。</td></tr>
-            <tr><th>建议顺序</th><td><code>model_lora.py</code> → <code>train_dpo.py</code> → <code>train_ppo.py</code> / <code>train_grpo.py</code> → <code>train_agent.py</code></td></tr>
+            <tr><th>建议顺序</th><td><code>model/model_lora.py</code> → <code>trainer/train_dpo.py</code> → <code>train_ppo.py</code> / <code>train_grpo.py</code> → <code>train_agent.py</code></td></tr>
           </tbody>
         </table>
       </div>
@@ -86,7 +86,7 @@
       <h2>全书收束</h2>
       <p>你现在应当能够：</p>
       <ul>
-        <li>从 <code>minimind3/config.py</code> 出发，在对应文件里写出嵌入、RMSNorm、分组查询注意力、RoPE、QK-Norm、KV Cache、SwiGLU、8 层残差和输出层；</li>
+        <li>从 <code>minimind3/model/model_minimind.py</code> 出发，在对应文件里写出嵌入、RMSNorm、分组查询注意力、RoPE、QK-Norm、KV Cache、SwiGLU、8 层残差和输出层；</li>
         <li>把前馈换成 4 专家 top-1 路由，得到 MiniMind-3-MoE；</li>
         <li>讲清楚预训练与 SFT 在数据和掩码上的差别，以及生成循环如何利用缓存；</li>
         <li>把官方后训练脚本看成同一套前向上的不同损失，而不是另一门学科。</li>

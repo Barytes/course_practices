@@ -39,63 +39,62 @@
         <p class="label">现在动手 · 写到哪里</p>
         <table class="plain">
           <tbody>
-            <tr><th>文件</th><td><code>exp-2-2/minimind3/model.py</code>。第 3 章讲的 <code>embed_tokens</code> / <code>lm_head</code> 就写在这两个类里，不要另建 EmbedAndHead。</td></tr>
+            <tr><th>文件</th><td><code>exp-2-2/minimind3/model/model_minimind.py</code>。第 3 章讲的 <code>embed_tokens</code> / <code>lm_head</code> 就写在这两个类里，不要另建 EmbedAndHead。</td></tr>
             <tr><th>先写</th><td>类 <code>MiniMindModel</code>：<code>embed_tokens</code>、<code>layers</code>、<code>norm</code>、两张 freqs buffer、<code>forward</code></td></tr>
             <tr><th>再写</th><td>类 <code>MiniMindForCausalLM</code>：<code>self.model</code>、<code>lm_head</code>、权重共享、<code>forward</code> 里的错位交叉熵</td></tr>
-            <tr><th>怎么跑</th><td><code>python -m minimind3.model</code>。参数量应约 64M；<code>logits.shape == (2, 16, 6400)</code></td></tr>
+            <tr><th>怎么跑</th><td><code>cd exp-2-2/minimind3 后 python -c "from model.model_minimind import MiniMindForCausalLM"</code>。参数量应约 64M；<code>logits.shape == (2, 16, 6400)</code></td></tr>
           </tbody>
         </table>
       </div>
 
       <figure class="code">
-        <figcaption>minimind3/model.py · class MiniMindModel</figcaption>
+        <figcaption>minimind3/model/model_minimind.py · 与官方 MiniMindModel 对齐</figcaption>
         <pre><code>class MiniMindModel(nn.Module):
     def __init__(self, config: MiniMindConfig):
         super().__init__()
         self.config = config
+        self.vocab_size, self.num_hidden_layers = config.vocab_size, config.num_hidden_layers
         self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size)
         self.dropout = nn.Dropout(config.dropout)
-        self.layers = nn.ModuleList(
-            [MiniMindBlock(i, config) for i in range(config.num_hidden_layers)]
-        )
+        self.layers = nn.ModuleList([MiniMindBlock(l, config) for l in range(self.num_hidden_layers)])
         self.norm = RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        cos, sin = precompute_freqs_cis(
-            dim=config.head_dim,
-            end=config.max_position_embeddings,
-            rope_base=config.rope_theta,
-            rope_scaling=config.rope_scaling if hasattr(config, "rope_scaling") else None,
+        freqs_cos, freqs_sin = precompute_freqs_cis(
+            dim=config.head_dim, end=config.max_position_embeddings,
+            rope_base=config.rope_theta, rope_scaling=config.rope_scaling,
         )
-        self.register_buffer("freqs_cos", cos, persistent=False)
-        self.register_buffer("freqs_sin", sin, persistent=False)
+        self.register_buffer("freqs_cos", freqs_cos, persistent=False)
+        self.register_buffer("freqs_sin", freqs_sin, persistent=False)
 
-    def forward(self, input_ids, attention_mask=None,
-                past_key_values=None, use_cache=False, **kwargs):
+    def forward(self, input_ids, attention_mask=None, past_key_values=None, use_cache=False, **kwargs):
         batch_size, seq_length = input_ids.shape
+        if hasattr(past_key_values, "layers"):
+            past_key_values = None
         past_key_values = past_key_values or [None] * len(self.layers)
-        start_pos = 0
-        if past_key_values[0] is not None:
-            start_pos = past_key_values[0][0].shape[1]
-
+        start_pos = past_key_values[0][0].shape[1] if past_key_values[0] is not None else 0
         hidden_states = self.dropout(self.embed_tokens(input_ids))
+        if self.freqs_cos[0, 0] == 0:
+            freqs_cos, freqs_sin = precompute_freqs_cis(
+                dim=self.config.head_dim, end=self.config.max_position_embeddings,
+                rope_base=self.config.rope_theta, rope_scaling=self.config.rope_scaling,
+            )
+            self.freqs_cos, self.freqs_sin = freqs_cos.to(hidden_states.device), freqs_sin.to(hidden_states.device)
         position_embeddings = (
             self.freqs_cos[start_pos:start_pos + seq_length],
             self.freqs_sin[start_pos:start_pos + seq_length],
         )
-
         presents = []
-        for layer, past in zip(self.layers, past_key_values):
+        for layer, past_key_value in zip(self.layers, past_key_values):
             hidden_states, present = layer(
                 hidden_states, position_embeddings,
-                past_key_value=past, use_cache=use_cache,
+                past_key_value=past_key_value, use_cache=use_cache,
                 attention_mask=attention_mask,
             )
             presents.append(present)
-
         hidden_states = self.norm(hidden_states)
-        aux_loss = hidden_states.new_zeros(1).squeeze()
-        for layer in self.layers:
-            if isinstance(layer.mlp, MOEFeedForward):
-                aux_loss = aux_loss + layer.mlp.aux_loss
+        aux_loss = sum(
+            (l.mlp.aux_loss for l in self.layers if isinstance(l.mlp, MOEFeedForward)),
+            hidden_states.new_zeros(1).squeeze(),
+        )
         return hidden_states, presents, aux_loss
 </code></pre>
       </figure>
@@ -108,22 +107,30 @@
           <li><code>freqs_cos[start_pos:start_pos+seq_length]</code> → 把预计算表切给当前这段查询。注意力内部不要自己 arange。</li>
           <li><code>zip(self.layers, past_key_values)</code> → 第 11 章：每一层拿自己的那一格缓存，写回 presents 同一格。</li>
           <li>层后再 <code>self.norm</code> → 第 4 章说的「整网输出前再来一次」。</li>
-          <li>稠密时 aux_loss 保持 0 张量 → 训练循环可以统一写成 <code>loss + aux_loss</code>，第 13 章不必改循环。</li>
+          <li>稠密时 aux_loss 用 <code>sum(..., zeros)</code> 得到 0 张量 → 训练循环统一写成 <code>res.loss + res.aux_loss</code>。</li>
+          <li><code>if self.freqs_cos[0, 0] == 0</code> → transformers 5.x meta 设备初始化会把 buffer 清零，官方会重算 RoPE 表。不要删这几行。</li>
         </ul>
       </div>
 
       <h2>标签相对输入右移一位</h2>
       <p>用位置 t 的隐藏状态预测位置 t+1 的词元。官方在模型内部完成这次错位。</p>
       <figure class="code">
-        <figcaption>minimind3/model.py · class MiniMindForCausalLM</figcaption>
-        <pre><code>class MiniMindForCausalLM(nn.Module):
-    def __init__(self, config=None):
-        super().__init__()
+        <figcaption>minimind3/model/model_minimind.py · 与官方 MiniMindForCausalLM 对齐</figcaption>
+        <pre><code>from transformers import PreTrainedModel, GenerationMixin
+from transformers.modeling_outputs import MoeCausalLMOutputWithPast
+
+class MiniMindForCausalLM(PreTrainedModel, GenerationMixin):
+    config_class = MiniMindConfig
+    _tied_weights_keys = {"lm_head.weight": "model.embed_tokens.weight"}
+
+    def __init__(self, config: MiniMindConfig = None):
         self.config = config or MiniMindConfig()
+        super().__init__(self.config)
         self.model = MiniMindModel(self.config)
         self.lm_head = nn.Linear(self.config.hidden_size, self.config.vocab_size, bias=False)
         if self.config.tie_word_embeddings:
             self.model.embed_tokens.weight = self.lm_head.weight
+        self.post_init()
 
     def forward(self, input_ids, attention_mask=None, past_key_values=None,
                 use_cache=False, logits_to_keep=0, labels=None, **kwargs):
@@ -134,12 +141,12 @@
         logits = self.lm_head(hidden_states[:, slice_indices, :])
         loss = None
         if labels is not None:
-            x = logits[..., :-1, :].contiguous()
-            y = labels[..., 1:].contiguous()
-            loss = F.cross_entropy(
-                x.view(-1, x.size(-1)), y.view(-1), ignore_index=-100
-            )
-        return loss, aux_loss, logits, past_key_values
+            x, y = logits[..., :-1, :].contiguous(), labels[..., 1:].contiguous()
+            loss = F.cross_entropy(x.view(-1, x.size(-1)), y.view(-1), ignore_index=-100)
+        return MoeCausalLMOutputWithPast(
+            loss=loss, aux_loss=aux_loss, logits=logits,
+            past_key_values=past_key_values, hidden_states=hidden_states,
+        )
 </code></pre>
       </figure>
       <div class="bridge">
@@ -147,13 +154,13 @@
         <ul>
           <li>权重共享那两行 → 第 3 章，省 491 万参数。</li>
           <li><code>logits[..., :-1]</code> 对 <code>labels[..., 1:]</code> → 「用位置 t 猜位置 t+1」。最后一个位置的 logits 在这次错位里用不上；生成时恰好只要最后一个位置。</li>
-          <li><code>ignore_index=-100</code> → padding 不算分。第 14 章会把 pad 位置的标签改成 -100。</li>
-          <li><code>logits_to_keep=1</code> → 生成时只对最后一格做 lm_head，省计算。训练保持默认 0（保留全部）。</li>
+          <li><code>MoeCausalLMOutputWithPast</code> → 官方训练脚本写 <code>res.loss + res.aux_loss</code>、<code>outputs.logits</code>。不要返回元组，否则 <code>trainer/train_pretrain.py</code> 和 <code>eval_llm.py</code> 都会坏。</li>
+          <li><code>PreTrainedModel, GenerationMixin</code> → 才能 <code>load_state_dict</code> 官方 .pth，并调用本类的 <code>generate</code>。</li>
         </ul>
       </div>
 
       <figure class="code">
-        <figcaption>minimind3/model.py · __main__ 形状与参数检查</figcaption>
+        <figcaption>minimind3/model/model_minimind.py · __main__ 形状与参数检查</figcaption>
         <pre><code>cfg = MiniMindConfig(use_moe=False)
 model = MiniMindForCausalLM(cfg)
 n = sum(p.numel() for p in model.parameters()) / 1e6
@@ -161,10 +168,10 @@ print(f"{n:.2f}M")          # 应约 64
 
 ids = torch.randint(0, cfg.vocab_size, (2, 16))
 labels = ids.clone()
-loss, aux, logits, _ = model(ids, labels=labels)
-assert logits.shape == (2, 16, cfg.vocab_size)
-assert loss.ndim == 0
-print("loss", float(loss), "aux", float(aux))
+res = model(ids, labels=labels)
+assert res.logits.shape == (2, 16, cfg.vocab_size)
+assert res.loss.ndim == 0
+print("loss", float(res.loss), "aux", float(res.aux_loss))
 </code></pre>
       </figure>
       <p>若参数量接近 69M，多半是嵌入没有共享。若只有十几 M，多半是层数或中间维没读配置。</p>

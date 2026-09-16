@@ -117,16 +117,16 @@ y = [1.0, 2.0]
       <ol class="steps">
         <li><strong>读懂这一步在整个前向计算里的位置。</strong>每章开头都有黑底框：「这一章只要记住」。没有它，模型会怎样，下一节会说。</li>
         <li><strong>看一个小数字例子。</strong>3 个 token、2 维向量这种规模，是为了让你能用计算器算，不是为了展示性能。</li>
-        <li><strong>按「现在动手写」里的代码，自己敲一遍。</strong>建议放到 <code>exp-2-2/</code> 下一个你自己的 <code>minimind3/</code> 包里，章与章之间追加，不要每章新建互不相通的文件。</li>
+        <li><strong>按「现在动手写」里的代码，自己敲一遍。</strong>写进 <code>exp-2-2/minimind3/</code> 里与官方仓库相同的路径，章与章之间追加，不要每章新建互不相通的文件。</li>
         <li><strong>跑形状断言。</strong>如果张量形状对不上，后面所有章节都会错。形状对了，再谈数值对不对。</li>
-        <li><strong>对照官方。</strong>官方把很多行压得很紧。教材会拆开写，并指出「官方把这三行合成了一行」。</li>
+        <li><strong>对照官方。</strong>「现在动手写」里的类名、成员名、公式必须和 <code>jingyaogong/minimind</code> 的 <code>model/model_minimind.py</code> 一致。教材只加人话和手算，不另造一套 API。抄成 dataclass / TinyAttention / 返回元组，就无法加载官方权重，也无法跑官方 <code>eval_llm.py</code>。</li>
         <li><strong>做自测，再展开答案核对。</strong>先自己说人话，不要立刻点开。</li>
       </ol>
 
       <div class="callout">
         <p class="label">代码写到哪</p>
-        <p>不要每章新建一个互不相通的脚本。正式实现全部写进 <code>exp-2-2/minimind3/</code> 这个包，文件已经建好。完整对照表见 <a href="files.html">动手地图</a>。</p>
-        <p>第 2～5 章可以先在已有的 <code>exp-2-2/attention.py</code> 里热身；从第 6 章起，注意力只改 <code>minimind3/attention.py</code> 这一个文件。</p>
+        <p>不要每章新建一个互不相通的脚本。正式实现全部写进 <code>exp-2-2/minimind3/</code>：目录树已与官方仓库对齐。完整对照表见 <a href="files.html">动手地图</a>。</p>
+        <p>第 2～5 章可以先在已有的 <code>exp-2-2/attention.py</code> 里热身；从第 6 章起，注意力只改 <code>minimind3/model/model_minimind.py</code> 这一个文件。</p>
         <p>每一章的代码块前面都有「写到哪里」（文件 / 符号 / 怎么跑），后面都有「代码怎么对上原理」。两块都读完再抄下一章。</p>
       </div>
 
@@ -162,7 +162,7 @@ y = [1.0, 2.0]
           <li>4 句话，每句 8 个词元，每个词元 768 个数。</li>
           <li>位置编码只改变查询和键的数值，不改变「用查询检索键、再按分数提取值」这件事本身。先把检索写对，再加位置，不容易缠在一起。</li>
           <li>合理。我们要搞懂 MiniMind 自己独特的结构；矩阵乘法和自动求导是 PyTorch 的基础设施，重写它们对理解这台机器没有帮助。</li>
-          <li>同一个包里的模块即可，例如 <code>minimind3/norm.py</code> 被 <code>minimind3/attention.py</code> 导入。不要每章一个孤立脚本互相 copy。</li>
+          <li>第 4 章的 <code>RMSNorm</code> 和第 5 章的 <code>Attention</code> 都写在同一个 <code>minimind3/model/model_minimind.py</code> 里。不要每章一个孤立脚本互相 copy。</li>
         </ol>
       </details>
     </article>
