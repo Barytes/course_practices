@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe6d4">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MiniMind教材">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<title>延伸阅读：从 MiniMind 走到 2026 旗舰 — MiniMind 手把手</title>
+<link rel="stylesheet" href="assets/book.css">
+</head>
+<body>
+<button class="menu-btn" type="button">目录</button>
+<div class="shell">
+  <aside class="rail" data-toc></aside>
+  <main class="paper">
+    <header class="chap-head">
+      <p class="kicker">之后 · 出门</p>
+      <h1>延伸阅读：从 MiniMind 走到 2026 旗舰</h1>
+      <p class="lead">本书对齐的是 Qwen3 风格的稠密解码器，外加一个很简单的混合专家。2026 年 9 月的开源旗舰已经换成「线性注意力 + 稀疏注意力 + 多流残差 + 极稀 MoE」。这一页只指路，不另开一门课。</p>
+    </header>
+    <article class="prose">
+      <div class="plain-box">
+        <p class="label">这一页只要记住</p>
+        <p>先把本书写完。MiniMind 的积木（RMSNorm、GQA、RoPE、QK-Norm、SwiGLU、KV Cache、MoE）仍是后面所有变体的底座。然后按「同一条 MiniMind 路 → 把积木再写一遍 → 对照 2026 旗舰」这个顺序出门。</p>
+      </div>
+
+      <div class="callout analogy">
+        <p class="label">和本书怎么对上</p>
+        <p>第 5～9 章的注意力，在旗舰里常常被拆成两路：大多数层改成线性记忆（KDA / Gated DeltaNet），少数层改成压缩或稀疏的全局检索（MLA / DSA / CSA）。第 11 章的残差 <code>x + F(x)</code>，在 DeepSeek V4 和 GLM-5.3-Flash 里扩成多条并行流（mHC）。第 13 章的 4 专家 top-1，在 Kimi K3 里变成 896 专家选 16。名字变了，地图没变。</p>
+      </div>
+
+      <h2>同一条 MiniMind 路</h2>
+      <p>想把官方 MiniMind 源码读细、补算法推导和面试题，走这两份中文笔记。它们讲的仍是本书这条 Qwen3 风格主线，不是 2026 年 9 月的旗舰结构。</p>
+      <table class="plain">
+        <thead><tr><th>读什么</th><th>适合谁</th><th>备注</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><a href="https://github.com/Tongyun1/from-minimind-to-more">Tongyun1/from-minimind-to-more</a></td>
+            <td>读完本书，还想把 Tokenizer、归一化、MoE、Pretrain / SFT / DPO / PPO / GRPO / SPO 再啃一遍</td>
+            <td>2026-01 创建，2026-05 仍在更新。配套面试笔记在小红书。</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/hans0809/MiniMind-in-Depth">hans0809/MiniMind-in-Depth</a></td>
+            <td>想对着更早一版 MiniMind 做逐行注释</td>
+            <td>对齐 2025-04 的 MiniMind。from-minimind-to-more 也感谢过它。</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/jingyaogong/minimind">jingyaogong/minimind</a></td>
+            <td>对照答案、下载权重、跑完整训练链</td>
+            <td>本教材的官方源。作业目录 <code>minimind3/</code> 必须和它同路径、同符号。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>把现代积木再写一遍</h2>
+      <p>MiniMind 停在 Qwen3 dense + 简单 MoE。下面这些仓库用「从小模型手写」的方式，把 2025–2026 的积木拆开：MLA、MoE 路由、Gated DeltaNet、Gemma 4 的夹心归一化和滑窗。</p>
+      <table class="plain">
+        <thead><tr><th>读什么</th><th>覆盖到哪</th><th>怎么用</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><a href="https://github.com/rasbt/LLMs-from-scratch">rasbt/LLMs-from-scratch</a></td>
+            <td>Qwen3 dense / MoE、Qwen3.5（Gated DeltaNet 混合）、Gemma 3 / 4、Olmo 3、MLA、KV Cache</td>
+            <td>2026-09-10 仍在推送。第 5 章 bonus 目录按模型一本笔记本。英文，但从零实现的味道和本书最近。</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/malibayram/single_letter_transformers">malibayram/single_letter_transformers</a></td>
+            <td>同一玩具任务上并排的 Tiny Qwen3、Qwen3.5、Gemma 4、DeepSeek-V3（MLA + MoE）</td>
+            <td>2026-06 创建。参数只有几万，适合对照「换一块积木，前向变成什么样」。</td>
+          </tr>
+          <tr>
+            <td><a href="https://cs336.stanford.edu/">Stanford CS336</a>（2026 春）</td>
+            <td>分词、Transformer、FlashAttention、分布式、缩放律、数据、SFT / RL</td>
+            <td>第 4 讲专门讲注意力替代与 MoE。作业仓库在 <a href="https://github.com/stanford-cs336">stanford-cs336</a>。课比 MiniMind 重一个数量级。</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/karpathy/nanochat">karpathy/nanochat</a></td>
+            <td>从分词、预训练、微调、评测到聊天界面的完整训练环</td>
+            <td>结构仍偏 GPT-2 风格，不追旗舰注意力。适合看「怎么把小模型真正训起来」。2026-09 仍在更新。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>一张图对照 2026 年 9 月的开源旗舰</h2>
+      <p>没有一份中文教材把 GLM-5.3、DeepSeek-V4.1-Flash、Kimi K3 从头手写训练。要把三家摊在同一张桌上，先看图鉴，再回官方报告。</p>
+      <table class="plain">
+        <thead><tr><th>读什么</th><th>干什么</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>站点 <a href="https://sebastianraschka.com/llm-architecture-gallery/">LLM Architecture Gallery</a><br>仓库 <a href="https://github.com/rasbt/llm-architecture-gallery">rasbt/llm-architecture-gallery</a></td>
+            <td>按发布日、注意力、MoE 激活比对照约 93 个模型。Kimi K3（2026-07-27）、GLM-5.3-Flash（2026-08-26）、DeepSeek-V4.1-Flash（2026-09-10）都有卡片。积木词条：MLA、DSA、KDA、mHC、Gated Residual。</td>
+          </tr>
+          <tr>
+            <td><a href="https://sebastianraschka.com/blog/2026/glm-5-3-flash-architecture-notes.html">GLM-5.3-Flash Architecture Notes</a></td>
+            <td>一页说清 Ox Alpha 就是 GLM-5.3-Flash：3:1 的 KDA + MLA/DSA，加上 4 路 mHC。</td>
+          </tr>
+          <tr>
+            <td><a href="https://magazine.sebastianraschka.com/p/visual-attention-variants">A Visual Guide to Attention Variants</a></td>
+            <td>MHA / GQA / MLA / 稀疏 / 线性 / 混合注意力的对照图。读旗舰卡片之前先看这个。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>三家旗舰：官方源码与缩小实现</h2>
+      <p>日期以公开信息为准，整理于 2026-09。</p>
+
+      <h3>Kimi K3（2026-07-27）</h3>
+      <p>2.8T 总参数、激活约 104B。每块 3 层 KDA 夹 1 层 Gated MLA；深度方向用 Attention Residuals 跨层取信息；宽度方向用 Stable LatentMoE（896 专家选 16）。</p>
+      <table class="plain">
+        <thead><tr><th>入口</th><th>角色</th></tr></thead>
+        <tbody>
+          <tr><td><a href="https://github.com/MoonshotAI/Kimi-K3">MoonshotAI/Kimi-K3</a></td><td>官方仓。技术报告 <a href="https://arxiv.org/html/2607.24653v1">arXiv:2607.24653</a>。</td></tr>
+          <tr><td><a href="https://github.com/MoonshotAI/FlashKDA">MoonshotAI/FlashKDA</a></td><td>KDA 的高性能核。生产里真正跑的是这个，不是论文伪代码。</td></tr>
+          <tr><td><a href="https://github.com/MoonshotAI/MoonEP">MoonshotAI/MoonEP</a></td><td>专家并行。K3 把专家打到 896 之后，通信变成独立问题。</td></tr>
+          <tr><td><a href="https://github.com/MoonshotAI/Kimi-Linear">MoonshotAI/Kimi-Linear</a></td><td>KDA + Gated MLA 配方的前身，比 K3 小，更好读。</td></tr>
+          <tr><td><a href="https://github.com/microkimi/microkimi">microkimi/microkimi</a></td><td>Rust 缩小实现，声称与官方 1:1 对齐；带自训的 <code>nanokimi-0.2b</code>。也覆盖 DeepSeek-V4-Flash-0731。</td></tr>
+          <tr><td><a href="https://huggingface.co/DiogenesLab/kimi-k3-research/blob/main/k3_architecture_notes.md">k3_architecture_notes.md</a></td><td>按「序列 / 深度 / 宽度」三条轴读报告的笔记。</td></tr>
+        </tbody>
+      </table>
+
+      <h3>GLM-5.3-Flash（2026-08-26）</h3>
+      <p>320B 总参数、激活约 18B。45 层里 34 层 KDA、11 层稀疏 MLA/DSA，残差走 4 路 mHC，并带原生视觉。相对 GLM-5.3 全文注意力，官方称注意力计算约降 3×、KV 约降 4.4×。</p>
+      <table class="plain">
+        <thead><tr><th>入口</th><th>角色</th></tr></thead>
+        <tbody>
+          <tr><td><a href="https://github.com/zai-org/GLM-5">zai-org/GLM-5</a></td><td>官方仓与权重入口。</td></tr>
+          <tr><td><a href="https://docs.z.ai/guides/vlm/glm-5.3-flash">Z.ai 产品说明</a></td><td>混合稀疏 + 线性注意力、IndexPool、mHC 的官方表述。</td></tr>
+          <tr><td><a href="https://sebastianraschka.com/blog/2026/glm-5-3-flash-architecture-notes.html">Raschka 结构笔记</a></td><td>和 Kimi、DeepSeek 的积木怎么拼在一起。</td></tr>
+        </tbody>
+      </table>
+      <p>截至 2026-09，没有找到 GLM-5.3 的 nanoGPT 风格教学实现。要看可运行推理，走官方 README 里的 SGLang / vLLM 配方。</p>
+
+      <h3>DeepSeek-V4.1-Flash（2026-09-10）</h3>
+      <p>552B backbone。40 层拆成 20 层因果编码器 + 20 层解码器：prefill 激活约 8B，decode 约 16B。注意力是 CSA2（跨层复用 KV 与索引），残差是 Single-Pass mHC，另加 196B 的 Engram 条件记忆。</p>
+      <table class="plain">
+        <thead><tr><th>入口</th><th>角色</th></tr></thead>
+        <tbody>
+          <tr><td><a href="https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash">deepseek-ai/DeepSeek-V4.1-Flash</a></td><td>官方权重、技术报告、可读的 <code>inference/model.py</code>。</td></tr>
+          <tr><td><a href="https://www.deepseek.com/en/news/deepseek-v4-1-flash/">发布说明</a></td><td>Causal Encoder–Decoder 在 agent 负载上为什么省 prefill。</td></tr>
+          <tr><td><a href="https://github.com/deepseek-ai/Engram">deepseek-ai/Engram</a></td><td>N-gram 查找当「条件记忆」，和 MoE 的条件计算是两条稀疏轴。</td></tr>
+          <tr><td><a href="https://github.com/hebo1221/nano-deepseek-v4">hebo1221/nano-deepseek-v4</a></td><td>nanoGPT 风格的 DeepSeek-<strong>V4</strong>（CSA / HCA / mHC / MTP）。推送到 2026-08-14，还没跟上 V4.1 的 CSA2 与 CED。</td></tr>
+        </tbody>
+      </table>
+
+      <h2>只想拆一块积木</h2>
+      <table class="plain">
+        <thead><tr><th>积木</th><th>仓库</th><th>对应本书</th></tr></thead>
+        <tbody>
+          <tr><td>KDA / Gated DeltaNet 核</td><td><a href="https://github.com/fla-org/flash-linear-attention">fla-org/flash-linear-attention</a>、<a href="https://github.com/MoonshotAI/FlashKDA">FlashKDA</a>、<a href="https://github.com/NVlabs/GatedDeltaNet-2">NVlabs/GatedDeltaNet-2</a></td><td>第 5～6 章的「全序列 softmax」被换成固定大小的线性记忆</td></tr>
+          <tr><td>MLA</td><td>LLMs-from-scratch 的 MLA bonus；DeepSeek 官方 <code>inference/model.py</code></td><td>第 7 章 GQA 继续往下：不减头数，而是把 K/V 压进潜空间</td></tr>
+          <tr><td>Engram / N-gram 记忆</td><td><a href="https://github.com/deepseek-ai/Engram">deepseek-ai/Engram</a></td><td>第 3 章词嵌入旁边，再挂一张可哈希查找的表</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout">
+        <p class="label">建议顺序</p>
+        <ol class="steps">
+          <li>写完第 1～17 章，能 <code>strict=True</code> 加载官方权重。</li>
+          <li>用 from-minimind-to-more 把 MiniMind 的算法篇补全（尤其 GRPO 变体）。</li>
+          <li>在 Raschka 图鉴里打开 MiniMind 同族的 Qwen3 卡片，再并排打开 Kimi K3、GLM-5.3-Flash、DeepSeek-V4.1-Flash。</li>
+          <li>动手的话：线性注意力走 LLMs-from-scratch 的 Qwen3.5 笔记本或 single_letter_transformers；K3 走 microkimi；DeepSeek V4 走 nano-deepseek-v4。</li>
+        </ol>
+      </div>
+
+      <div class="callout stuck">
+        <p class="label">常见卡住</p>
+        <ul>
+          <li>「本书过时了？」——没有。旗舰改的是注意力怎么省 KV、残差怎么分流、专家怎么更稀。归一化、RoPE、因果掩码、下一个词损失，一条都没扔掉。</li>
+          <li>「我该从哪家官方仓抄作业？」——不要。作业仍然只对 <code>jingyaogong/minimind</code>。这一页是出门地图，不是另一套必须对齐的 API。</li>
+          <li>「V4.1-Flash 没有独立 GitHub 训练仓？」——对。可读实现在 Hugging Face 仓库的 <code>inference/model.py</code>。</li>
+        </ul>
+      </div>
+    </article>
+    <nav class="pager" data-pager></nav>
+  </main>
+</div>
+<script src="assets/book.js"></script>
+</body>
+</html>

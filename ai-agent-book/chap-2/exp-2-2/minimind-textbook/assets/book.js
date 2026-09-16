@@ -20,7 +20,8 @@ const CHAPTERS = [
   { file: "ch14-pretrain.html", title: "损失、数据与预训练", short: "预训练", part: "第四部 · 训练" },
   { file: "ch15-sft.html", title: "对话模板与监督微调", short: "监督微调", part: "第四部 · 训练" },
   { file: "ch16-generate.html", title: "生成：采样与加速推理", short: "生成", part: "第四部 · 训练" },
-  { file: "ch17-beyond.html", title: "LoRA、偏好优化与强化学习", short: "后训练", part: "第四部 · 训练" }
+  { file: "ch17-beyond.html", title: "LoRA、偏好优化与强化学习", short: "后训练", part: "第四部 · 训练" },
+  { file: "reading.html", title: "延伸阅读：从 MiniMind 走到 2026 旗舰", short: "延伸阅读", part: "之后 · 出门" }
 ];
 
 function currentFile() {

@@ -94,6 +94,9 @@
       <a href="ch15-sft.html"><span class="n">15</span><span>对话模板与监督微调</span><span class="t">对话</span></a>
       <a href="ch16-generate.html"><span class="n">16</span><span>生成：采样与加速推理</span><span class="t">说话</span></a>
       <a href="ch17-beyond.html"><span class="n">17</span><span>LoRA、偏好优化与强化学习</span><span class="t">后训练</span></a>
+
+      <h2>之后 · 出门再读</h2>
+      <a href="reading.html"><span class="n">读</span><span>延伸阅读：从 MiniMind 走到 2026 旗舰</span><span class="t">地图</span></a>
     </div>
 
     <article class="prose">
@@ -101,6 +104,7 @@
       <p>本教材依据 <a href="https://github.com/jingyaogong/minimind">jingyaogong/minimind</a> 的 <code>model/model_minimind.py</code>、<code>trainer/</code> 与 <code>dataset/lm_dataset.py</code> 编写。官方项目使用 Apache 2.0 协议。</p>
       <p>教材里的文字是重新写过的教学文本，会故意写得比源码啰嗦。关键实现与官方行为对齐，包括：键值缓存往哪一维拼接、分组查询怎么重复、混合专家的负载均衡损失，以及生成时「只把新词送进模型」。</p>
       <p>真正训练时，把 MiniMind-3 主线数据下载到 <code>exp-2-2/minimind_dataset/</code>（该目录不进 Git）。第 2.5 章的填空在 <code>exp-2-2/bpe/</code>；<code>attention.py</code> 留给第 5 章注意力。</p>
+      <p>读完第 17 章，若还想顺着 MiniMind 补算法笔记，或对照 2026 年 9 月的开源旗舰（Kimi K3、GLM-5.3-Flash、DeepSeek-V4.1-Flash），打开<a href="reading.html">延伸阅读</a>。那一页是出门地图，作业仍然只对官方 MiniMind。</p>
     </article>
     <nav class="pager" data-pager></nav>
   </main>

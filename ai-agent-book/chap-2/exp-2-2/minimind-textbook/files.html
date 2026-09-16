@@ -61,6 +61,7 @@
     eval_llm.py                第 16 章对话入口
     requirements.txt
   minimind-textbook/           你正在读的教材（不要改这里来交作业）
+    reading.html               延伸阅读：MiniMind 笔记与 2026 旗舰地图
 </code></pre>
       </figure>
       <p>类名、成员名、计算公式必须和官方 <code>model/model_minimind.py</code>、<code>dataset/lm_dataset.py</code> 一致。不要另造 dataclass / TinyAttention / 返回元组。写完应能 <code>load_state_dict(..., strict=True)</code> 加载官方 <code>pretrain_768.pth</code>，并用 <code>res.loss</code> / <code>model.generate</code> 对接官方训练和 <code>eval_llm.py</code>。</p>
@@ -130,6 +131,7 @@ python eval_llm.py --device cpu
         </tbody>
       </table>
       <p><code>MiniMindForCausalLM</code> 继承 <code>PreTrainedModel, GenerationMixin</code>；<code>generate</code> 是它的方法，不是另开的脚本。</p>
+      <p>读完作业还想对照 2026 开源旗舰，见<a href="reading.html">延伸阅读</a>。那一页的仓库不要拿来改作业符号。</p>
     </article>
     <nav class="pager" data-pager></nav>
   </main>
