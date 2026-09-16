@@ -14,7 +14,7 @@
     <header class="chap-head">
       <p class="kicker">第四部 · 取舍</p>
       <h1>第 11 章 · opencode：可观测性与重构</h1>
-      <p class="lead">当循环还要服务终端、IDE、桌面、多会话并行，<code>print</code> 和随手写的异步链条会先于功能一起崩。opencode 把「能看见、能取消、能恢复」当成一等公民，并且正在把旧架构迁到新架构——迁的过程本身就是教材。</p>
+      <p class="lead">当循环还要服务终端、IDE、桌面、多会话并行，<code>print</code> 和随手写的异步链条会先于功能一起崩。这一章把手伸进存根系统：工具调用怎么先记账再执行，录取和执行怎么拆开，工作区服务怎么划范围。迁的过程本身就是教材。</p>
     </header>
     <article class="prose">
       <div class="plain-box">
@@ -61,6 +61,88 @@
       <p><strong>v2</strong>（<a href="https://github.com/anomalyco/opencode/blob/dev/specs/v2/session.md">specs/v2/session.md</a>）：<code>sessions.prompt()</code> 先把输入写进耐用的 <code>session_input</code> 收件箱，给你一张幂等回执；执行是另一件事。崩溃后，收件箱里的活还在，不会把「正在跑」的工具默默重放——标成 interrupted，让人看见。</p>
       <p>服务按 <strong>Location</strong>（工作区）划范围：模型目录、权限、文件系统、工具表挂在 Location 上；进程级的只有会话存储和执行协调器。两个窗口打开同一仓库，工作区级服务该共享；打开两个仓库，不该串味。</p>
       <p>产品层仍有 agent 模式：<strong>build</strong>（默认可写）和 <strong>plan</strong>（只读，跑命令要问）。同一根循环，换的是工具权限集。不要把 Plan 理解成另一种魔法模型。</p>
+
+      <h2>打开哪几个文件（快照 v1.18.31）</h2>
+      <ul>
+        <li><a href="https://github.com/anomalyco/opencode/blob/dev/specs/v2/session.md">specs/v2/session.md</a> —— v2 的合同。录取、执行、崩溃、压缩、Location 都写在这里。</li>
+        <li>v1 的 <code>SessionProcessor</code>（源码路径会搬家）—— 工具 part 的 <code>pending → running → completed / error / interrupted</code>。</li>
+        <li>插件文档里 v1 <code>server()</code> 与 v2 <code>setup()</code> 双出口。</li>
+      </ul>
+      <p>快照时产品还在卖 v1，核心正在长 v2。读这个仓库，不要假装只有一张架构图。</p>
+
+      <h2>手算：崩溃发生在「改到一半」</h2>
+      <p>用户说「把 a.txt 改成 hello」。模型点名 <code>edit</code>。miniharness 会先改磁盘，再把观察推进内存——进程若在这两步中间被杀，下次醒来既不知道答应过什么，也不知道改没改完。</p>
+      <p><strong>v1 的存根</strong>把一次工具调用当成有身份的状态机，不是助手文本里的一行字：</p>
+      <figure class="code">
+        <figcaption>一次 edit 的 part 状态</figcaption>
+        <pre><code>provider 流出「要点名 edit」
+  → 写入 SQLite：part = pending     ← 已经答应
+开始跑
+  → part = running                  ← 正在厨房
+成功 / 抛错 / 人点了取消
+  → completed / error / interrupted
+界面读的是投影。崩溃后至少还留着「答应过什么」。</code></pre>
+      </figure>
+      <p><strong>v2 再拆一刀</strong>（#30632）：人的输入先写进耐用的 <code>session_input</code> 收件箱，给你一张幂等回执；执行是另一件事。</p>
+      <figure class="code">
+        <figcaption>录取 ≠ 执行</figcaption>
+        <pre><code>sessions.prompt({ sessionID, prompt, id? })
+  → 同一条 message id 再来一次：同一张回执，不另写一行
+  → resume 默认 true：录取完再 wake
+  → resume false：只录取，不跑
+
+真正开跑：
+  SessionExecution.resume(sessionID)
+    → 取出 session.location
+    → Location 上的 runner / 工具表 / 权限 / 文件系统
+    → 把收件箱里合格的输入 promote 成可见历史
+    → 才问模型</code></pre>
+      </figure>
+      <p>崩溃时两边命运不同：收件箱里的录取还在，可以再 wake；执行侧正在 <code>running</code> 的工具<strong>不能当成功重放</strong>——标成 interrupted，让人看见。v2 规范写得很狠：abandoned side effects are never silently replayed。</p>
+      <div class="callout analogy">
+        <p class="label">对照刚才的比喻</p>
+        <p>v1 是先写菜单存根再进厨房。v2 是先给客人一张取餐号（录取），厨房开始做是另一件事（执行）。客人中途走人，取餐号还在；锅里那道菜标「中断」，不要假装上过桌。</p>
+      </div>
+
+      <h2>Location：范围是架构，不是命名风格</h2>
+      <p>执行路由只从 Session ID 出发，再问这张会话属于哪个 Location（工作区）。挂在 Location 上的：模型目录、权限、文件系统、工具表。挂在进程上的：会话存储、执行协调器。两个窗口打开同一仓库，工作区级服务该共享；打开两个仓库，不该串味。</p>
+      <p>#35228 收紧 Location 服务，#45705 再把 instance 模块抽出来：进程实例 ≠ 工作区。一张图上画两种寿命，就会出现「A 仓库的语言服务器回答了 B 仓库的问题」。</p>
+      <p class="say">miniharness 只有一个 <code>Workspace</code> 对象。先把根目录传对。服务图是下一课，代码在上游。</p>
+
+      <h2>Context Epoch：说明书也要有代数</h2>
+      <p>v2 把模型看见的系统上下文做成不可变的基线，叫 Context Epoch。环境事实、今天的日期、向上发现的 AGENTS.md、当前 agent 的 skill 说明书，都是 Source。第一轮完整观察会在任何用户话变成模型可见之前，先初始化这条基线。源暂时读不到，执行停，prompt 留在收件箱里可重试——不要拿一份空说明书去问模型。</p>
+      <p>之后每一轮：先 promote 合格输入，再在安全边界对源。变了，就追加一条按时间排列的 System 消息，并和快照一起原子提交。压缩完成之后，下一轮直接从当前完整上下文渲染一条新基线。会话搬到另一个 Location，epoch 清空，目的地重新打基线。</p>
+      <p>模型切换：已经承认的切换等到当前这轮提供商边界之后再生效，不重启这一轮，也不替换基线。skill 说明书变了，当成一条按时间排列的 System 消息，而不是悄悄改开头——否则前缀缓存作废，第 5 章讲过这件事。</p>
+
+      <h2>压缩：轨迹仍在，模型看见检查点</h2>
+      <p>每一轮问模型前，runner 估算完整请求是否超过窗口减去预留。超了，且有更早的完整回合可收，就先压缩再跑当前这一轮。</p>
+      <p>压缩<strong>不删轨迹</strong>。它替换的是模型看见的那一份：一个隐藏检查点，里面是结构化滚动摘要 + 有 token 上限的近期上下文。提供商原生的 assistant / reasoning / tool 消息不跨过这条边界——前缀一变，带签名的思考块会失败。</p>
+      <p>开始和结束都是耐用事件。只有 <code>ended</code> 才投影成模型可见的压缩消息。失败或中断的压缩，上一道历史边界继续有效。提供商若以「上下文溢出」拒绝，即使本地估算没预警，也再试一次溢出触发的压缩；第二次溢出或已经有耐用输出之后的溢出，变成普通失败，不循环，不重放半截副作用。</p>
+
+      <h2>steer 和 queue 不是同一种插话</h2>
+      <table class="plain">
+        <thead><tr><th></th><th>什么时候变成模型可见</th><th>人话</th></tr></thead>
+        <tbody>
+          <tr><td>steer</td><td>下一个安全的提供商回合边界，包括当前这排水还在继续时</td><td>「停，改主意了」</td></tr>
+          <tr><td>queue</td><td>当前这排需要继续时先排队；会话否则就要闲下来时，一次只 promote 一条 FIFO</td><td>「做完再看这句」</td></tr>
+        </tbody>
+      </table>
+      <p>进程级的 <code>SessionRunCoordinator</code> 让<strong>同一会话</strong>的执行串行，<strong>不同会话</strong>可以并行。重复的 wake 会合并。interrupt 停的是本进程正在跑的，不删收件箱。</p>
+      <p>规范写明：崩溃后的自动续跑是刻意推迟的。wake 不会因为「输入已经 promote 过」就推断提供商那边的活可以安全重试。要续，用显式 <code>run</code>，从耐用投影接着走。</p>
+
+      <h2>工具表、权限、以及 bash 并没有进沙箱</h2>
+      <p>进程级有一份 <code>ApplicationTools</code>，每个 Location 再叠自己的 <code>ToolRegistry</code>。会话没写 agent 时，执行和权限都走默认的 <strong>build</strong>。不能让人看见 build 模型的行为，权限却按「没有 agent」的空策略在评。</p>
+      <p>v2 的 <code>read</code>：相对 Location 解析路径，拒绝绝对路径、逃逸、符号链接逃逸，大文件按行分页。v2 的 <code>bash</code> 规范写得很诚实：<strong>生成的壳带着宿主用户的文件系统、进程和网络权限，不是沙箱</strong>。绝对路径参数的扫描只是劝告。要隔离，去看 Codex，或自己在外层容器化。</p>
+      <p><code>apply_patch</code> 先解析全部 hunk，再批准外部目录，再预先检查，再按顺序提交。中途失败会留下「已经改了的那几处」+ 一份部分应用报告。不要幻想有自动回滚——那是后续票，不是隐含承诺。</p>
+      <p>plan 模式是权限集。#43710 允许 plan 只写 PLAN 文件；#46905 又把默认收回成「先讨论」。同一根循环，拧的是「能写什么、要不要问人」。</p>
+
+      <h2>插件双出口，以及 Effect 先别怕</h2>
+      <p>迁移期一个包可以同时 export v1 <code>server()</code> 和 v2 <code>setup()</code>。适配器写两遍，换来旧插件不在迁移周集体死亡。谁是源、谁是适配器，以当时 specs 为准。</p>
+      <p>Effect 的人话：TypeScript 里一套处理失败、取消、依赖、追踪的库。Agent 运行时充满长时间运行和必须清理的资源。用类型把取消写成可检查的东西，代价是学习曲线，以及旧写法与新写法并存。桌面主进程先迁（#26148），再砍核心——先从外壳练刀。</p>
+      <div class="callout">
+        <p class="label">先别管</p>
+        <p>Layer、OpenTelemetry、SQLite 投影表名、<code>session.next.*</code> 这些实验事件的具体编号。问三个问题就够：一次工具在执行前写了什么？kill -9 之后还能否知道？两个窗口打开同一仓库，工作区级服务是共享还是隔离？</p>
+      </div>
 
       <h2>先把「全部 PR」这件事说清楚</h2>
       <div class="census">
@@ -183,14 +265,6 @@ gh search prs --repo anomalyco/opencode --merged "persist" --limit 50</code></pr
         </tbody>
       </table>
 
-      <h2>「Effect」这个词先别怕</h2>
-      <p>人话版：它是 TypeScript 里一套帮你处理「失败、取消、依赖、追踪」的库。Agent 运行时充满长时间运行、中断、竞赛、必须清理的资源。用库把这些写成可检查的类型，代价是学习曲线，以及迁移期旧写法与新写法并存。</p>
-      <div class="callout">
-        <p class="label">先别管</p>
-        <p>Layer、LayerNode、OpenTelemetry 的具体 API。问三个问题就够：一次工具在执行前写了什么？kill -9 之后还能否知道？两个窗口打开同一仓库，工作区级服务是共享还是隔离？</p>
-      </div>
-      <p class="say">对你自己的 harness：不必上他们那套运行时库。要上的是<strong>事件 + 取消 + 「先记后做」</strong>。miniharness 的 <code>events</code> 列表是起点；真正持久化是下一课，代码在上游，不在我们包里。</p>
-
       <h2>和 miniharness 的距离</h2>
       <table class="plain">
         <thead><tr><th>他们有</th><th>我们有</th><th>你下一步可以补</th></tr></thead>
@@ -220,6 +294,9 @@ gh search prs --repo anomalyco/opencode --merged "persist" --limit 50</code></pr
         <li>为什么「先执行工具，成功了再写日志」在崩溃时会撒谎？</li>
         <li>Plan 模式换的是模型，还是工具权限？</li>
         <li>#30632 把 prompt 拆成录取和执行，崩溃时哪一边还在？</li>
+        <li>同一条 message id 把 prompt 再提交一次，v2 会怎样？</li>
+        <li>v2 规范里的 bash，算不算沙箱？</li>
+        <li>steer 和 queue 哪一个会在当前这排水还在继续时插进模型可见历史？</li>
       </ul>
       <details class="answer">
         <summary>自测答案</summary>
@@ -227,6 +304,9 @@ gh search prs --repo anomalyco/opencode --merged "persist" --limit 50</code></pr
           <li>工具可能已经改了半个文件，日志却说「没做过」。下次恢复会按「没做过」再改一次，或按「做过」跳过——两种都可能是错的。先记账，崩溃后至少知道答应过什么。</li>
           <li>首先是工具权限（以及要不要问人）。模型可以是同一个。</li>
           <li>收件箱里的录取还在，可以再 wake。执行侧正在跑的工具不能当成功重放，要标 interrupted。这就是「存根还在、锅里的菜另说」。</li>
+          <li>同一张幂等回执，不另写一行。换了 session、正文或投递模式再复用这个 id，才会失败。</li>
+          <li>不算。规范写明生成的壳带着宿主用户权限。路径劝告不是边界。</li>
+          <li>steer。queue 要等当前这排不再需要继续、会话否则就要闲下来，一次 promote 一条。</li>
         </ol>
       </details>
     </article>

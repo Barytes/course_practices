@@ -14,7 +14,7 @@
     <header class="chap-head">
       <p class="kicker">第四部 · 取舍</p>
       <h1>第 10 章 · pi：可扩展的极简生产级</h1>
-      <p class="lead">从这里起，教材不再给你「标准实现」。pi 证明一件事：核心循环可以保持能读完，产品功能靠旁边的扩展长出来。版本会变；这个分界不太会变。</p>
+      <p class="lead">从这里起，教材不再给你「标准实现」。这一章会把手伸进 pi 的循环、会话树和扩展面：先走完一轮真实请求，再看那些 PR 为什么投成现在这样。版本会变；「车架小、灯挂旁边」这条分界不太会变。</p>
     </header>
     <article class="prose">
       <div class="plain-box">
@@ -66,6 +66,120 @@
       </table>
       <p>会话落盘是 JSONL 树：每条记录有 <code>id</code> / <code>parentId</code>。当前叶子往根走，就是模型这一轮该看见的路径。压缩、换模型、扩展私货，都是树上的一种节点，不是另开一份隐秘名单。</p>
       <p>默认工具只要四件：<code>read</code> / <code>write</code> / <code>edit</code> / <code>bash</code>。系统提示刻意压在大约一千 token 以内。AGENTS.md 分层读入。作者的原话是：模型已经被 RL 训练到知道 coding agent 是什么，不必再塞一万 token 的说明书。</p>
+
+      <h2>打开哪几个文件（快照 v0.85.1）</h2>
+      <p>不要从根 README 线性往下读。先钉这五处，路径搬家本身就是信号：</p>
+      <ul>
+        <li><a href="https://github.com/earendil-works/pi/blob/main/packages/agent/README.md">packages/agent/README.md</a> —— 循环、事件、转向队列。这是车架说明书。</li>
+        <li><a href="https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/session-format.md">packages/coding-agent/docs/session-format.md</a> —— JSONL 树、压缩、custom 条目。这是落盘合同。</li>
+        <li><code>packages/coding-agent/src/core/session-manager.ts</code> —— <code>buildContextEntries()</code> / <code>buildSessionContext()</code>。</li>
+        <li><code>packages/coding-agent/src/core/agent-session.ts</code> —— 把核心循环焊成能天天用的 CLI。</li>
+        <li><a href="https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/containerization.md">packages/coding-agent/docs/containerization.md</a> —— 核心没有权限系统时，隔离怎么挂在旁边。</li>
+      </ul>
+
+      <h2>手算：用户说「a.txt 里写了什么」</h2>
+      <p>工作区有 <code>a.txt</code>，内容是 <code>hello</code>。你在 TUI 里打了那句话。miniharness 会直接把 user 消息推进内存数组。pi 多走了三道缝：落盘、投影给模型、广播给界面。</p>
+      <ol class="steps">
+        <li><strong>写入会话树。</strong>JSONL 追加一行 <code>type: "message"</code>，<code>parentId</code> 指向当前叶子。叶子指针前移。磁盘上现在有：头 → 用户消息。还没有问模型。</li>
+        <li><strong>广播 <code>message_start</code> / <code>message_end</code>。</strong>TUI 订阅这些事件来画字。循环肚子里没有 <code>print</code>。</li>
+        <li><strong><code>transformContext</code> 再 <code>convertToLlm</code>。</strong>树上可能有「给界面看、不给模型看」的 custom 条目。寄出前必须滤掉。miniharness 没有这一步，因为内存数组既是真相也是请求。</li>
+        <li><strong>流式问模型。</strong>事件是 <code>message_start</code> → 多次 <code>message_update</code>（只带增量）→ <code>message_end</code>。落盘的是完整 assistant 消息，<code>stopReason</code> 不会是 <code>"pending"</code>。<code>pending</code> 只活在流里。</li>
+        <li><strong>若点名了 <code>read</code>。</strong>先 <code>tool_execution_start</code>，再跑工具，再 <code>tool_execution_end</code>，再追加一条 <code>role: "toolResult"</code>。工具可以返回两份：<code>content</code> 给模型，<code>details</code> 给界面。</li>
+        <li><strong>再开一轮 <code>turn_start</code>。</strong>模型看见「用户问了 + 自己点过名 + 观察是 hello」，用人话回答。没有工具，<code>agent_end</code>。</li>
+      </ol>
+      <figure class="code">
+        <figcaption>这一轮结束时，磁盘上的树（人话版）</figcaption>
+        <pre><code>header  v3  cwd=/proj
+  └─ m1  user: a.txt 里写了什么？
+       └─ m2  assistant: toolCall read path=a.txt   stopReason=toolUse
+            └─ m3  toolResult: hello                 isError=false
+                 └─ m4  assistant: 里面写着 hello。   stopReason=stop  ← 叶子</code></pre>
+      </figure>
+      <p>模型下一轮看见的，是从叶子 m4 走到根的那一条路，不是文件里所有行。如果后来你在 m2 处分叉，m3、m4 还在文件里，只是不在当前路上。</p>
+
+      <h2>两份名单：AgentMessage 不是 LLM Message</h2>
+      <p>pi-agent-core 把这件事写成循环的前置步骤：</p>
+      <figure class="code">
+        <figcaption>寄出前的两道过滤器</figcaption>
+        <pre><code>AgentMessage[]  →  transformContext()  →  AgentMessage[]  →  convertToLlm()  →  Message[]  →  模型</code></pre>
+      </figure>
+      <dl class="walk">
+        <dt>transformContext</dt>
+        <dd>可异步。压缩、注入「现在几点」、按扩展改名单。还在 AgentMessage 世界里。</dd>
+        <dt>convertToLlm</dt>
+        <dd>必须做。只留下模型认得的 <code>user</code> / <code>assistant</code> / <code>toolResult</code>。界面私货、bash 的 <code>!!</code> 本地命令、<code>display:true</code> 但按规定不进 LLM 的 custom，都在这里消失。</dd>
+      </dl>
+      <p>工具结果也是两份：<code>content</code> 进 LLM；<code>details</code> 给 TUI 画卡片。会话树上还有第三种：<code>type: "custom"</code> 的扩展私货，<code>buildSessionContext()</code> 直接跳过——重载时扩展自己扫 <code>customType</code> 重建状态，模型永远看不见。</p>
+      <p class="say">miniharness 的 <code>messages</code> 数组把这三份揉成一份。你一旦做界面或持久化，第一道缝就是把它们拆开。第 7 章的 <code>events</code> 和第 10 章的 <code>before_model</code> 已经是萌芽。</p>
+
+      <h2>事件是界面的 API，不是日志的边角</h2>
+      <p>一次带工具的 <code>prompt("Read a.txt")</code>，核心循环广播的顺序是固定的（快照自 packages/agent/README.md）：</p>
+      <figure class="code">
+        <figcaption>带一次 read 的事件序</figcaption>
+        <pre><code>agent_start
+turn_start
+message_start / message_end     ← 用户那句
+message_start                   ← 助手开始说话
+message_update × N              ← 增量；权威在 message_end
+message_end                     ← 完整 assistant，含 toolCall
+tool_execution_start
+tool_execution_end
+message_start / message_end     ← toolResult
+turn_end                        ← 这一拍结束
+turn_start                      ← 因为还有工具结果要消化
+message_start … message_end     ← 人话
+turn_end
+agent_end</code></pre>
+      </figure>
+      <p>两件容易读错的事：</p>
+      <ul>
+        <li><code>message_update</code> 只给助手。用户消息和工具结果没有增量事件。</li>
+        <li>默认工具是<strong>并行</strong>的：preflight 按顺序，允许跑的就一起跑，<code>tool_execution_end</code> 按完成先后响；但落盘的 toolResult <strong>仍按助手点名顺序</strong>。某个工具声明 <code>executionMode: "sequential"</code>，整批退回串行。</li>
+      </ul>
+      <p>扩展的 <code>beforeToolCall</code> 发生在 <code>tool_execution_start</code> 之后、真正执行之前，可以挡住并带 <code>terminate: true</code>。被挡住的调用仍然要写回一条错误结果——第 3 章那条不变量在这里没有破：点过名就必须有观察。</p>
+
+      <h2>会话树：压缩、分叉、换模型都是一种节点</h2>
+      <p>文件在 <code>~/.pi/agent/sessions/&lt;把路径里的斜杠换成横杠&gt;/&lt;时间戳&gt;_&lt;id&gt;.jsonl</code>。头一行是 <code>type: "session"</code>，带 <code>version: 3</code> 和 <code>cwd</code>，没有 <code>id</code>/<code>parentId</code>——它不是树上的节点。</p>
+      <p>从当前叶子走到根，得到模型该看见的路径。<code>buildContextEntries()</code> 若路上有压缩节点，用<strong>最近一次</strong>压缩当检查点：摘要替换 <code>firstKeptEntryId</code> 之前的一切，保留从该 id 到压缩节点之前的尾巴，再加上压缩之后的新消息。更早的压缩被这次盖掉。</p>
+      <figure class="code">
+        <figcaption>压缩之后模型看见什么</figcaption>
+        <pre><code>文件里：  h  m1  m2  m3  m4  m5  COMPACT(firstKept=m4)  m6  m7←叶子
+模型见：  COMPACT摘要  +  m4  m5  +  m6  m7
+                    ↑ 压缩前的尾巴      ↑ 压缩后的新话</code></pre>
+      </figure>
+      <p><code>/tree</code> 分叉不另存文件：叶子指针跳回某个祖先，新消息当那个祖先的另一个孩子。放弃的那条路可以生成 <code>branch_summary</code> 贴到新叶子上，让模型知道「那边试过方案 A」。换模型是 <code>model_change</code> 节点，不是改头信息；<code>buildSessionContext()</code> 沿路读到最后一次变更，才决定这一轮用哪家 API。思考痕迹没有签名时，改写成带标签的普通文本——Anthropic 的签名 blob 不能原样塞给下一家。</p>
+
+      <h2>转向、跟随、中止：人插话怎么进循环</h2>
+      <p>miniharness 一轮工具必须跑完。pi 把人的插话分成两种队列：</p>
+      <table class="plain">
+        <thead><tr><th></th><th>什么时候进</th><th>正在跑的工具怎么办</th></tr></thead>
+        <tbody>
+          <tr><td>steer（转向）</td><td>当前这批工具<strong>全部结束后</strong>、下一轮 LLM 之前</td><td>默认先跑完。#259 之后，排队消息也可以打断剩余工具：没跑的以错误结果跳过。</td></tr>
+          <tr><td>follow-up（跟随）</td><td>模型已经不再要工具、也没有转向时</td><td>相当于「说完再追加一句」，不会打断。</td></tr>
+          <tr><td>abort</td><td>立刻取消当前流和工具的 AbortSignal</td><td>已经落盘的点名仍在树上；观察写成中止/错误，不能当成功。</td></tr>
+        </tbody>
+      </table>
+      <p>被跳过的工具必须写回观察。否则下一轮模型会以为「我点了 grep 但没结果」，再点一次，或者以为成功了——两种都是撒谎。</p>
+
+      <h2>扩展：一种插头，两种落盘</h2>
+      <p>#454 之后只有一个发现目录 <code>extensions/</code>，一个 CLI 旗标 <code>-e</code>。#645 之后可分享的能力是包：<code>pi install</code>、<code>/reload</code>。热加载让你改扩展不必杀进程。</p>
+      <p>扩展往树上写东西只有两条合法路：</p>
+      <ul>
+        <li><code>custom</code> 条目：扩展私货。模型不可见。重载时靠 <code>customType</code> 找回。</li>
+        <li><code>custom_message</code> 条目：<code>display</code> 控制 TUI 画不画；内容<strong>会</strong>进 <code>buildSessionContext()</code>。这是「我要模型看见」的那条缝。</li>
+      </ul>
+      <p>把界面状态写进 <code>custom_message</code>，就是在让所有用户为你的灯付钱。长文讨厌的「待办做成默认」，工程上就是误用了第二条路。</p>
+
+      <h2>pi-tui：默认不抢终端</h2>
+      <p>两种画法。全屏（Ratatui、早期 opencode）抢走滚动缓冲，自己实现搜索和选中。pi 默认写在普通滚动缓冲里，只重绘脏行：系统搜索、选中、滚动都还在。代价是超长会话要比对更多行。v0.84.0 把全屏做成运行时可切换——默认仍是滚动缓冲，全屏是灯。约束被使用压力改写，但没有被删除。</p>
+
+      <h2>权限不在车架上</h2>
+      <p>README 写得很直：没有内置权限系统，进程权限就是启动它的那个用户。要隔离就看 containerization.md 的三种挂法：Gondolin（主机跑 pi 和鉴权，内置工具进微虚机）、整容器 Docker、OpenShell。第三方扩展 <code>pi-permission-system</code> 后来自己做了弹窗（默认 <code>yoloMode: false</code>）。这恰好证明那一票投对了：需要的人挂灯，不需要的人上下文不被占。</p>
+
+      <div class="callout">
+        <p class="label">先别管</p>
+        <p>TypeScript 类名、chord 的 RPC、某个扩展的 <code>registerEntryRenderer</code> 签名、pi-telemetry 的 schema。那些会改。这一节要带走的是：落盘是树；寄出前有过滤器；事件是界面 API；点过名必须有观察；权限是灯不是锁。</p>
+      </div>
 
       <h2>先把「全部 PR」这件事说清楚</h2>
       <div class="census">
@@ -211,10 +325,6 @@
       <p>长文列的「不做」：待办、plan、MCP、后台 bash、子 agent、内置权限。2026 年的仓库更丰富——压缩进了核心，全屏 TUI 变成可切换，包管理进了 CLI。权限和 MCP 仍然不进核心。</p>
       <p class="say">正确动作：打开最近的 release，看他们后来把哪些「故意不做」又做了，以及做成了<strong>扩展</strong>还是<strong>默认开启</strong>。默认开启就会改变所有人的上下文，这正是作者当初讨厌某些产品的点。</p>
 
-      <h2>pi-tui 的关键一票</h2>
-      <p>两种终端界面：全屏抢终端（早期 Amp / opencode，以及 Codex 的 Ratatui），以及写在普通滚动缓冲里、只重绘脏行（pi 的默认，也是 Claude Code 那类）。后者保留系统搜索、选中、滚动；代价是超长会话要比对更多行。</p>
-      <p>v0.84.0 加了运行时全屏模式。这不是「长文作废」，是「默认仍是滚动缓冲，全屏变成灯」。选的时候问：我的用户是不是还把终端当日志看？</p>
-
       <h2>教学缝：三只钩子</h2>
       <div class="where">
         <p class="label">写到哪里</p>
@@ -259,6 +369,9 @@
         <li>miniharness 的 <code>after_tool</code> 改的是磁盘，还是模型下一轮看见的字符串？</li>
         <li>#454 和 #645 各解决了扩展面上的哪一个问题？为什么要分成两次发版？</li>
         <li>v0.84 加了全屏 TUI，长文是不是作废了？</li>
+        <li>JSONL 里有一条 <code>type: "custom"</code> 和一条 <code>type: "custom_message"</code>。哪一条会进模型？</li>
+        <li>并行工具批次里，<code>tool_execution_end</code> 的顺序和落盘 toolResult 的顺序一定相同吗？</li>
+        <li>压缩节点的 <code>firstKeptEntryId</code> 指的是被丢掉的第一条，还是被保留的第一条？</li>
       </ul>
       <details class="answer">
         <summary>自测答案</summary>
@@ -267,6 +380,9 @@
           <li>只改观察字符串。文件该怎么改还是怎么改。下一轮模型看见的是剪过或改过的汇报。</li>
           <li>#454 把「有几种插头」收成一种。#645 把「插头怎么分发、怎么热加载」做成包。先统一概念，再做市场；反过来会把两套旧 API 都带进包管理器。</li>
           <li>没有。默认仍是滚动缓冲。全屏是可切换的灯。取舍还在，只是菜单上多了一盏灯。</li>
+          <li>只有 <code>custom_message</code> 进 <code>buildSessionContext()</code>。<code>custom</code> 是扩展私货，模型看不见。</li>
+          <li>不一定。完成事件按谁先跑完；落盘按助手点名顺序。界面可以按完成闪，轨迹必须按点名排。</li>
+          <li>被保留的第一条。它之前的东西被摘要替换。名字里的 firstKept 就是字面意思。</li>
         </ol>
       </details>
     </article>
