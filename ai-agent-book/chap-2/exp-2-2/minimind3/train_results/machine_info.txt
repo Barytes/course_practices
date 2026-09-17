@@ -1,0 +1,32 @@
+===== MiniMind-3 pretrain start 2026-09-16T21:50:10+08:00 =====
+host=autodl-container-13da1185fa-167db02e  python=/root/miniconda3/bin/python
+python 3.12.3
+torch 2.8.0+cu128 cuda 12.8
+cuda_available True
+gpu Tesla V100S-PCIE-32GB cap (7, 0)
+bf16_supported True
+vram_gb 31.73
+pid 18457
+Wed Sep 16 21:50:12 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.105.08             Driver Version: 580.105.08     CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  Tesla V100S-PCIE-32GB          On  |   00000000:00:0B.0 Off |                  Off |
+| N/A   30C    P0             37W /  250W |       0MiB /  32768MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+data:
+-rw-r--r-- 1 root root 1.2G May 25 15:47 /root/autodl-tmp/course_practices/ai-agent-book/chap-2/exp-2-2/minimind3/dataset/pretrain_t2t_mini.jsonl
+CMD: python -u train_pretrain.py --from_weight none --dtype float16 --num_workers 4

@@ -15,5 +15,10 @@ wandb/
 ai-agent-book/chap-2/exp-2-2/minimind_dataset/*
 !ai-agent-book/chap-2/exp-2-2/minimind_dataset/.gitkeep
 
+# 预训练 jsonl / 续训 ckpt / pip 日志体积大，不进 Git
+ai-agent-book/chap-2/exp-2-2/minimind3/dataset/*.jsonl
+ai-agent-book/chap-2/exp-2-2/minimind3/checkpoints/
+ai-agent-book/chap-2/exp-2-2/minimind3/train_results/bootstrap.log
+
 # minbpe train.py 产出
 ai-agent-book/chap-2/exp-2-2/bpe/models/
