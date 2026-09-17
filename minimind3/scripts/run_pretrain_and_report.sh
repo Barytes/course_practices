@@ -2,7 +2,8 @@
 # MiniMind-3 单卡预训练 + loss 图 + 续写评测。用 screen 调用，SSH 断开不影响。
 set -uo pipefail
 
-ROOT="/root/autodl-tmp/course_practices/ai-agent-book/chap-2/exp-2-2/minimind3"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 RESULT="${ROOT}/train_results"
 TRAINER="${ROOT}/trainer"
 PYTHON="${PYTHON:-python}"

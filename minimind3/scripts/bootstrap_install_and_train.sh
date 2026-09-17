@@ -3,7 +3,8 @@
 trap '' HUP
 set -uo pipefail
 
-ROOT="/root/autodl-tmp/course_practices/ai-agent-book/chap-2/exp-2-2/minimind3"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 RESULT="${ROOT}/train_results"
 REQ="${ROOT}/requirements.txt"
 PYTHON="${PYTHON:-/root/miniconda3/bin/python}"

@@ -3,8 +3,9 @@
 trap '' HUP
 set -uo pipefail
 
-ROOT="/root/autodl-tmp/course_practices"
-MM="${ROOT}/ai-agent-book/chap-2/exp-2-2/minimind3"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MM="$(cd "${SCRIPT_DIR}/.." && pwd)"
+ROOT="$(cd "${MM}/.." && pwd)"
 RESULT="${MM}/train_results"
 LOG="${RESULT}/finalize.log"
 STATUS="${RESULT}/STATUS.txt"
@@ -45,17 +46,17 @@ sleep 5
 say "STEP=git_commit"
 cd "${ROOT}"
 git add .gitignore \
-  ai-agent-book/chap-2/exp-2-2/minimind3/scripts/bootstrap_install_and_train.sh \
-  ai-agent-book/chap-2/exp-2-2/minimind3/scripts/run_pretrain_and_report.sh \
-  ai-agent-book/chap-2/exp-2-2/minimind3/scripts/make_pretrain_report.py \
-  ai-agent-book/chap-2/exp-2-2/minimind3/scripts/finalize_push_and_shutdown.sh \
-  ai-agent-book/chap-2/exp-2-2/minimind3/train_results/REPORT.md \
-  ai-agent-book/chap-2/exp-2-2/minimind3/train_results/loss.png \
-  ai-agent-book/chap-2/exp-2-2/minimind3/train_results/loss.csv \
-  ai-agent-book/chap-2/exp-2-2/minimind3/train_results/eval_qa.txt \
-  ai-agent-book/chap-2/exp-2-2/minimind3/train_results/machine_info.txt \
-  ai-agent-book/chap-2/exp-2-2/minimind3/train_results/train.log \
-  ai-agent-book/chap-2/exp-2-2/minimind3/train_results/STATUS.txt \
+  minimind3/scripts/bootstrap_install_and_train.sh \
+  minimind3/scripts/run_pretrain_and_report.sh \
+  minimind3/scripts/make_pretrain_report.py \
+  minimind3/scripts/finalize_push_and_shutdown.sh \
+  minimind3/train_results/REPORT.md \
+  minimind3/train_results/loss.png \
+  minimind3/train_results/loss.csv \
+  minimind3/train_results/eval_qa.txt \
+  minimind3/train_results/machine_info.txt \
+  minimind3/train_results/train.log \
+  minimind3/train_results/STATUS.txt \
   || true
 
 if git diff --cached --quiet; then
